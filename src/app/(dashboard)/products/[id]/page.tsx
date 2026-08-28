@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 
+import { BreadcrumbTitle } from "@/components/app-shell/breadcrumb-title";
 import { dbCategoryRepo } from "@/lib/domain/categories/repository";
 import type { ProductId } from "@/lib/domain/products/entity";
 import { dbProductRepo } from "@/lib/domain/products/repository";
@@ -35,6 +36,8 @@ export default async function EditProductPage({
 
   return (
     <div className="flex flex-col gap-4">
+      {/* Renders nothing — replaces the uuid in the breadcrumb. */}
+      <BreadcrumbTitle title={product.name} />
       <div className="flex flex-wrap items-center gap-3">
         <h1 className="text-xl font-semibold tracking-tight">{product.name}</h1>
         <StatusBadge status={product.status} />

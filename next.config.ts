@@ -55,6 +55,11 @@ const publicEnv = {
 };
 
 const nextConfig: NextConfig = {
+  // The E2E suite starts its own dev server on another port. Next allows only
+  // one dev server per build directory, so without this, `bun run test:e2e`
+  // fails outright whenever `bun run dev` happens to be running — an ambush
+  // rather than a conflict, since the ports never collide.
+  distDir: process.env.NEXT_DIST_DIR ?? ".next",
   reactCompiler: true,
   env: publicEnv,
   // TypeScript 7's native compiler ships no JS API yet, so `next build` must

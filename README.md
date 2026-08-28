@@ -24,11 +24,11 @@ development picker.
 Local development and a deployment differ only in two environment variables.
 Nothing in the feature code branches on either.
 
-| Seam        | Local (default)                          | Deployed                                 |
-| ----------- | ---------------------------------------- | ---------------------------------------- |
-| **Database**| `DATABASE_DRIVER=sqlite` — embedded SQLite at `.data/the-greatness.db` | `DATABASE_DRIVER=postgres` + `DATABASE_URL` — Neon over HTTP |
-| **Storage** | `STORAGE_DRIVER=local` — `.data/uploads`, served by `/uploads/[...key]` | `STORAGE_DRIVER=blob` + `BLOB_READ_WRITE_TOKEN` — Vercel Blob, uploaded client-direct |
-| **Sign-in** | `ALLOW_DEV_LOGIN=1` — passwordless operator picker | Google OAuth (`GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`) |
+| Seam         | Local (default)                                                         | Deployed                                                                              |
+| ------------ | ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| **Database** | `DATABASE_DRIVER=sqlite` — embedded SQLite at `.data/the-greatness.db`  | `DATABASE_DRIVER=postgres` + `DATABASE_URL` — Neon over HTTP                          |
+| **Storage**  | `STORAGE_DRIVER=local` — `.data/uploads`, served by `/uploads/[...key]` | `STORAGE_DRIVER=blob` + `BLOB_READ_WRITE_TOKEN` — Vercel Blob, uploaded client-direct |
+| **Sign-in**  | `ALLOW_DEV_LOGIN=1` — passwordless operator picker                      | Google OAuth (`GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`)                            |
 
 Setting only `DATABASE_URL` is enough to select Postgres — a Vercel project
 with a Neon integration does the right thing with no second variable.
@@ -141,5 +141,5 @@ __project__/            spec, backlog, done — the trail of what and why
 - [`__project__/backlog.md`](__project__/backlog.md) — what is left.
 - [`__project__/done.md`](__project__/done.md) — what shipped, newest first.
 - [`dev-workflow.md`](dev-workflow.md) — the process and the quality bar.
-- Module docblocks carry the *why*. Where a decision looks arbitrary, the
+- Module docblocks carry the _why_. Where a decision looks arbitrary, the
   comment above it usually names the failure it prevents.

@@ -18,6 +18,10 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Fragment } from "react";
 
+import {
+  BreadcrumbTitleProvider,
+  useBreadcrumbTitle,
+} from "@/components/app-shell/breadcrumb-title";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -51,6 +55,7 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
+import { isId } from "@/lib/id";
 
 const NAV = [
   { href: "/products", label: "Products", icon: Package },
@@ -63,9 +68,14 @@ export type ShellUser = {
   readonly image: string | null;
 };
 
-/** `/products/abc-123/` → the crumbs to show. The id segment is replaced by
- * the page's own title where one is given, so a breadcrumb never shows a uuid
- * to a reader. */
+/**
+ * `/products/<uuid>` → the crumbs to show.
+ *
+ * The last crumb prefers the title the page announced (`BreadcrumbTitle`).
+ * Failing that, an id-shaped segment falls back to a readable word rather
+ * than printing 36 characters of hex at someone — which is exactly what this
+ * rendered before it was looked at in a browser.
+ */
 const crumbsFor = (
   pathname: string,
   currentTitle: string | undefined,
@@ -74,28 +84,38 @@ const crumbsFor = (
   return segments.map((segment, index) => {
     const href = `/${segments.slice(0, index + 1).join("/")}`;
     const isLast = index === segments.length - 1;
-    const label =
-      isLast && currentTitle
-        ? currentTitle
-        : segment.charAt(0).toUpperCase() + segment.slice(1);
-    return { href, label };
+    const fallback = isId(segment)
+      ? "Details"
+      : segment.charAt(0).toUpperCase() + segment.slice(1);
+    return { href, label: isLast && currentTitle ? currentTitle : fallback };
   });
 };
 
-export function DashboardShell({
+export function DashboardShell(props: {
+  readonly user: ShellUser;
+  readonly signOut: () => Promise<void>;
+  readonly children: React.ReactNode;
+}) {
+  // The provider has to sit ABOVE the header that reads the title, and above
+  // `children`, which is what sets it.
+  return (
+    <BreadcrumbTitleProvider>
+      <Shell {...props} />
+    </BreadcrumbTitleProvider>
+  );
+}
+
+function Shell({
   user,
-  currentTitle,
   signOut,
   children,
 }: {
   readonly user: ShellUser;
-  /** What to call the last crumb — a product's name rather than its id. */
-  readonly currentTitle?: string;
   readonly signOut: () => Promise<void>;
   readonly children: React.ReactNode;
 }) {
   const pathname = usePathname();
-  const crumbs = crumbsFor(pathname, currentTitle);
+  const crumbs = crumbsFor(pathname, useBreadcrumbTitle());
   const initials = (user.name ?? user.email).slice(0, 2).toUpperCase();
 
   return (

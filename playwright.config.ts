@@ -31,6 +31,8 @@ export default defineConfig({
     timeout: 180_000,
     env: {
       PORT: String(PORT),
+      // Its own build directory, so the suite runs alongside a dev server.
+      NEXT_DIST_DIR: ".next-e2e",
       DATABASE_DRIVER: "sqlite",
       DATABASE_FILE: ".data/e2e.db",
       STORAGE_DRIVER: "local",

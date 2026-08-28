@@ -1,6 +1,6 @@
 # v1 — Product admin dashboard
 
-**Status:** 🚧 In progress (started 2026-08-28)
+**Status:** ✅ Shipped 2026-08-28 — all nine AC met. Ship facts in [`done.md`](done.md); what was deliberately left is in [`backlog.md`](backlog.md). This file freezes at intent: do not add an "as-built" section.
 
 ## Goal
 
