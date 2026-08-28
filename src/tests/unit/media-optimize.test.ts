@@ -1,18 +1,20 @@
 /**
  * The image and video pipelines through their injected seams — no DOM, no
  * canvas, no `createImageBitmap`. What is under test is the decision-making:
- * which box we scale to, when we decline to keep a re-encode, and that a
- * failure anywhere becomes a tagged value rather than an exception escaping
- * into a `for` loop over ten files.
+ * which variants get produced for a source of a given size, which box each is
+ * scaled to, and that a failure anywhere becomes a tagged value rather than an
+ * exception escaping into a loop over ten files.
  */
 
 import { describe, expect, it, vi } from "vitest";
 
+import { ARCHIVE_MAX_EDGE } from "@/lib/media/constraints";
 import type { Box } from "@/lib/media/fit";
 import {
-  DEFAULT_MAX_EDGE,
+  DISPLAY_MAX_EDGE,
+  encodeImageVariants,
   type ImageOps,
-  optimizeImage,
+  planVariants,
 } from "@/lib/media/optimize-image";
 import {
   capturePoster,
@@ -25,69 +27,112 @@ const blobOf = (bytes: number): Blob =>
 
 const imageOps = (
   source: Box,
-  encodedBytes: number,
-): ImageOps & { readonly encode: ReturnType<typeof vi.fn> } => {
-  const encode = vi.fn(async () => blobOf(encodedBytes));
-  return {
+  encodedBytes: number | ((box: Box) => number) = 10,
+) => {
+  const encode = vi.fn(async (_image: unknown, box: Box) =>
+    blobOf(typeof encodedBytes === "number" ? encodedBytes : encodedBytes(box)),
+  );
+  const ops = {
     decode: async () => ({ ...source, handle: "bitmap" }),
     encode,
     release: vi.fn(),
   };
+  return ops as unknown as ImageOps & { readonly encode: typeof encode };
 };
 
-describe("optimizeImage", () => {
-  it("encodes into the fitted box, not the source box", async () => {
-    const ops = imageOps({ width: 4000, height: 2000 }, 10);
-    await optimizeImage(blobOf(1_000), ops);
+describe("planVariants", () => {
+  it("produces only a display variant for a source inside the archive cap", () => {
+    // Re-encoding a 2000px photo to 4096px would replace a perfectly good
+    // original with a slightly worse one, for no saving at all.
+    const plan = planVariants({ width: 3024, height: 4032 });
+    expect(plan.map((v) => v.name)).toEqual(["display"]);
+  });
+
+  it("adds an archive variant once the source exceeds the cap", () => {
+    // A 48MP phone frame: 12 MB to upload and 12 MB to keep forever.
+    const plan = planVariants({ width: 8064, height: 6048 });
+    expect(plan.map((v) => v.name)).toEqual(["archive", "display"]);
+  });
+
+  it("treats exactly the cap as inside it", () => {
+    expect(
+      planVariants({ width: ARCHIVE_MAX_EDGE, height: 100 }).map((v) => v.name),
+    ).toEqual(["display"]);
+    expect(
+      planVariants({ width: ARCHIVE_MAX_EDGE + 1, height: 100 }).map(
+        (v) => v.name,
+      ),
+    ).toEqual(["archive", "display"]);
+  });
+
+  it("measures the LONGEST edge, whichever way the photo is turned", () => {
+    // A portrait 6048×8064 is the same photograph rotated; it must not slip
+    // past a cap that only looked at width.
+    expect(
+      planVariants({ width: 3000, height: 8064 }).map((v) => v.name),
+    ).toEqual(["archive", "display"]);
+  });
+
+  it("keeps the archive at a higher quality than the display copy", () => {
+    // Every future size is re-derived from the archive, so its artefacts
+    // compound in a way the display copy's never do.
+    const [archive, display] = planVariants({ width: 8000, height: 8000 });
+    expect(archive.quality).toBeGreaterThan(display.quality);
+    expect(archive.maxEdge).toBeGreaterThan(display.maxEdge);
+  });
+});
+
+describe("encodeImageVariants", () => {
+  it("decodes ONCE and encodes each planned variant", async () => {
+    // Decoding a 48MP frame is seconds on a phone; calling a single-variant
+    // helper twice would pay that twice.
+    const ops = imageOps({ width: 8064, height: 6048 });
+    const decode = vi.spyOn(ops, "decode");
+    const r = await encodeImageVariants(blobOf(12_000_000), ops);
+
+    expect(r.ok).toBe(true);
+    expect(decode).toHaveBeenCalledTimes(1);
+    expect(ops.encode).toHaveBeenCalledTimes(2);
+  });
+
+  it("scales each variant into its own fitted box", async () => {
+    const ops = imageOps({ width: 8064, height: 6048 });
+    await encodeImageVariants(blobOf(12_000_000), ops);
+
+    expect(ops.encode).toHaveBeenNthCalledWith(
+      1,
+      expect.anything(),
+      { width: ARCHIVE_MAX_EDGE, height: 3072 },
+      0.92,
+    );
+    expect(ops.encode).toHaveBeenNthCalledWith(
+      2,
+      expect.anything(),
+      { width: DISPLAY_MAX_EDGE, height: 1200 },
+      0.82,
+    );
+  });
+
+  it("reports the SOURCE dimensions alongside each variant's own box", async () => {
+    const ops = imageOps({ width: 8064, height: 6048 });
+    const r = await encodeImageVariants(blobOf(12_000_000), ops);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.value.source).toEqual({ width: 8064, height: 6048 });
+    expect(r.value.variants.map((v) => v.box.width)).toEqual([4096, 1600]);
+  });
+
+  it("honours a caller's plan", async () => {
+    const ops = imageOps({ width: 4000, height: 4000 });
+    await encodeImageVariants(blobOf(1000), ops, () => [
+      { name: "display", maxEdge: 200, quality: 0.5 },
+    ]);
+    expect(ops.encode).toHaveBeenCalledTimes(1);
     expect(ops.encode).toHaveBeenCalledWith(
       expect.anything(),
-      { width: DEFAULT_MAX_EDGE, height: 800 },
-      expect.any(Number),
+      { width: 200, height: 200 },
+      0.5,
     );
-  });
-
-  it("reports the SOURCE dimensions, not the variant's", async () => {
-    // The row records what the operator uploaded; the variant's size is
-    // derivable from it and the max edge.
-    const ops = imageOps({ width: 4000, height: 2000 }, 10);
-    const r = await optimizeImage(blobOf(1_000), ops);
-    expect(r.ok).toBe(true);
-    if (r.ok) {
-      expect(r.value.sourceWidth).toBe(4000);
-      expect(r.value.sourceHeight).toBe(2000);
-    }
-  });
-
-  it("marks a re-encode that came out larger as not worth keeping", async () => {
-    // A flat PNG logo routinely re-encodes bigger. Storing that would make
-    // every page load pay for the "optimization".
-    const r = await optimizeImage(
-      blobOf(1_000),
-      imageOps({ width: 100, height: 100 }, 4_000),
-    );
-    expect(r.ok).toBe(true);
-    if (r.ok) expect(r.value.worthKeeping).toBe(false);
-  });
-
-  it("marks an equal-size re-encode as not worth keeping either", async () => {
-    const r = await optimizeImage(
-      blobOf(1_000),
-      imageOps({ width: 100, height: 100 }, 1_000),
-    );
-    if (r.ok) expect(r.value.worthKeeping).toBe(false);
-  });
-
-  it("keeps a genuinely smaller re-encode", async () => {
-    const r = await optimizeImage(
-      blobOf(1_000_000),
-      imageOps({ width: 4000, height: 3000 }, 120_000),
-    );
-    expect(r.ok).toBe(true);
-    if (r.ok) {
-      expect(r.value.worthKeeping).toBe(true);
-      expect(r.value.mime).toBe("image/webp");
-      expect(r.value.bytes).toBe(120_000);
-    }
   });
 
   it("returns DecodeFailed rather than throwing", async () => {
@@ -97,7 +142,7 @@ describe("optimizeImage", () => {
       },
       encode: async () => blobOf(1),
     };
-    const r = await optimizeImage(blobOf(10), ops);
+    const r = await encodeImageVariants(blobOf(10), ops);
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.error.tag).toBe("DecodeFailed");
   });
@@ -109,14 +154,14 @@ describe("optimizeImage", () => {
         throw new Error("no canvas");
       },
     };
-    const r = await optimizeImage(blobOf(10), ops);
+    const r = await encodeImageVariants(blobOf(10), ops);
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.error.tag).toBe("EncodeFailed");
   });
 
-  it("releases the decoded image even when the encode throws", async () => {
-    // Without this, a browser tab uploading twenty images leaks twenty
-    // decoded bitmaps — which on a phone is the tab being killed.
+  it("releases the decoded image even when an encode throws", async () => {
+    // Without this, a tab uploading twenty images leaks twenty decoded
+    // bitmaps — which on a phone is the tab being killed.
     const release = vi.fn();
     const ops: ImageOps = {
       decode: async () => ({ width: 10, height: 10, handle: null }),
@@ -125,18 +170,8 @@ describe("optimizeImage", () => {
       },
       release,
     };
-    await optimizeImage(blobOf(10), ops);
+    await encodeImageVariants(blobOf(10), ops);
     expect(release).toHaveBeenCalledTimes(1);
-  });
-
-  it("honours an explicit max edge and quality", async () => {
-    const ops = imageOps({ width: 2000, height: 1000 }, 10);
-    await optimizeImage(blobOf(1_000), ops, { maxEdge: 400, quality: 0.5 });
-    expect(ops.encode).toHaveBeenCalledWith(
-      expect.anything(),
-      { width: 400, height: 200 },
-      0.5,
-    );
   });
 });
 

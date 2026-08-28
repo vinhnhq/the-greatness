@@ -19,6 +19,7 @@ import type { UploadEntry } from "@/hooks/use-media-upload";
 import { noteMessage } from "@/hooks/use-media-upload";
 import {
   ALLOWED_MEDIA_TYPES,
+  ARCHIVE_MAX_EDGE,
   MAX_IMAGE_BYTES,
   MAX_VIDEO_BYTES,
 } from "@/lib/media/constraints";
@@ -85,9 +86,16 @@ export function UploadZone({
           Drop images or video, or click to choose
         </span>
         <span className="text-xs text-muted-foreground">
-          JPEG · PNG · WebP · GIF up to {Math.round(MAX_IMAGE_BYTES / MB)} MB
-          &nbsp;·&nbsp; MP4 · WebM · MOV up to{" "}
-          {Math.round(MAX_VIDEO_BYTES / MB)} MB
+          JPEG · PNG · WebP · GIF · AVIF up to{" "}
+          {Math.round(MAX_IMAGE_BYTES / MB)} MB &nbsp;·&nbsp; MP4 · WebM · MOV
+          up to {Math.round(MAX_VIDEO_BYTES / MB)} MB
+        </span>
+        {/* Said up front, because it is the reason a 12 MB photograph is
+            welcome here rather than rejected — and the reason the file that
+            comes back out may not be byte-identical. */}
+        <span className="text-xs text-muted-foreground">
+          Photographs are optimized in your browser before they upload; above{" "}
+          {ARCHIVE_MAX_EDGE}px the stored original is resized to fit.
         </span>
         {hint && <span className="text-xs text-muted-foreground">{hint}</span>}
       </label>

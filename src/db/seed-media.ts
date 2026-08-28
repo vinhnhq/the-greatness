@@ -64,24 +64,29 @@ const chunk = (type: string, data: Buffer): Buffer => {
 };
 
 /**
- * A `size`×`size` PNG: a diagonal gradient between two shades of the seed's
- * hue, with a lighter band so a thumbnail is visibly *something* rather than
- * a flat square.
+ * A `width`×`height` PNG: a diagonal gradient between two shades of the seed's
+ * hue, with a lighter band so a thumbnail is visibly *something* rather than a
+ * flat square. Square by default; the E2E suite asks for a wide one to prove
+ * the browser's resize path with a real, oversized image.
  */
-export const placeholderPng = (seed: string, size: number): Buffer => {
+export const placeholderPng = (
+  seed: string,
+  width: number,
+  height: number = width,
+): Buffer => {
   const hue = hueOf(seed);
   const [r1, g1, b1] = hslToRgb(hue, 0.45, 0.32);
   const [r2, g2, b2] = hslToRgb((hue + 40) % 360, 0.5, 0.62);
 
   // Raw scanlines: each row is a filter byte (0 = none) then RGB triples.
-  const raw = Buffer.alloc(size * (1 + size * 3));
+  const raw = Buffer.alloc(height * (1 + width * 3));
   let offset = 0;
-  for (let y = 0; y < size; y++) {
+  for (let y = 0; y < height; y++) {
     raw[offset++] = 0;
-    for (let x = 0; x < size; x++) {
-      const t = (x / size + y / size) / 2;
+    for (let x = 0; x < width; x++) {
+      const t = (x / width + y / height) / 2;
       // A soft diagonal band, so the gradient has a feature in it.
-      const band = Math.abs(x / size - y / size) < 0.08 ? 26 : 0;
+      const band = Math.abs(x / width - y / height) < 0.08 ? 26 : 0;
       raw[offset++] = Math.min(255, Math.round(r1 + (r2 - r1) * t) + band);
       raw[offset++] = Math.min(255, Math.round(g1 + (g2 - g1) * t) + band);
       raw[offset++] = Math.min(255, Math.round(b1 + (b2 - b1) * t) + band);
@@ -89,8 +94,8 @@ export const placeholderPng = (seed: string, size: number): Buffer => {
   }
 
   const ihdr = Buffer.alloc(13);
-  ihdr.writeUInt32BE(size, 0);
-  ihdr.writeUInt32BE(size, 4);
+  ihdr.writeUInt32BE(width, 0);
+  ihdr.writeUInt32BE(height, 4);
   ihdr[8] = 8; // bit depth
   ihdr[9] = 2; // colour type: truecolour
   // 10..12 are compression, filter and interlace methods — all 0.

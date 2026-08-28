@@ -31,11 +31,15 @@ const signIn = async (page: Page) => {
 
 /** Wait for an upload to finish: the tile count is the only honest signal,
  * since the progress row disappears the moment the row is written. */
-const uploadInGallery = async (page: Page, count: number) => {
+const uploadInGallery = async (
+  page: Page,
+  count: number,
+  fixture = "e2e/fixtures/swatch.png",
+) => {
   const before = await tiles(page).count();
   await page.setInputFiles(
     'input[type="file"]',
-    Array.from({ length: count }, () => "e2e/fixtures/swatch.png"),
+    Array.from({ length: count }, () => fixture),
   );
   await expect(tiles(page)).toHaveCount(before + count, { timeout: 60_000 });
 };
@@ -209,5 +213,29 @@ test.describe("the media library", () => {
     await expect(page.getByText("The library is empty")).toBeVisible({
       timeout: 30_000,
     });
+  });
+
+  test("a photograph over the archive cap is resized in the browser", async ({
+    page,
+  }) => {
+    // The only place the real canvas path runs with an oversized image: every
+    // unit test around it injects a fake encoder, so this is what proves the
+    // browser actually does the work — and that a 12 MB phone photograph is
+    // now welcome rather than rejected.
+    await signIn(page);
+    await page.goto("/gallery");
+    await uploadInGallery(page, 1, "e2e/fixtures/large-photo.png");
+
+    await tiles(page).first().getByRole("button").click();
+    const viewer = page.getByRole("dialog");
+    await expect(viewer).toBeVisible();
+
+    // 5000×3000 stored as 4096×2458 — the dimensions describe the file that
+    // exists, not the one that was picked.
+    await expect(viewer.getByText(/4096×2458/)).toBeVisible();
+
+    // And the display copy is a fraction of the stored original, which is
+    // itself a fraction of what was uploaded.
+    await expect(viewer.getByText(/→/)).toBeVisible();
   });
 });

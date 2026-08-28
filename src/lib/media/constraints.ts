@@ -22,6 +22,25 @@ export const ALLOWED_IMAGE_TYPES = [
   "image/avif",
 ] as const;
 
+/**
+ * Types that are stored exactly as uploaded, with no derived variant.
+ *
+ * GIF is here because a canvas re-encode keeps **one frame**. An animated GIF
+ * would arrive in the catalogue as a still, and nothing in the UI could say
+ * why — the file looks fine, it just stopped moving. Not optimizing it is the
+ * honest outcome.
+ *
+ * HEIC is deliberately absent from the allow-list entirely rather than listed
+ * here: no browser but Safari can decode it, and iOS converts HEIC to JPEG on
+ * its way through a file input, so the practical path already works.
+ */
+export const NEVER_RE_ENCODE = ["image/gif"] as const;
+
+export const shouldReEncode = (mime: string): boolean =>
+  !(NEVER_RE_ENCODE as readonly string[]).includes(
+    mime.toLowerCase().split(";")[0].trim(),
+  );
+
 export const ALLOWED_VIDEO_TYPES = [
   "video/mp4",
   "video/webm",
@@ -33,12 +52,40 @@ export const ALLOWED_MEDIA_TYPES = [
   ...ALLOWED_VIDEO_TYPES,
 ] as const;
 
-export const MAX_IMAGE_BYTES = 8 * 1024 * 1024; // 8 MB
+/**
+ * The image ceiling is 25 MB, not 8.
+ *
+ * A phone photograph is routinely larger than 8 MB — an iPhone 48MP JPEG is
+ * 10–15 MB and a 200MP Android frame can pass 25 — and the first version of
+ * this rejected all of them **before the optimizer ever saw the file**. The
+ * optimizer exists precisely to handle files that size; a gate in front of it
+ * that turns them away is the tail wagging the dog.
+ *
+ * 25 MB is where the ceiling stops being about quality and starts being about
+ * someone having picked the wrong file. `ARCHIVE_MAX_EDGE` is what keeps the
+ * stored bytes reasonable at that size.
+ */
+export const MAX_IMAGE_BYTES = 25 * 1024 * 1024; // 25 MB
 export const MAX_VIDEO_BYTES = 100 * 1024 * 1024; // 100 MB
 /** The larger of the two — what a token route has to allow at minimum. */
 export const MAX_UPLOAD_BYTES = MAX_VIDEO_BYTES;
 
-/** How many attachments one product may carry. Not a storage limit: past
+/**
+ * The stored original is capped at 4096px on its longest edge.
+ *
+ * Above that, "the original" is a high-quality re-encode rather than the
+ * literal file. That is a real trade — the pixels past 4096 are gone — made
+ * deliberately: a 48MP frame is 12 MB to upload and 12 MB to keep forever, and
+ * nothing a catalogue does with a product photo needs more than 4096px. A
+ * source at or below the cap is stored **byte-identical**.
+ *
+ * Quality 0.92 rather than the display variant's 0.82: this copy is what any
+ * future size gets re-derived from, so its artefacts would compound.
+ */
+export const ARCHIVE_MAX_EDGE = 4096;
+export const ARCHIVE_QUALITY = 0.92;
+
+/** How many assets one product's gallery may carry. Not a storage limit: past
  * roughly this many, the reorder grid stops being usable. */
 export const MAX_ATTACHMENTS_PER_PRODUCT = 20;
 

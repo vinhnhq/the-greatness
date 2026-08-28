@@ -63,14 +63,24 @@ describe("validateFile", () => {
   });
 
   it("applies the per-kind cap, not one shared cap", () => {
-    // A 20 MB video is fine; a 20 MB image is not. One shared limit would let
+    // A 60 MB video is fine; a 60 MB image is not. One shared limit would let
     // the image through, which is the bug this asserts against.
-    const video = validateFile({ type: "video/mp4", size: 20 * 1024 * 1024 });
-    const image = validateFile({ type: "image/png", size: 20 * 1024 * 1024 });
+    const video = validateFile({ type: "video/mp4", size: 60 * 1024 * 1024 });
+    const image = validateFile({ type: "image/png", size: 60 * 1024 * 1024 });
     expect(video.ok).toBe(true);
     expect(image.ok).toBe(false);
     if (!image.ok && image.error.tag === "TooLarge") {
       expect(image.error.limit).toBe(MAX_IMAGE_BYTES);
+    }
+  });
+
+  it("accepts a photograph a modern phone actually produces", () => {
+    // The whole reason the ceiling moved. An iPhone 48MP JPEG is 10–15 MB and
+    // a 200MP Android frame can pass 20 — the first version of this rejected
+    // every one of them before the optimizer ever saw the file.
+    for (const mb of [8.5, 12, 15, 24]) {
+      const r = validateFile({ type: "image/jpeg", size: mb * 1024 * 1024 });
+      expect(r.ok, `${mb} MB`).toBe(true);
     }
   });
 

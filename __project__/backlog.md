@@ -28,6 +28,14 @@ Ship facts in [`done.md`](done.md). What v2 deliberately left:
 - [ ] **V2.8** ↷ **Bulk attach from the gallery.** Selection mode can delete;
       "add these six to a product" is the natural other verb, and needs a
       product picker that does not exist yet.
+- [ ] **V2.10** ↷ **Record the pre-resize dimensions.** When the stored
+      original is a 4096px re-encode, the row keeps only the stored size. The
+      upload card says "resized from …" at the time and nothing does
+      afterwards. Two nullable columns would let the gallery say it too.
+- [ ] **V2.11** ↷ **Server-side derivation from the archive copy.** Now that
+      the archive is a known, bounded 4096px file, deriving further sizes
+      (thumbnails, a 800px card image) server-side becomes cheap and
+      predictable in a way it was not against arbitrary originals.
 - [ ] **V2.9** **Replace a file in place.** Today swapping a photo means
       uploading the new one and unlinking the old one on every product using
       it. A library is where "replace" starts being expected.

@@ -55,11 +55,21 @@ underneath, and neither needs a native dependency or `node-gyp`.
 and returns everything that will be stored:
 
 ```
-file → validate (MIME + size caps)
-     → images: canvas → WebP, longest edge ≤ 1600, quality 0.82
-       video: keep the bytes, grab a poster frame ~1s in
+file → validate (MIME + size caps: 25 MB image, 100 MB video)
+     → images: ONE decode, then
+         archive — 4096px q0.92, produced only if the source is bigger
+         display — 1600px q0.82
+       video:  keep the bytes, grab a poster frame ~1s in
      → { origin, optimized?, poster?, width, height, durationMs }
 ```
+
+**A phone photograph is bigger than 8 MB, so the ceiling is 25.** The first
+version gated at 8 MB _in front of_ the optimizer — turning away exactly the
+files it was built to handle. Above 4096px the stored "original" is a
+high-quality re-encode rather than the literal file: a 48MP frame is 12 MB to
+upload and 12 MB to keep forever, and nothing a catalogue does with a product
+photo needs more than 4096px. At or below the cap the true bytes are stored
+untouched, and the UI says which happened.
 
 Three properties it holds, each with tests written around it:
 
@@ -68,7 +78,11 @@ Three properties it holds, each with tests written around it:
   to "origin only" with a note, never to a lost file. One bad file in ten must
   not cost the other nine.
 - **A re-encode that came out larger is discarded.** A flat PNG logo routinely
-  "optimizes" bigger; storing that would make every page load pay for it.
+  "optimizes" bigger; storing that would make every page load pay for it. The
+  same test guards the archive copy: if shrinking a huge file does not actually
+  save bytes, the pixels are not worth taking.
+- **An animated GIF is never re-encoded.** A canvas pass keeps one frame, and
+  the catalogue would show a still with nothing able to say why.
 - **The DOM calls hold no decisions.** `createImageBitmap`, `OffscreenCanvas`
   and the `<video>` seek live in `*.browser.ts` files behind an injected seam,
   so the logic is unit-tested and the adapters are a file boundary a decision

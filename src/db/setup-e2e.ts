@@ -16,6 +16,8 @@ import { FileMigrationProvider, Migrator } from "kysely/migration";
 import { createDb } from "@/lib/db";
 import { getSqliteFile } from "@/lib/db-url";
 
+import { placeholderPng } from "./seed-media";
+
 export const E2E_OPERATOR_EMAIL = "e2e@the-greatness.local";
 
 const main = async (): Promise<void> => {
@@ -73,6 +75,20 @@ const main = async (): Promise<void> => {
     .execute();
 
   await db.destroy();
+
+  // An oversized photograph, generated rather than committed: 2.4 MB of
+  // binary in git history to prove one resize is a bad trade, and the encoder
+  // that writes it is the seed's, already exercised on every `db:local`.
+  //
+  // 5000×3000 clears the 4096px archive cap, so the E2E suite can prove the
+  // browser's real canvas path resizes it — every unit test around that path
+  // mocks the canvas, so this is the only place it actually runs.
+  const fixtures = path.resolve("e2e/fixtures");
+  await fs.mkdir(fixtures, { recursive: true });
+  await fs.writeFile(
+    path.join(fixtures, "large-photo.png"),
+    placeholderPng("large", 5000, 3000),
+  );
 
   console.log(`e2e database ready: ${getSqliteFile()}`);
 };

@@ -26,6 +26,25 @@ library, and products **link** to it — the Photos/Shopify shape.
   it describes the picture, and it was previously typed against a 120px
   thumbnail.
 
+### v2.1 — the upload ceiling (same day)
+
+The 8 MB image cap ran **in front of** the optimizer, so a 12 MB phone
+photograph was rejected before the thing built to shrink it ever saw the file.
+
+- Ceiling raised to **25 MB**; a 48MP iPhone JPEG is 10–15 MB and a 200MP
+  Android frame can pass 20.
+- The stored original is capped at **4096px**: above it, a q0.92 re-encode; at
+  or below, the true bytes, byte-identical. Reported as `origin-resized` so the
+  UI can say which happened — it is the one degradation that loses pixels.
+- **One decode, two encodes.** Decoding a 48MP frame is seconds on a phone;
+  the encoder now takes a _plan_ computed from the source dimensions, which
+  are not known until after the decode.
+- **Animated GIFs are never re-encoded** — a canvas pass keeps one frame, and
+  the catalogue would show a still with nothing able to explain it.
+- The E2E suite uploads a generated 5000×3000 file and asserts it comes back
+  4096×2458. Every unit test around that path mocks the canvas; this is the
+  only place the browser's real encode runs.
+
 ### Four findings from this arc
 
 1. **A client component must not import a repository module.** Twice now.
@@ -59,6 +78,25 @@ library, and products **link** to it — the Photos/Shopify shape.
 - **The seed now generates placeholder images** (`seed-media.ts`, PNG encoded
   in-process), so the gallery means something on a fresh clone. Every fourth
   product is left bare on purpose — a row with no image has to look deliberate.
+
+### v2.1 — the upload ceiling (same day)
+
+The 8 MB image cap ran **in front of** the optimizer, so a 12 MB phone
+photograph was rejected before the thing built to shrink it ever saw the file.
+
+- Ceiling raised to **25 MB**; a 48MP iPhone JPEG is 10–15 MB and a 200MP
+  Android frame can pass 20.
+- The stored original is capped at **4096px**: above it, a q0.92 re-encode; at
+  or below, the true bytes, byte-identical. Reported as `origin-resized` so the
+  UI can say which happened — it is the one degradation that loses pixels.
+- **One decode, two encodes.** Decoding a 48MP frame is seconds on a phone;
+  the encoder now takes a _plan_ computed from the source dimensions, which
+  are not known until after the decode.
+- **Animated GIFs are never re-encoded** — a canvas pass keeps one frame, and
+  the catalogue would show a still with nothing able to explain it.
+- The E2E suite uploads a generated 5000×3000 file and asserts it comes back
+  4096×2458. Every unit test around that path mocks the canvas; this is the
+  only place the browser's real encode runs.
 
 ### Four findings from this arc
 

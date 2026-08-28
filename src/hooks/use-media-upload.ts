@@ -103,6 +103,12 @@ export const noteMessage = (note: PrepareNote): string => {
       return "could not be optimized in this browser; the original was stored";
     case "optimized-not-smaller":
       return "was already smaller than an optimized copy; the original is used";
+    case "origin-resized":
+      // Said plainly, because it is the one note describing something the
+      // operator lost rather than something the app declined to do.
+      return "was larger than 4096px, so the stored original was resized to fit";
+    case "not-re-encoded":
+      return "is animated, so it was stored as-is rather than flattened";
     case "video-probe-failed":
       return "has no readable metadata; the original was stored";
     case "video-poster-failed":
