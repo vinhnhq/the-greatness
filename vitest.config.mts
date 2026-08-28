@@ -47,14 +47,29 @@ export default defineConfig({
       // exists to touch React, Next or the network is excluded rather than
       // padded with tests that assert the framework works.
       include: ["src/lib/**/*.ts"],
+      // Excluded because a Node test can only reach these through a mock,
+      // and a test of a mock is a test of nothing. Each one is deliberately
+      // decision-free — the logic they would otherwise contain lives in a
+      // sibling module that IS measured (`upload.ts` beside `local.ts`,
+      // `optimize-image.ts` beside `optimize-image.browser.ts`).
       exclude: [
+        // Type declarations and driver construction.
         "src/lib/db.ts",
-        "src/lib/db-pool.ts",
         "src/lib/db-types.ts",
+        "src/lib/storage/types.ts",
+        // Next.js / better-auth boundaries — exercised by the E2E smoke.
         "src/lib/auth.ts",
         "src/lib/auth-client.ts",
         "src/lib/require-user.ts",
+        "src/lib/env-server.ts",
+        "src/lib/env-client.ts",
+        // Browser-only adapters: canvas, <video>, XHR, Vercel Blob's client.
+        "src/lib/media/*.browser.ts",
+        "src/lib/storage/local.ts",
         "src/lib/storage/blob.ts",
+        "src/lib/storage/index.ts",
+        // Tailwind class merging.
+        "src/lib/utils.ts",
         "src/lib/**/*.test.ts",
       ],
       thresholds: {

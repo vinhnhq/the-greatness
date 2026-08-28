@@ -187,3 +187,29 @@ describe("BunSqliteDialect", () => {
     expect(idx.rows.map((i) => i.name)).toContain("idx_widget_name");
   });
 });
+
+describe("SqliteDialect — unsupported operations", () => {
+  it("refuses to stream rather than silently buffering the whole result", async () => {
+    // Kysely's `.stream()` promises bounded memory. The driver is synchronous
+    // and would have to read everything first, so a "working" stream here
+    // would be a lie that only shows up as an OOM on a large table.
+    await expect(
+      (async () => {
+        for await (const _ of db.selectFrom("widget").selectAll().stream()) {
+          // unreachable
+        }
+      })(),
+    ).rejects.toThrow(/streamQuery is not supported/);
+  });
+
+  it("refuses an isolation level SQLite cannot honour", async () => {
+    // Accepting and ignoring it would mean code that reads as if it asked for
+    // a weaker isolation and silently got serializable — on one driver only.
+    await expect(
+      db
+        .transaction()
+        .setIsolationLevel("read committed")
+        .execute(async () => undefined),
+    ).rejects.toThrow(/one isolation level/);
+  });
+});

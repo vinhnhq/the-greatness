@@ -6,7 +6,7 @@
  * runner. Injecting them keeps the part that can actually be wrong — which
  * box we scale to, when we decline to replace the original, what happens when
  * a decode fails — in a plain unit test, and confines the untestable part to
- * `browserImageOps` below, which contains no decisions.
+ * `optimize-image.browser.ts`, which contains no decisions.
  *
  * **Why WebP and not AVIF.** AVIF encodes smaller but `canvas.convertToBlob`
  * support for it is uneven, and a silent fallback to PNG would upload a file
@@ -89,26 +89,4 @@ export const optimizeImage = async (
   } finally {
     ops.release?.(image);
   }
-};
-
-/**
- * The browser implementation. No decisions live here — if you find yourself
- * adding an `if` to this object, it belongs in `optimizeImage` above where a
- * test can reach it.
- */
-export const browserImageOps: ImageOps = {
-  decode: async (file) => {
-    const bitmap = await createImageBitmap(file);
-    return { width: bitmap.width, height: bitmap.height, handle: bitmap };
-  },
-  encode: async (image, box, quality) => {
-    const canvas = new OffscreenCanvas(box.width, box.height);
-    const ctx = canvas.getContext("2d");
-    if (!ctx) throw new Error("2d canvas context unavailable");
-    ctx.drawImage(image.handle as ImageBitmap, 0, 0, box.width, box.height);
-    return canvas.convertToBlob({ type: OPTIMIZED_MIME, quality });
-  },
-  release: (image) => {
-    (image.handle as ImageBitmap).close();
-  },
 };

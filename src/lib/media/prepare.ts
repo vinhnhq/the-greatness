@@ -13,13 +13,11 @@
 
 import { err, ok, type Result } from "../result";
 import { type MediaRejection, validateFile } from "./constraints";
-import {
-  browserImageOps,
-  type ImageOps,
-  optimizeImage,
-} from "./optimize-image";
+import { type ImageOps, optimizeImage } from "./optimize-image";
+import { browserImageOps } from "./optimize-image.browser";
 import type { PreparedMedia } from "./types";
-import { browserVideoOps, capturePoster, type VideoOps } from "./video-poster";
+import { capturePoster, type VideoOps } from "./video-poster";
+import { browserVideoOps } from "./video-poster.browser";
 
 /** Why a prepared file has no optimized variant or no poster. Not errors —
  * the upload proceeds — but worth surfacing rather than swallowing. */

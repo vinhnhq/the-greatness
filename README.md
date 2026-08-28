@@ -1,36 +1,145 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# The Greatness
 
-## Getting Started
+A product-catalogue admin dashboard. Sign in, then list · search · filter ·
+sort · create · edit products, each with many categories and an ordered set of
+image and video attachments.
 
-First, run the development server:
+Every attachment is stored **twice**: the untouched original, and a
+web-delivery variant produced in the browser before upload.
+
+## Start it
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+bun install
+bun run db:local     # migrate + seed 30 products across 8 categories
+bun run dev          # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+No Docker, no cloud account, no `.env` needed. The first run creates
+`.data/the-greatness.db` and seeds an operator; `/sign-in` offers them in a
+development picker.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Two seams, one codebase
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Local development and a deployment differ only in two environment variables.
+Nothing in the feature code branches on either.
 
-## Learn More
+| Seam        | Local (default)                          | Deployed                                 |
+| ----------- | ---------------------------------------- | ---------------------------------------- |
+| **Database**| `DATABASE_DRIVER=sqlite` — embedded SQLite at `.data/the-greatness.db` | `DATABASE_DRIVER=postgres` + `DATABASE_URL` — Neon over HTTP |
+| **Storage** | `STORAGE_DRIVER=local` — `.data/uploads`, served by `/uploads/[...key]` | `STORAGE_DRIVER=blob` + `BLOB_READ_WRITE_TOKEN` — Vercel Blob, uploaded client-direct |
+| **Sign-in** | `ALLOW_DEV_LOGIN=1` — passwordless operator picker | Google OAuth (`GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`) |
 
-To learn more about Next.js, take a look at the following resources:
+Setting only `DATABASE_URL` is enough to select Postgres — a Vercel project
+with a Neon integration does the right thing with no second variable.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+`.env.example` documents every key. Copy it to `.env.local` to change anything.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### About "bun:sqlite"
 
-## Deploy on Vercel
+The local driver uses **Bun's** built-in SQLite when Bun is the host
+(`bun run migrate`, `bun run seed`) and **Node's** `node:sqlite` otherwise
+(`next dev`, Vitest) — Next spawns its server through Node, so an
+unconditional `bun:sqlite` import throws there. `src/lib/db/sqlite-open.ts`
+picks between them; both are embedded SQLite with the same C library
+underneath, and neither needs a native dependency or `node-gyp`.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## The media library
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+`src/lib/media/` is the piece worth reading first. It takes a picked `File`
+and returns everything that will be stored:
+
+```
+file → validate (MIME + size caps)
+     → images: canvas → WebP, longest edge ≤ 1600, quality 0.82
+       video: keep the bytes, grab a poster frame ~1s in
+     → { origin, optimized?, poster?, width, height, durationMs }
+```
+
+Three properties it holds, each with tests written around it:
+
+- **Past validation, the origin always survives.** A failed decode, an
+  unavailable canvas, a video whose poster cannot be grabbed — each degrades
+  to "origin only" with a note, never to a lost file. One bad file in ten must
+  not cost the other nine.
+- **A re-encode that came out larger is discarded.** A flat PNG logo routinely
+  "optimizes" bigger; storing that would make every page load pay for it.
+- **The DOM calls hold no decisions.** `createImageBitmap`, `OffscreenCanvas`
+  and the `<video>` seek live in `*.browser.ts` files behind an injected seam,
+  so the logic is unit-tested and the adapters are a file boundary a decision
+  cannot quietly cross.
+
+Uploading is deliberately asymmetric (`src/lib/storage/upload.ts`): the origin
+goes first and alone, and a derived file failing afterwards is swallowed to
+null rather than losing an upload the operator already waited for.
+
+## Search
+
+Product search folds both sides — lowercase, NFD, diacritics stripped, `đ→d` —
+into a stored `searchText` column, so `ao dai` finds `Áo Dài Lụa`.
+
+That is not only a nicety. `LOWER()` in SQLite is ASCII-only (no ICU), so the
+obvious `LOWER(name) LIKE LOWER(?)` finds nothing for a Vietnamese name
+locally while Postgres finds it — a bug visible on exactly one driver. Folding
+in JavaScript makes a plain `LIKE` behave identically on both.
+
+## Commands
+
+```bash
+bun run dev              # next dev --turbopack
+bun run build            # next build
+bun run lint             # oxlint --type-aware + oxfmt --check
+bun run format           # oxfmt .
+bun run migrate <cmd>    # latest | up | down | status
+bun run seed             # sample catalogue
+bun run db:local         # migrate + seed
+bun run db:reset         # wipe .data and rebuild
+bun run test             # vitest, both projects
+bun run test:unit        # pure logic only
+bun run test:integration # repositories against a scratch SQLite file
+bun run test:coverage    # both + thresholds — the real gate
+bun run test:e2e         # playwright, against its own database
+```
+
+**`bun test` is not `bun run test`.** The first invokes Bun's built-in runner,
+finds zero Vitest files and exits 0 — a green result that tested nothing.
+
+## The four gates
+
+Green before any task is done, per [`dev-workflow.md`](dev-workflow.md):
+
+```bash
+bun run lint && bunx tsc --noEmit && bun run test:coverage && bun run build
+```
+
+CI (`.github/workflows/ci.yml`) runs the same four on every PR.
+
+## Layout
+
+```
+src/
+  app/
+    (dashboard)/        products, categories — gated by the layout AND per action
+    api/attachments/    upload token (blob) and receiver (local)
+    uploads/[...key]/   serves locally-stored files
+    sign-in/
+  components/ui/        shadcn primitives (radix-maia, neutral) — edited in place
+  lib/
+    db/                 the SQLite dialect and its runtime-detecting opener
+    domain/             entities, repositories (+ in-memory twins), operations
+    media/              the upload library
+    storage/            the two drivers behind one interface
+  db/migrations/        kysely migrations
+  tests/{unit,integration}/
+e2e/                    playwright smoke
+__project__/            spec, backlog, done — the trail of what and why
+```
+
+## Where the reasoning lives
+
+- [`__project__/spec.md`](__project__/spec.md) — goal, out of scope, acceptance criteria.
+- [`__project__/backlog.md`](__project__/backlog.md) — what is left.
+- [`__project__/done.md`](__project__/done.md) — what shipped, newest first.
+- [`dev-workflow.md`](dev-workflow.md) — the process and the quality bar.
+- Module docblocks carry the *why*. Where a decision looks arbitrary, the
+  comment above it usually names the failure it prevents.

@@ -1,0 +1,211 @@
+"use client";
+
+/**
+ * The signed-in chrome: a collapsible sidebar, a header carrying the
+ * breadcrumb, the theme toggle and the user menu.
+ *
+ * A client component that takes only serializable display data, so the layout
+ * above it stays a server component and the session read happens once, on the
+ * server, rather than in a `useEffect` after paint.
+ *
+ * The breadcrumb is derived from the pathname rather than passed down. Passing
+ * it would mean every page remembering to, and a page that forgot would render
+ * a header that silently described the previous one.
+ */
+
+import { LayoutGrid, LogOut, Package, Tags } from "lucide-react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { Fragment } from "react";
+
+import { ThemeToggle } from "@/components/theme-toggle";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Separator } from "@/components/ui/separator";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarHeader,
+  SidebarInset,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarProvider,
+  SidebarTrigger,
+} from "@/components/ui/sidebar";
+
+const NAV = [
+  { href: "/products", label: "Products", icon: Package },
+  { href: "/categories", label: "Categories", icon: Tags },
+] as const;
+
+export type ShellUser = {
+  readonly name: string | null;
+  readonly email: string;
+  readonly image: string | null;
+};
+
+/** `/products/abc-123/` → the crumbs to show. The id segment is replaced by
+ * the page's own title where one is given, so a breadcrumb never shows a uuid
+ * to a reader. */
+const crumbsFor = (
+  pathname: string,
+  currentTitle: string | undefined,
+): readonly { readonly href: string; readonly label: string }[] => {
+  const segments = pathname.split("/").filter(Boolean);
+  return segments.map((segment, index) => {
+    const href = `/${segments.slice(0, index + 1).join("/")}`;
+    const isLast = index === segments.length - 1;
+    const label =
+      isLast && currentTitle
+        ? currentTitle
+        : segment.charAt(0).toUpperCase() + segment.slice(1);
+    return { href, label };
+  });
+};
+
+export function DashboardShell({
+  user,
+  currentTitle,
+  signOut,
+  children,
+}: {
+  readonly user: ShellUser;
+  /** What to call the last crumb — a product's name rather than its id. */
+  readonly currentTitle?: string;
+  readonly signOut: () => Promise<void>;
+  readonly children: React.ReactNode;
+}) {
+  const pathname = usePathname();
+  const crumbs = crumbsFor(pathname, currentTitle);
+  const initials = (user.name ?? user.email).slice(0, 2).toUpperCase();
+
+  return (
+    <SidebarProvider>
+      <Sidebar collapsible="icon">
+        <SidebarHeader>
+          <div className="flex items-center gap-2 px-2 py-1.5">
+            <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground">
+              <LayoutGrid className="size-4" />
+            </div>
+            <span className="truncate font-semibold group-data-[collapsible=icon]:hidden">
+              The Greatness
+            </span>
+          </div>
+        </SidebarHeader>
+        <SidebarContent>
+          <SidebarGroup>
+            <SidebarGroupContent>
+              {/* Named so it is distinguishable from the breadcrumb, which
+                  links to the same places. */}
+              <SidebarMenu aria-label="Sections">
+                {NAV.map((item) => (
+                  <SidebarMenuItem key={item.href}>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={pathname.startsWith(item.href)}
+                      tooltip={item.label}
+                    >
+                      <Link href={item.href}>
+                        <item.icon className="size-4" />
+                        <span>{item.label}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        </SidebarContent>
+      </Sidebar>
+
+      <SidebarInset>
+        <header className="sticky top-0 z-10 flex h-14 shrink-0 items-center gap-2 border-b bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+          <SidebarTrigger />
+          <Separator orientation="vertical" className="mr-1 h-4" />
+          <Breadcrumb>
+            <BreadcrumbList>
+              {crumbs.map((crumb, index) => (
+                <Fragment key={crumb.href}>
+                  {index > 0 && <BreadcrumbSeparator />}
+                  <BreadcrumbItem>
+                    {index === crumbs.length - 1 ? (
+                      <BreadcrumbPage className="max-w-[40vw] truncate">
+                        {crumb.label}
+                      </BreadcrumbPage>
+                    ) : (
+                      <BreadcrumbLink asChild>
+                        <Link href={crumb.href}>{crumb.label}</Link>
+                      </BreadcrumbLink>
+                    )}
+                  </BreadcrumbItem>
+                </Fragment>
+              ))}
+            </BreadcrumbList>
+          </Breadcrumb>
+
+          <div className="ml-auto flex items-center gap-1">
+            <ThemeToggle />
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label="Account"
+                  className="rounded-full"
+                >
+                  <Avatar className="size-7">
+                    {user.image && <AvatarImage src={user.image} alt="" />}
+                    <AvatarFallback className="text-xs">
+                      {initials}
+                    </AvatarFallback>
+                  </Avatar>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel className="font-normal">
+                  <div className="truncate text-sm font-medium">
+                    {user.name ?? "Operator"}
+                  </div>
+                  <div className="truncate text-xs text-muted-foreground">
+                    {user.email}
+                  </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <form action={signOut}>
+                  <DropdownMenuItem asChild>
+                    <button type="submit" className="w-full cursor-pointer">
+                      <LogOut className="size-4" /> Sign out
+                    </button>
+                  </DropdownMenuItem>
+                </form>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </header>
+
+        <main className="flex flex-1 flex-col gap-4 p-4 md:p-6">
+          {children}
+        </main>
+      </SidebarInset>
+    </SidebarProvider>
+  );
+}
