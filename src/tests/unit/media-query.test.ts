@@ -8,16 +8,17 @@
 
 import { describe, expect, it } from "vitest";
 
-import type { Attachment, ProductId } from "@/lib/domain/products/entity";
-import { groupByMonth, monthLabel } from "@/lib/domain/products/media-grouping";
+import type { MediaAsset } from "@/lib/domain/media/entity";
+import { groupByMonth, monthLabel } from "@/lib/domain/media/grouping";
 import {
   DEFAULT_MEDIA_QUERY,
   galleryHref,
   mediaPageCount,
   parseMediaQuery,
   withMediaQuery,
-} from "@/lib/domain/products/media-query";
-import type { MediaItem } from "@/lib/domain/products/media-repository";
+} from "@/lib/domain/media/query";
+import type { LibraryItem } from "@/lib/domain/media/repository";
+import type { ProductId } from "@/lib/domain/products/entity";
 
 describe("parseMediaQuery", () => {
   it("returns the defaults for an empty URL", () => {
@@ -26,8 +27,26 @@ describe("parseMediaQuery", () => {
 
   it("reads every facet", () => {
     expect(
-      parseMediaQuery({ kind: "video", product: "prod-1", page: "3" }),
-    ).toEqual({ kind: "video", productId: "prod-1", page: 3 });
+      parseMediaQuery({
+        kind: "video",
+        product: "prod-1",
+        unused: "1",
+        page: "3",
+      }),
+    ).toEqual({
+      kind: "video",
+      productId: "prod-1",
+      unusedOnly: true,
+      page: 3,
+    });
+  });
+
+  it("treats any value but `1` as not-unused", () => {
+    // A checkbox-shaped facet in a URL is either present-and-1 or absent;
+    // accepting "true"/"yes"/"0" would make three URLs mean the same view.
+    expect(parseMediaQuery({ unused: "true" }).unusedOnly).toBe(false);
+    expect(parseMediaQuery({ unused: "0" }).unusedOnly).toBe(false);
+    expect(parseMediaQuery({ unused: "1" }).unusedOnly).toBe(true);
   });
 
   it("falls back rather than throwing on a hand-edited URL", () => {
@@ -61,6 +80,7 @@ describe("galleryHref", () => {
     const query = {
       kind: "video",
       productId: "prod-9" as ProductId,
+      unusedOnly: true,
       page: 4,
     } as const;
     const parsed = parseMediaQuery(
@@ -77,6 +97,7 @@ describe("withMediaQuery", () => {
     const at4 = { ...DEFAULT_MEDIA_QUERY, page: 4 };
     expect(withMediaQuery(at4, { kind: "video" }).page).toBe(1);
     expect(withMediaQuery(at4, { productId: "p" as ProductId }).page).toBe(1);
+    expect(withMediaQuery(at4, { unusedOnly: true }).page).toBe(1);
   });
 
   it("keeps the page when paging is what changed", () => {
@@ -98,10 +119,9 @@ describe("mediaPageCount", () => {
 
 // ---------------------------------------------------------------------
 
-const item = (id: string, createdAt: string): MediaItem => ({
-  attachment: {
+const item = (id: string, createdAt: string): LibraryItem => ({
+  asset: {
     id,
-    productId: "p1",
     kind: "image",
     originUrl: "/uploads/a.png",
     optimizedUrl: null,
@@ -112,19 +132,11 @@ const item = (id: string, createdAt: string): MediaItem => ({
     width: null,
     height: null,
     durationMs: null,
-    position: 0,
     alt: null,
     createdAt: new Date(createdAt),
-  } as Attachment,
+  } as MediaAsset,
   src: "/uploads/a.png",
-  product: {
-    id: "p1" as ProductId,
-    name: "Tote",
-    slug: "tote",
-    priceMinor: 100,
-    currency: "VND",
-    status: "active",
-  },
+  usedBy: [{ id: "p1" as ProductId, name: "Tote" }],
 });
 
 describe("groupByMonth", () => {

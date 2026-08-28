@@ -125,21 +125,21 @@ const OPTIMIZED_SIZE = 450;
  */
 export const writePlaceholder = async (
   root: string,
-  ids: { readonly productId: string; readonly attachmentId: string },
+  mediaId: string,
   seed: string,
 ): Promise<SeededAttachment> => {
-  const dir = path.join(root, "products", ids.productId, ids.attachmentId);
+  const dir = path.join(root, "media", mediaId);
   await fs.mkdir(dir, { recursive: true });
 
   const origin = placeholderPng(seed, ORIGIN_SIZE);
   const optimized = placeholderPng(seed, OPTIMIZED_SIZE);
-  const originName = `origin-${ids.attachmentId.slice(0, 8)}.png`;
-  const optimizedName = `optimized-${ids.attachmentId.slice(0, 8)}.png`;
+  const originName = `origin-${mediaId.slice(0, 8)}.png`;
+  const optimizedName = `optimized-${mediaId.slice(0, 8)}.png`;
 
   await fs.writeFile(path.join(dir, originName), origin);
   await fs.writeFile(path.join(dir, optimizedName), optimized);
 
-  const base = `/uploads/products/${ids.productId}/${ids.attachmentId}`;
+  const base = `/uploads/media/${mediaId}`;
   return {
     originUrl: `${base}/${originName}`,
     optimizedUrl: `${base}/${optimizedName}`,

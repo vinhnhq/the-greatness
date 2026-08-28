@@ -20,8 +20,10 @@ import { err, ok } from "@/lib/result";
 import { uniqueSlug } from "@/lib/slug";
 
 import type { CategoryRepository } from "../../../categories/repository";
+import type { MediaId } from "../../../media/entity";
+import type { MediaRepository } from "../../../media/repository";
 import type { Product, ProductId, ProductStatus } from "../../entity";
-import type { NewAttachment, ProductRepository } from "../../repository";
+import type { ProductRepository } from "../../repository";
 import {
   type SaveProductErrors,
   type SaveProductInput,
@@ -31,6 +33,7 @@ import {
 export type SaveProductDeps = {
   readonly productRepo: ProductRepository;
   readonly categoryRepo: CategoryRepository;
+  readonly mediaRepo: MediaRepository;
 };
 
 export type SaveProductCommand = {
@@ -43,25 +46,8 @@ export type SaveProductFailure =
   | SaveProductErrors
   | { readonly tag: "ProductNotFound"; readonly id: ProductId };
 
-const toNewAttachments = (
-  attachments: SaveProductInput["attachments"],
-): readonly NewAttachment[] =>
-  attachments.map((a) => ({
-    kind: a.kind as "image" | "video",
-    originUrl: a.originUrl,
-    optimizedUrl: a.optimizedUrl,
-    posterUrl: a.posterUrl,
-    mime: a.mime,
-    bytes: a.bytes,
-    optimizedBytes: a.optimizedBytes,
-    width: a.width,
-    height: a.height,
-    durationMs: a.durationMs,
-    alt: a.alt?.trim() === "" ? null : (a.alt ?? null),
-  }));
-
 export const createSaveProduct =
-  ({ productRepo, categoryRepo }: SaveProductDeps) =>
+  ({ productRepo, categoryRepo, mediaRepo }: SaveProductDeps) =>
   async (
     command: SaveProductCommand,
   ): Promise<Result<SaveProductFailure, Product>> => {
@@ -72,9 +58,12 @@ export const createSaveProduct =
       if (!existing) return err({ tag: "ProductNotFound", id });
     }
 
-    const [takenSlugs, categories] = await Promise.all([
+    const [takenSlugs, categories, media] = await Promise.all([
       productRepo.takenSlugs(id),
       categoryRepo.list(),
+      // Only the assets this save actually references — checking the whole
+      // library would grow with it, and the question is just "do these exist".
+      mediaRepo.getMany(input.mediaIds as MediaId[]),
     ]);
     const sku = input.sku.trim();
     const skuTaken = sku === "" ? false : await productRepo.skuTaken(sku, id);
@@ -83,6 +72,7 @@ export const createSaveProduct =
       takenSlugs,
       skuTaken,
       knownCategoryIds: new Set(categories.map((c) => c.id as string)),
+      knownMediaIds: new Set(media.map((m) => m.id as string)),
     });
     if (!validated.ok) return validated;
 
@@ -115,10 +105,7 @@ export const createSaveProduct =
     if (!product) return err({ tag: "ProductNotFound", id: id as ProductId });
 
     await productRepo.setCategories(product.id, v.categoryIds);
-    await productRepo.setAttachments(
-      product.id,
-      toNewAttachments(v.attachments),
-    );
+    await productRepo.setMedia(product.id, v.mediaIds);
 
     return ok(product);
   };
@@ -134,9 +121,8 @@ export const createDeleteProduct =
   ): Promise<Result<{ readonly tag: "ProductNotFound" }, ProductId>> => {
     const existing = await productRepo.getById(id);
     if (!existing) return err({ tag: "ProductNotFound" });
-    // The uploaded files are deliberately left behind — see backlog L.1. A
-    // best-effort delete here would half-succeed on a network blip and leave
-    // the row pointing at bytes that are sometimes gone.
+    // The media survives: it belongs to the library, and another product may
+    // be using it. `remove` drops the links only.
     await productRepo.remove(id);
     return ok(id);
   };

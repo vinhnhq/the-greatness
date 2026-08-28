@@ -3,6 +3,49 @@
 > Newest at top: `YYYY-MM-DD · <sha> · <task id> <description>`.
 > Cut the line out of [`backlog.md`](backlog.md); never keep-and-tick.
 
+## v2 — Media becomes a library · ✅ 2026-08-28
+
+The model change: an asset no longer belongs to a product. It lives in a
+library, and products **link** to it — the Photos/Shopify shape.
+
+- **Migration 004** — `media_assets` (no owner) + `product_media`
+  (productId · mediaId · position). Every existing attachment is **backfilled**
+  into both, keeping its id so paths already on disk resolve; the old table is
+  dropped. Down is honestly lossy and says so.
+- **Upload anywhere.** The gallery takes a batch with no product in mind; the
+  product form uploads to the library and links in one step. One
+  `useMediaUpload` hook and one `UploadZone` serve both — the loop was welded
+  into the product form and a second copy would have drifted on the first bug.
+- **Pick from the library** when editing a product, with a multi-select dialog
+  that offers only what is not already attached.
+- **Consequences, made explicit in the UI.** Removing a photo from a product
+  unlinks it; deleting a product deletes no files; deleting from the library
+  names the products it will break before it does it. An `Unused` filter
+  answers "what have I uploaded and not used yet".
+- **Alt text moved onto the asset** and is edited in the full-screen viewer —
+  it describes the picture, and it was previously typed against a 120px
+  thumbnail.
+
+### Four findings from this arc
+
+1. **A client component must not import a repository module.** Twice now.
+   `gallery-grid` importing `groupByMonth` dragged `node:async_hooks` and the
+   Neon driver into the browser bundle and failed the route's build outright.
+   The pure fold lives in `media/grouping.ts`; the in-memory twin lives in
+   `media/in-memory.ts` for the same reason.
+2. **`bun run seed` cannot import `env-server.ts`.** It carries `server-only`.
+   The storage readers moved to `storage/config.ts`, the twin of `db-url.ts`,
+   which exists for exactly this and whose docblock had already warned about it.
+3. **Optimistic lists must de-duplicate, not clear on a timer.** Clearing the
+   locally-held uploads when the refresh is _dispatched_ is a race: React holds
+   the state update until the transition completes, so both copies render and
+   every file appears twice. Filtering by what the server already sent removes
+   the copy exactly when it becomes redundant.
+4. **`createMany` returning sorted rows contradicted its caller's contract.**
+   The hook matches results to files by position. It now returns input order,
+   matched by minted id rather than trusting `RETURNING`'s row order, which no
+   driver guarantees.
+
 ## v1.1 — Gallery and responsive container · ✅ 2026-08-28
 
 - **`/gallery`** — every attachment in one Photos-style grid: square cropped

@@ -26,6 +26,7 @@ import { createDb } from "@/lib/db";
 import { getDatabaseDriver, getSqliteFile } from "@/lib/db-url";
 import type { CategoryId } from "@/lib/domain/categories/entity";
 import { dbCategoryRepo } from "@/lib/domain/categories/repository";
+import type { MediaId } from "@/lib/domain/media/entity";
 import type { ProductStatus } from "@/lib/domain/products/entity";
 import { dbProductRepo } from "@/lib/domain/products/repository";
 import { newId } from "@/lib/id";
@@ -329,7 +330,8 @@ const main = async (): Promise<void> => {
     // Wipe only what the seed owns. Doing this by table rather than by a
     // marker column is fine because seeding is a development action against a
     // development database — the migrate runner is what guards a real one.
-    await db.deleteFrom("product_attachments").execute();
+    await db.deleteFrom("product_media").execute();
+    await db.deleteFrom("media_assets").execute();
     await db.deleteFrom("product_categories").execute();
     await db.deleteFrom("products").execute();
     await db.deleteFrom("categories").execute();
@@ -371,6 +373,12 @@ const main = async (): Promise<void> => {
     const canWriteMedia = getStorageDriver() === "local";
     const storageRoot = path.resolve(getLocalStorageDir());
     if (canWriteMedia) {
+      await fs.rm(path.join(storageRoot, "media"), {
+        recursive: true,
+        force: true,
+      });
+      // The pre-v2 layout, cleared too so a reseed does not leave the old
+      // shape behind on a machine that ran the earlier seed.
       await fs.rm(path.join(storageRoot, "products"), {
         recursive: true,
         force: true,
@@ -402,15 +410,16 @@ const main = async (): Promise<void> => {
       // One or two images, so the gallery has products with a set rather than
       // a uniform one-each grid.
       const howMany = index % 3 === 0 ? 2 : 1;
-      const attachments = [];
+      const assets = [];
       for (let n = 0; n < howMany; n++) {
-        const attachmentId = newId();
+        const mediaId = newId();
         const file = await writePlaceholder(
           storageRoot,
-          { productId: product.id, attachmentId },
+          mediaId,
           `${seed.sku}-${n}`,
         );
-        attachments.push({
+        assets.push({
+          id: mediaId,
           kind: "image" as const,
           originUrl: file.originUrl,
           optimizedUrl: file.optimizedUrl,
@@ -422,10 +431,43 @@ const main = async (): Promise<void> => {
           height: file.height,
           durationMs: null,
           alt: n === 0 ? seed.name : `${seed.name}, detail`,
+          createdAt: now,
         });
         mediaCount += 1;
       }
-      await dbProductRepo.setAttachments(product.id, attachments);
+      await db.insertInto("media_assets").values(assets).execute();
+      await dbProductRepo.setMedia(
+        product.id,
+        assets.map((a) => a.id as MediaId),
+      );
+    }
+
+    // A handful of unattached assets, so the library has something the
+    // "Unused" filter can find and the gallery is not just a mirror of the
+    // product list.
+    if (canWriteMedia) {
+      const loose = [];
+      for (let n = 0; n < 6; n++) {
+        const mediaId = newId();
+        const file = await writePlaceholder(storageRoot, mediaId, `loose-${n}`);
+        loose.push({
+          id: mediaId,
+          kind: "image" as const,
+          originUrl: file.originUrl,
+          optimizedUrl: file.optimizedUrl,
+          posterUrl: null,
+          mime: "image/png",
+          bytes: file.bytes,
+          optimizedBytes: file.optimizedBytes,
+          width: file.width,
+          height: file.height,
+          durationMs: null,
+          alt: null,
+          createdAt: now,
+        });
+        mediaCount += 1;
+      }
+      await db.insertInto("media_assets").values(loose).execute();
     }
 
     console.log(

@@ -4,10 +4,15 @@
  * `list()` is the interesting one. It carries search, a status filter, a
  * category filter, six sorts and offset paging, and it returns the total
  * alongside the rows because the pager needs both and two round-trips for one
- * screen is one too many. It also loads the attachments for the page's rows in
+ * screen is one too many. It also loads the media for the page's rows in
  * **one** follow-up query rather than per row — the thumbnail column is
  * exactly the shape that turns into an N+1 without anyone noticing until the
  * catalogue has a thousand rows.
+ *
+ * **A product links to media, it does not own it** (migration 004).
+ * `setMedia` replaces the whole link set; removing an asset from a product
+ * unlinks it and leaves it in the library, and deleting a product deletes no
+ * files at all.
  *
  * Offset paging, not keyset: the UI offers "page 4 of 12", which keyset paging
  * cannot express, and the catalogue is thousands of rows rather than millions.
@@ -26,10 +31,9 @@ import {
 } from "@/lib/search-text";
 
 import type { CategoryId } from "../categories/entity";
+import type { MediaAsset, MediaId } from "../media/entity";
+import { parseMediaAssetStrict } from "../media/entity";
 import {
-  type Attachment,
-  type AttachmentId,
-  parseAttachmentStrict,
   parseProductStrict,
   type Product,
   type ProductId,
@@ -37,22 +41,6 @@ import {
   type ProductWithRelations,
 } from "./entity";
 import { PAGE_SIZE, type ProductListQuery } from "./list-query";
-
-/** One attachment as the save action supplies it — the row minus the things
- * the repository mints (`id`, `productId`, `position`, `createdAt`). */
-export type NewAttachment = {
-  readonly kind: "image" | "video";
-  readonly originUrl: string;
-  readonly optimizedUrl: string | null;
-  readonly posterUrl: string | null;
-  readonly mime: string;
-  readonly bytes: number;
-  readonly optimizedBytes: number | null;
-  readonly width: number | null;
-  readonly height: number | null;
-  readonly durationMs: number | null;
-  readonly alt: string | null;
-};
 
 export type ProductInput = {
   readonly name: string;
@@ -65,7 +53,7 @@ export type ProductInput = {
 };
 
 export type ProductListRow = Product & {
-  readonly attachments: readonly Attachment[];
+  readonly media: readonly MediaAsset[];
   readonly categoryIds: readonly CategoryId[];
 };
 
@@ -89,12 +77,15 @@ export type ProductRepository = {
     id: ProductId,
     categoryIds: readonly CategoryId[],
   ): Promise<void>;
-  /** Replace the whole ordered attachment list; array index becomes
-   * `position`, so reordering in the UI needs no separate call. */
-  setAttachments(
-    id: ProductId,
-    attachments: readonly NewAttachment[],
-  ): Promise<void>;
+  /**
+   * Replace the whole ordered link set; array index becomes `position`, so
+   * reordering in the UI needs no separate call.
+   *
+   * Takes **ids**, not rows: the assets already exist in the library by the
+   * time a product is saved. Passing rows here is what would let a product
+   * write a copy of an asset instead of linking to it.
+   */
+  setMedia(id: ProductId, mediaIds: readonly MediaId[]): Promise<void>;
 };
 
 type OrderSpec = {
@@ -168,15 +159,21 @@ export const dbProductRepo: ProductRepository = {
     const ids = products.map((p) => p.id as string);
 
     // Two queries for the page's relations, not two per row.
-    const [attachmentRows, linkRows] =
+    const [mediaRows, linkRows] =
       ids.length === 0
         ? [[], []]
         : await Promise.all([
             db
-              .selectFrom("product_attachments")
-              .selectAll()
-              .where("productId", "in", ids)
-              .orderBy("position", "asc")
+              .selectFrom("product_media")
+              .innerJoin(
+                "media_assets",
+                "media_assets.id",
+                "product_media.mediaId",
+              )
+              .selectAll("media_assets")
+              .select("product_media.productId as linkedProductId")
+              .where("product_media.productId", "in", ids)
+              .orderBy("product_media.position", "asc")
               .execute(),
             db
               .selectFrom("product_categories")
@@ -185,12 +182,12 @@ export const dbProductRepo: ProductRepository = {
               .execute(),
           ]);
 
-    const attachmentsByProduct = new Map<string, Attachment[]>();
-    for (const raw of attachmentRows) {
-      const attachment = parseAttachmentStrict(raw);
-      const list = attachmentsByProduct.get(attachment.productId) ?? [];
-      list.push(attachment);
-      attachmentsByProduct.set(attachment.productId, list);
+    const mediaByProduct = new Map<string, MediaAsset[]>();
+    for (const raw of mediaRows) {
+      const asset = parseMediaAssetStrict(raw);
+      const list = mediaByProduct.get(raw.linkedProductId) ?? [];
+      list.push(asset);
+      mediaByProduct.set(raw.linkedProductId, list);
     }
 
     const categoriesByProduct = new Map<string, CategoryId[]>();
@@ -204,7 +201,7 @@ export const dbProductRepo: ProductRepository = {
       total,
       rows: products.map((p) => ({
         ...p,
-        attachments: attachmentsByProduct.get(p.id) ?? [],
+        media: mediaByProduct.get(p.id) ?? [],
         categoryIds: categoriesByProduct.get(p.id) ?? [],
       })),
     };
@@ -262,12 +259,10 @@ export const dbProductRepo: ProductRepository = {
 
   remove: async (id) => {
     const { db } = await readContext();
-    // Children first, so an interrupted delete leaves orphaned child rows
-    // rather than a product whose relations point at nothing.
-    await db
-      .deleteFrom("product_attachments")
-      .where("productId", "=", id)
-      .execute();
+    // Links first, so an interrupted delete leaves orphaned links rather than
+    // a product whose relations point at nothing. The **assets survive** —
+    // they belong to the library, and another product may be using them.
+    await db.deleteFrom("product_media").where("productId", "=", id).execute();
     await db
       .deleteFrom("product_categories")
       .where("productId", "=", id)
@@ -294,23 +289,19 @@ export const dbProductRepo: ProductRepository = {
       .execute();
   },
 
-  setAttachments: async (id, attachments) => {
+  setMedia: async (id, mediaIds) => {
     const { db } = await readContext();
+    await db.deleteFrom("product_media").where("productId", "=", id).execute();
+    if (mediaIds.length === 0) return;
     await db
-      .deleteFrom("product_attachments")
-      .where("productId", "=", id)
-      .execute();
-    if (attachments.length === 0) return;
-    const now = new Date();
-    await db
-      .insertInto("product_attachments")
+      .insertInto("product_media")
       .values(
-        attachments.map((a, index) => ({
-          id: newId(),
+        // De-duplicated: the same asset twice in one gallery is not a
+        // meaningful state, and the composite key would reject it anyway.
+        [...new Set(mediaIds)].map((mediaId, index) => ({
           productId: id as string,
-          ...a,
+          mediaId: mediaId as string,
           position: index,
-          createdAt: now,
         })),
       )
       .execute();
@@ -330,12 +321,13 @@ const loadOne = async (
   if (!row) return null;
 
   const product = parseProductStrict(row);
-  const [attachments, links] = await Promise.all([
+  const [media, links] = await Promise.all([
     db
-      .selectFrom("product_attachments")
-      .selectAll()
-      .where("productId", "=", product.id as string)
-      .orderBy("position", "asc")
+      .selectFrom("product_media")
+      .innerJoin("media_assets", "media_assets.id", "product_media.mediaId")
+      .selectAll("media_assets")
+      .where("product_media.productId", "=", product.id as string)
+      .orderBy("product_media.position", "asc")
       .execute(),
     db
       .selectFrom("product_categories")
@@ -346,7 +338,7 @@ const loadOne = async (
 
   return {
     ...product,
-    attachments: attachments.map(parseAttachmentStrict),
+    media: media.map(parseMediaAssetStrict),
     categoryIds: links.map((l) => l.categoryId as CategoryId),
   };
 };
@@ -362,17 +354,29 @@ const loadOne = async (
 
 export type SeededProduct = Product & {
   readonly categoryIds?: readonly CategoryId[];
-  readonly attachments?: readonly Attachment[];
+  readonly media?: readonly MediaAsset[];
 };
 
 export const createInMemoryProductRepo = (
   now: () => Date = () => new Date(0),
 ): ProductRepository & {
   readonly seed: (rows: readonly SeededProduct[]) => void;
+  readonly seedLibrary: (assets: readonly MediaAsset[]) => void;
 } => {
   const products: Product[] = [];
   const categories = new Map<string, CategoryId[]>();
-  const attachments = new Map<string, Attachment[]>();
+  /** productId → the asset ids it links to, in order. */
+  const links = new Map<string, MediaId[]>();
+  /** The library this twin resolves ids against. */
+  const library = new Map<string, MediaAsset>();
+
+  /** Resolve one product's link list against the library, in link order.
+   * An id with no asset is dropped, matching the SQL side's INNER JOIN. */
+  const mediaOf = (productId: string): readonly MediaAsset[] =>
+    (links.get(productId) ?? []).flatMap((id) => {
+      const asset = library.get(id);
+      return asset ? [asset] : [];
+    });
 
   const matches = (p: Product, query: ProductListQuery): boolean => {
     if (query.status !== "all" && p.status !== query.status) return false;
@@ -416,7 +420,7 @@ export const createInMemoryProductRepo = (
         total: all.length,
         rows: sorted.slice(start, start + PAGE_SIZE).map((p) => ({
           ...p,
-          attachments: attachments.get(p.id) ?? [],
+          media: mediaOf(p.id),
           categoryIds: categories.get(p.id) ?? [],
         })),
       };
@@ -427,7 +431,7 @@ export const createInMemoryProductRepo = (
       return p
         ? {
             ...p,
-            attachments: attachments.get(p.id) ?? [],
+            media: mediaOf(p.id),
             categoryIds: categories.get(p.id) ?? [],
           }
         : null;
@@ -467,24 +471,16 @@ export const createInMemoryProductRepo = (
       const index = products.findIndex((p) => p.id === id);
       if (index !== -1) products.splice(index, 1);
       categories.delete(id);
-      attachments.delete(id);
+      // The links go; the library does not. Same as the SQL side.
+      links.delete(id);
     },
 
     setCategories: async (id, categoryIds) => {
       categories.set(id, [...new Set(categoryIds)]);
     },
 
-    setAttachments: async (id, list) => {
-      attachments.set(
-        id,
-        list.map((a, index) => ({
-          ...a,
-          id: newId() as AttachmentId,
-          productId: id,
-          position: index,
-          createdAt: now(),
-        })),
-      );
+    setMedia: async (id, mediaIds) => {
+      links.set(id, [...new Set(mediaIds)]);
     },
   };
 
@@ -492,13 +488,22 @@ export const createInMemoryProductRepo = (
     ...repo,
     seed: (rows) => {
       for (const row of rows) {
-        const { categoryIds, attachments: seededAttachments, ...product } = row;
+        const { categoryIds, media, ...product } = row;
         products.push(product);
         if (categoryIds) categories.set(product.id, [...categoryIds]);
-        if (seededAttachments) {
-          attachments.set(product.id, [...seededAttachments]);
+        if (media) {
+          for (const asset of media) library.set(asset.id, asset);
+          links.set(
+            product.id,
+            media.map((a) => a.id),
+          );
         }
       }
+    },
+    /** Put assets in the twin's library so `setMedia` has something to
+     * resolve. The real repository resolves against `media_assets`. */
+    seedLibrary: (assets) => {
+      for (const asset of assets) library.set(asset.id, asset);
     },
   };
 };

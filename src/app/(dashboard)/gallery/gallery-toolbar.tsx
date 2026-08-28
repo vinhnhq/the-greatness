@@ -24,14 +24,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { ProductId } from "@/lib/domain/products/entity";
 import {
   DEFAULT_MEDIA_QUERY,
   galleryHref,
   type MediaFilter,
   type MediaQuery,
   withMediaQuery,
-} from "@/lib/domain/products/media-query";
+} from "@/lib/domain/media/query";
+import type { ProductId } from "@/lib/domain/products/entity";
 import { cn } from "@/lib/utils";
 
 const TABS: readonly { readonly value: MediaFilter; readonly label: string }[] =
@@ -51,6 +51,7 @@ export function GalleryToolbar({
     readonly all: number;
     readonly image: number;
     readonly video: number;
+    readonly unused: number;
   };
   readonly products: readonly {
     readonly id: ProductId;
@@ -94,12 +95,29 @@ export function GalleryToolbar({
             >
               {tab.label}
               <span className="tabular-nums opacity-60">
-                {counts[tab.value]}
+                {tab.value === "all"
+                  ? counts.all
+                  : tab.value === "image"
+                    ? counts.image
+                    : counts.video}
               </span>
             </Button>
           );
         })}
       </div>
+
+      {/* "What have I uploaded and not used yet" is the question a library
+          gets asked most, and it is unanswerable from the kind tabs alone. */}
+      <Button
+        type="button"
+        size="sm"
+        variant={query.unusedOnly ? "default" : "outline"}
+        aria-pressed={query.unusedOnly}
+        onClick={() => go({ unusedOnly: !query.unusedOnly })}
+      >
+        Unused
+        <span className="tabular-nums opacity-60">{counts.unused}</span>
+      </Button>
 
       {products.length > 0 && (
         <Select
@@ -126,7 +144,9 @@ export function GalleryToolbar({
         </Select>
       )}
 
-      {(query.kind !== "all" || query.productId !== null) && (
+      {(query.kind !== "all" ||
+        query.productId !== null ||
+        query.unusedOnly) && (
         <Button
           variant="ghost"
           size="sm"

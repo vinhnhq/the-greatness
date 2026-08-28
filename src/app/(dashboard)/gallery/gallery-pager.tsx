@@ -14,7 +14,7 @@ import {
   galleryHref,
   type MediaQuery,
   withMediaQuery,
-} from "@/lib/domain/products/media-query";
+} from "@/lib/domain/media/query";
 
 export function GalleryPager({
   query,

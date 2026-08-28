@@ -50,26 +50,31 @@ export const safeStem = (filename: string): string => {
   return cleaned || "file";
 };
 
-export type AttachmentKeys = {
+export type MediaKeys = {
   readonly origin: string;
   readonly optimized: string;
   readonly poster: string;
 };
 
 /**
- * The three keys one attachment can occupy. `optimized` and `poster` are
- * always computed, even for a file that ends up with neither — an unused key
- * costs nothing, and computing them lazily meant two call sites deriving the
- * same string slightly differently.
+ * The three keys one asset can occupy. `optimized` and `poster` are always
+ * computed, even for a file that ends up with neither — an unused key costs
+ * nothing, and computing them lazily meant two call sites deriving the same
+ * string slightly differently.
+ *
+ * Filed under `media/<id>/`, not `products/<productId>/<id>/`. An asset in the
+ * library has no owner, so there is no product to file it under — and one
+ * asset used by three products cannot live in three directories. Keys written
+ * under the old shape keep resolving; both are just strings to the serving
+ * route.
  */
-export const attachmentKeys = (input: {
-  readonly productId: string;
-  readonly attachmentId: string;
+export const mediaKeys = (input: {
+  readonly mediaId: string;
   readonly filename: string;
   readonly mime: string;
-}): AttachmentKeys => {
+}): MediaKeys => {
   const stem = safeStem(input.filename);
-  const dir = `products/${input.productId}/${input.attachmentId}`;
+  const dir = `media/${input.mediaId}`;
   return {
     origin: `${dir}/origin-${stem}.${extensionFor(input.mime)}`,
     optimized: `${dir}/optimized-${stem}.webp`,

@@ -92,9 +92,13 @@ export interface ProductCategoriesTable {
   categoryId: string;
 }
 
-export interface ProductAttachmentsTable {
+/**
+ * The media library (migration 004). **No owner** — an asset exists whether
+ * or not any product uses it, which is what makes uploading a batch before
+ * deciding what it is for possible.
+ */
+export interface MediaAssetsTable {
   id: string;
-  productId: string;
   kind: string;
   /** The bytes exactly as the operator chose them. */
   originUrl: string;
@@ -109,9 +113,22 @@ export interface ProductAttachmentsTable {
   width: number | null;
   height: number | null;
   durationMs: number | null;
-  position: number;
+  /** On the asset, not the link: it describes the picture, not the
+   * relationship to a product. */
   alt: string | null;
   createdAt: Timestamp;
+}
+
+/**
+ * Which assets a product shows, and in what order.
+ *
+ * `position` lives on the **link**, not the asset: two products may use the
+ * same photograph and order their galleries differently.
+ */
+export interface ProductMediaTable {
+  productId: string;
+  mediaId: string;
+  position: number;
 }
 
 export interface DB {
@@ -122,5 +139,6 @@ export interface DB {
   categories: CategoriesTable;
   products: ProductsTable;
   product_categories: ProductCategoriesTable;
-  product_attachments: ProductAttachmentsTable;
+  media_assets: MediaAssetsTable;
+  product_media: ProductMediaTable;
 }

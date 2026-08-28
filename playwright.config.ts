@@ -11,6 +11,17 @@ import { defineConfig, devices } from "@playwright/test";
 const PORT = 3210;
 const baseURL = `http://localhost:${PORT}`;
 
+/**
+ * Pinned for the **test process** too, not only the server's.
+ *
+ * `e2e/reset-catalogue.ts` opens the same database from inside a test, and
+ * without this it would resolve the development file instead — emptying the
+ * catalogue someone was clicking around in, which is precisely what the
+ * separate e2e file exists to prevent.
+ */
+const DATABASE_FILE = ".data/e2e.db";
+process.env.DATABASE_FILE ??= DATABASE_FILE;
+
 export default defineConfig({
   testDir: "./e2e",
   // Each spec file creates and deletes products in the same database, so they
@@ -37,7 +48,7 @@ export default defineConfig({
       // Its own build directory, so the suite runs alongside a dev server.
       NEXT_DIST_DIR: ".next-e2e",
       DATABASE_DRIVER: "sqlite",
-      DATABASE_FILE: ".data/e2e.db",
+      DATABASE_FILE,
       STORAGE_DRIVER: "local",
       STORAGE_DIR: ".data/e2e-uploads",
       ALLOW_DEV_LOGIN: "1",

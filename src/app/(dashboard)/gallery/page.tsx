@@ -1,11 +1,15 @@
 /**
- * `/gallery` — every image and video in the catalogue, in one grid.
+ * `/gallery` — the media library.
  *
- * The inverse of `/products`: that page is products that happen to have
- * media, this is media that happens to belong to a product. Same conventions
- * — the query lives in the URL, the read is one JOIN, empty and no-match are
- * distinct states — with a **wider container**, because on a gallery more
- * screen should mean more photos rather than bigger ones.
+ * Not "the media belonging to products": since v2 an asset exists on its own
+ * and products link to it, so this page is the source of truth and the
+ * product form is a view onto it. Files can be uploaded here with no product
+ * in mind, and anything uploaded from a product appears here too.
+ *
+ * Same conventions as `/products` — the query lives in the URL, the read is
+ * one query plus one for the links, empty and no-match are distinct states —
+ * with a **wider container**, because on a gallery more screen should mean
+ * more photos rather than bigger ones.
  */
 
 import { ImageOff, Images, PackageOpen } from "lucide-react";
@@ -27,12 +31,12 @@ import {
   MEDIA_PAGE_SIZE,
   mediaPageCount,
   parseMediaQuery,
-} from "@/lib/domain/products/media-query";
-import { dbMediaRepo } from "@/lib/domain/products/media-repository";
+} from "@/lib/domain/media/query";
+import { dbMediaRepo } from "@/lib/domain/media/repository";
 
-import { GalleryGrid } from "./gallery-grid";
 import { GalleryPager } from "./gallery-pager";
 import { GalleryToolbar } from "./gallery-toolbar";
+import { GalleryWorkspace } from "./gallery-workspace";
 
 export const metadata = { title: "Gallery" };
 
@@ -64,54 +68,61 @@ export default async function GalleryPage({
 
       <GalleryToolbar query={query} counts={page.counts} products={products} />
 
-      {page.items.length > 0 ? (
-        <>
-          <GalleryGrid items={page.items} />
-          <GalleryPager
-            query={query}
-            pageCount={mediaPageCount(page.total)}
-            total={page.total}
-          />
-        </>
-      ) : isFiltered ? (
-        <Empty className="rounded-lg border border-dashed">
-          <EmptyHeader>
-            <EmptyMedia variant="icon">
-              <ImageOff />
-            </EmptyMedia>
-            <EmptyTitle>Nothing matches these filters</EmptyTitle>
-            <EmptyDescription>
-              {query.kind === "video"
-                ? "No videos have been uploaded yet."
-                : "Try another kind, or clear the filters to see everything."}
-            </EmptyDescription>
-          </EmptyHeader>
-          <EmptyContent>
-            <Button variant="outline" asChild>
-              <Link href={galleryHref(DEFAULT_MEDIA_QUERY)}>Clear filters</Link>
-            </Button>
-          </EmptyContent>
-        </Empty>
-      ) : (
-        <Empty className="rounded-lg border border-dashed">
-          <EmptyHeader>
-            <EmptyMedia variant="icon">
-              <Images />
-            </EmptyMedia>
-            <EmptyTitle>No media yet</EmptyTitle>
-            <EmptyDescription>
-              Upload an image or a video on any product and it appears here.
-            </EmptyDescription>
-          </EmptyHeader>
-          <EmptyContent>
-            <Button asChild>
-              <Link href="/products">
-                <PackageOpen className="size-4" /> Go to products
-              </Link>
-            </Button>
-          </EmptyContent>
-        </Empty>
-      )}
+      <GalleryWorkspace
+        items={page.items}
+        emptyState={
+          isFiltered ? (
+            <Empty className="rounded-lg border border-dashed">
+              <EmptyHeader>
+                <EmptyMedia variant="icon">
+                  <ImageOff />
+                </EmptyMedia>
+                <EmptyTitle>Nothing matches these filters</EmptyTitle>
+                <EmptyDescription>
+                  {query.kind === "video"
+                    ? "No videos have been uploaded yet."
+                    : query.unusedOnly
+                      ? "Every file in the library is used by a product."
+                      : "Try another kind, or clear the filters to see everything."}
+                </EmptyDescription>
+              </EmptyHeader>
+              <EmptyContent>
+                <Button variant="outline" asChild>
+                  <Link href={galleryHref(DEFAULT_MEDIA_QUERY)}>
+                    Clear filters
+                  </Link>
+                </Button>
+              </EmptyContent>
+            </Empty>
+          ) : (
+            <Empty className="rounded-lg border border-dashed">
+              <EmptyHeader>
+                <EmptyMedia variant="icon">
+                  <Images />
+                </EmptyMedia>
+                <EmptyTitle>The library is empty</EmptyTitle>
+                <EmptyDescription>
+                  Drop files above to add them, or upload from a product —
+                  either way they land here.
+                </EmptyDescription>
+              </EmptyHeader>
+              <EmptyContent>
+                <Button variant="outline" asChild>
+                  <Link href="/products">
+                    <PackageOpen className="size-4" /> Go to products
+                  </Link>
+                </Button>
+              </EmptyContent>
+            </Empty>
+          )
+        }
+      />
+
+      <GalleryPager
+        query={query}
+        pageCount={mediaPageCount(page.total)}
+        total={page.total}
+      />
     </PageContainer>
   );
 }

@@ -27,11 +27,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import type { Category } from "@/lib/domain/categories/entity";
-import {
-  displayUrl,
-  type ProductStatus,
-  primaryImage,
-} from "@/lib/domain/products/entity";
+import { mediaSrc, primaryImageOf } from "@/lib/domain/media/entity";
+import type { ProductStatus } from "@/lib/domain/products/entity";
 import type { ProductListRow } from "@/lib/domain/products/repository";
 import { formatMoney } from "@/lib/money";
 import { cn } from "@/lib/utils";
@@ -54,8 +51,8 @@ export function StatusBadge({ status }: { readonly status: ProductStatus }) {
 }
 
 function Thumbnail({ product }: { readonly product: ProductListRow }) {
-  const image = primaryImage(product.attachments);
-  const video = product.attachments.find((a) => a.kind === "video");
+  const image = primaryImageOf(product.media);
+  const video = product.media.find((a) => a.kind === "video");
 
   // A fixed-size wrapper, always — including around the image.
   //
@@ -67,7 +64,7 @@ function Thumbnail({ product }: { readonly product: ProductListRow }) {
     <div className="size-10 overflow-hidden rounded-md border bg-muted">
       {image ? (
         <Image
-          src={displayUrl(image)}
+          src={mediaSrc(image)}
           alt=""
           width={40}
           height={40}

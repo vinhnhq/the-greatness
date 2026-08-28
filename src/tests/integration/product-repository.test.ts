@@ -24,10 +24,11 @@ import type { DB } from "@/lib/db-types";
 import { SqliteDialect } from "@/lib/db/sqlite-dialect";
 import type { CategoryId } from "@/lib/domain/categories/entity";
 import { dbCategoryRepo } from "@/lib/domain/categories/repository";
+import type { MediaId, NewMediaAsset } from "@/lib/domain/media/entity";
+import { DEFAULT_MEDIA_QUERY } from "@/lib/domain/media/query";
+import { dbMediaRepo } from "@/lib/domain/media/repository";
 import { DEFAULT_QUERY } from "@/lib/domain/products/list-query";
 import type { ProductListQuery } from "@/lib/domain/products/list-query";
-import { DEFAULT_MEDIA_QUERY } from "@/lib/domain/products/media-query";
-import { dbMediaRepo } from "@/lib/domain/products/media-repository";
 import { dbProductRepo } from "@/lib/domain/products/repository";
 
 let db: Kysely<DB>;
@@ -277,109 +278,106 @@ describe("dbProductRepo.list — sorting and paging", () => {
   });
 });
 
-describe("dbProductRepo — relations", () => {
-  it("loads attachments in position order on the list, not N+1", async () => {
-    const { make } = await seed();
-    const product = await make("Gallery");
-    await inCtx(() =>
-      dbProductRepo.setAttachments(product.id, [
+describe("dbProductRepo — media links", () => {
+  const asset = async (alt: string) => {
+    const [created] = await inCtx(() =>
+      dbMediaRepo.createMany([
         {
           kind: "image",
-          originUrl: "/uploads/a.jpg",
-          optimizedUrl: "/uploads/a.webp",
+          originUrl: `/uploads/media/${alt}/origin.png`,
+          optimizedUrl: `/uploads/media/${alt}/optimized.webp`,
           posterUrl: null,
-          mime: "image/jpeg",
-          bytes: 900_000,
-          optimizedBytes: 50_000,
-          width: 3000,
-          height: 2000,
+          mime: "image/png",
+          bytes: 1,
+          optimizedBytes: 1,
+          width: 900,
+          height: 900,
           durationMs: null,
-          alt: "Front",
-        },
-        {
-          kind: "video",
-          originUrl: "/uploads/b.mp4",
-          optimizedUrl: null,
-          posterUrl: "/uploads/b-poster.webp",
-          mime: "video/mp4",
-          bytes: 40_000_000,
-          optimizedBytes: null,
-          width: 1920,
-          height: 1080,
-          durationMs: 8_000,
-          alt: null,
+          alt,
         },
       ]),
     );
+    return created;
+  };
+
+  it("loads a product's media in link order on the list, not N+1", async () => {
+    const { make } = await seed();
+    const product = await make("Gallery");
+    const a = await asset("a");
+    const b = await asset("b");
+    await inCtx(() => dbProductRepo.setMedia(product.id, [b.id, a.id]));
 
     const page = await inCtx(() => dbProductRepo.list(query()));
-    const attachments = page.rows[0].attachments;
-    expect(attachments.map((a) => a.position)).toEqual([0, 1]);
-    expect(attachments[0].optimizedUrl).toBe("/uploads/a.webp");
-    // A video keeps origin bytes and gains a poster — the shape prepare.ts
-    // produces, round-tripped through real columns.
-    expect(attachments[1].optimizedUrl).toBeNull();
-    expect(attachments[1].posterUrl).toBe("/uploads/b-poster.webp");
-    expect(attachments[1].durationMs).toBe(8_000);
+    // Link order, not upload order — the operator arranged this.
+    expect(page.rows[0].media.map((m) => m.alt)).toEqual(["b", "a"]);
+    expect(page.rows[0].media[0].optimizedUrl).toBe(
+      "/uploads/media/b/optimized.webp",
+    );
   });
 
-  it("replaces attachments rather than appending on a re-save", async () => {
+  it("shares one asset across two products", async () => {
+    // The reason the schema changed: the old one could not express this at
+    // all, because an attachment carried its product.
+    const { make } = await seed();
+    const first = await make("First");
+    const second = await make("Second");
+    const shared = await asset("shared");
+
+    await inCtx(() => dbProductRepo.setMedia(first.id, [shared.id]));
+    await inCtx(() => dbProductRepo.setMedia(second.id, [shared.id]));
+
+    expect(
+      (await inCtx(() => dbProductRepo.getById(first.id)))?.media[0].id,
+    ).toBe(shared.id);
+    expect(
+      (await inCtx(() => dbProductRepo.getById(second.id)))?.media[0].id,
+    ).toBe(shared.id);
+  });
+
+  it("replaces links rather than appending on a re-save", async () => {
     const { make } = await seed();
     const product = await make("Gallery");
-    const one = {
-      kind: "image" as const,
-      originUrl: "/uploads/a.jpg",
-      optimizedUrl: null,
-      posterUrl: null,
-      mime: "image/jpeg",
-      bytes: 1,
-      optimizedBytes: null,
-      width: null,
-      height: null,
-      durationMs: null,
-      alt: null,
-    };
-    await inCtx(() => dbProductRepo.setAttachments(product.id, [one, one]));
-    await inCtx(() => dbProductRepo.setAttachments(product.id, [one]));
+    const a = await asset("a");
+    const b = await asset("b");
+
+    await inCtx(() => dbProductRepo.setMedia(product.id, [a.id, b.id]));
+    await inCtx(() => dbProductRepo.setMedia(product.id, [a.id]));
 
     const saved = await inCtx(() => dbProductRepo.getById(product.id));
-    expect(saved?.attachments).toHaveLength(1);
+    expect(saved?.media.map((m) => m.alt)).toEqual(["a"]);
   });
 
-  it("deletes a product's links and attachments with it", async () => {
+  it("unlinking leaves the asset in the library", async () => {
+    const { make } = await seed();
+    const product = await make("Gallery");
+    const a = await asset("a");
+    await inCtx(() => dbProductRepo.setMedia(product.id, [a.id]));
+
+    await inCtx(() => dbProductRepo.setMedia(product.id, []));
+
+    expect(
+      (await inCtx(() => dbProductRepo.getById(product.id)))?.media,
+    ).toEqual([]);
+    expect(await inCtx(() => dbMediaRepo.getMany([a.id]))).toHaveLength(1);
+  });
+
+  it("deleting a product drops its links and keeps the files", async () => {
     const { make, bags } = await seed();
     const product = await make("Doomed", { categories: [bags] });
-    await inCtx(() =>
-      dbProductRepo.setAttachments(product.id, [
-        {
-          kind: "image",
-          originUrl: "/uploads/x.jpg",
-          optimizedUrl: null,
-          posterUrl: null,
-          mime: "image/jpeg",
-          bytes: 1,
-          optimizedBytes: null,
-          width: null,
-          height: null,
-          durationMs: null,
-          alt: null,
-        },
-      ]),
-    );
+    const a = await asset("a");
+    await inCtx(() => dbProductRepo.setMedia(product.id, [a.id]));
 
     await inCtx(() => dbProductRepo.remove(product.id));
 
     expect(await inCtx(() => dbProductRepo.getById(product.id))).toBeNull();
-    const orphanAttachments = await db
-      .selectFrom("product_attachments")
-      .selectAll()
-      .execute();
-    const orphanLinks = await db
-      .selectFrom("product_categories")
-      .selectAll()
-      .execute();
-    expect(orphanAttachments).toEqual([]);
-    expect(orphanLinks).toEqual([]);
+    expect(await db.selectFrom("product_media").selectAll().execute()).toEqual(
+      [],
+    );
+    expect(
+      await db.selectFrom("product_categories").selectAll().execute(),
+    ).toEqual([]);
+    // The asset survives — another product might have been using it.
+    expect(await inCtx(() => dbMediaRepo.getMany([a.id]))).toHaveLength(1);
   });
 
   it("keeps products when their category is deleted", async () => {
@@ -416,11 +414,11 @@ describe("dbCategoryRepo", () => {
   });
 });
 
-describe("dbMediaRepo", () => {
-  const image = (url: string) => ({
-    kind: "image" as const,
-    originUrl: url,
-    optimizedUrl: `${url}.webp`,
+describe("dbMediaRepo — the library", () => {
+  const image = (alt: string): NewMediaAsset => ({
+    kind: "image",
+    originUrl: `/uploads/media/${alt}/origin.png`,
+    optimizedUrl: `/uploads/media/${alt}/optimized.webp`,
     posterUrl: null,
     mime: "image/png",
     bytes: 900_000,
@@ -428,110 +426,158 @@ describe("dbMediaRepo", () => {
     width: 900,
     height: 900,
     durationMs: null,
-    alt: null,
+    alt,
   });
 
-  const video = (url: string) => ({
-    kind: "video" as const,
-    originUrl: url,
+  const video = (alt: string): NewMediaAsset => ({
+    kind: "video",
+    originUrl: `/uploads/media/${alt}/origin.mp4`,
     optimizedUrl: null,
-    posterUrl: `${url}-poster.webp`,
+    posterUrl: `/uploads/media/${alt}/poster.webp`,
     mime: "video/mp4",
     bytes: 40_000_000,
     optimizedBytes: null,
     width: 1920,
     height: 1080,
     durationMs: 8_000,
-    alt: null,
+    alt,
   });
 
-  const withMedia = async () => {
-    const { make } = await seed();
-    const tote = await make("Tote");
-    const vase = await make("Vase");
-    const bare = await make("No Media");
-    await inCtx(() =>
-      dbProductRepo.setAttachments(tote.id, [
-        image("/uploads/tote-1.png"),
-        video("/uploads/tote-2.mp4"),
-      ]),
+  it("stores an uploaded batch with no product in sight", async () => {
+    // The v2 premise: uploading does not need a product, and the assets are
+    // usable — and findable — before anyone decides what they are for.
+    await seed();
+    const created = await inCtx(() =>
+      dbMediaRepo.createMany([image("a"), image("b"), video("c")]),
     );
-    await inCtx(() =>
-      dbProductRepo.setAttachments(vase.id, [image("/uploads/vase-1.png")]),
-    );
-    return { tote, vase, bare };
-  };
+    expect(created).toHaveLength(3);
 
-  it("returns every attachment with the product that owns it", async () => {
-    const { tote } = await withMedia();
     const page = await inCtx(() => dbMediaRepo.list(DEFAULT_MEDIA_QUERY));
-
     expect(page.total).toBe(3);
-    expect(page.items).toHaveLength(3);
-    const toteItems = page.items.filter((i) => i.product.id === tote.id);
-    expect(toteItems).toHaveLength(2);
-    // The caption's data comes from the JOIN, not a second query.
-    expect(toteItems[0].product.name).toBe("Tote");
-    expect(toteItems[0].product.currency).toBe("VND");
+    expect(page.counts).toEqual({ all: 3, image: 2, video: 1, unused: 3 });
+    // Nothing links to them, which is the normal state for a fresh upload.
+    expect(page.items.every((i) => i.usedBy.length === 0)).toBe(true);
   });
 
   it("serves the optimized variant for an image and the poster for a video", async () => {
-    await withMedia();
+    await seed();
+    await inCtx(() => dbMediaRepo.createMany([image("a"), video("c")]));
     const page = await inCtx(() => dbMediaRepo.list(DEFAULT_MEDIA_QUERY));
 
-    const img = page.items.find((i) => i.attachment.kind === "image");
-    const vid = page.items.find((i) => i.attachment.kind === "video");
-    expect(img?.src).toMatch(/\.webp$/);
+    const img = page.items.find((i) => i.asset.kind === "image");
+    const vid = page.items.find((i) => i.asset.kind === "video");
+    expect(img?.src).toMatch(/optimized\.webp$/);
     // A video tile must never be the 40 MB file itself.
-    expect(vid?.src).toBe("/uploads/tote-2.mp4-poster.webp");
+    expect(vid?.src).toBe("/uploads/media/c/poster.webp");
   });
 
-  it("counts every kind in one pass, regardless of the active filter", async () => {
-    // The tabs show counts even for the tab you are not on — otherwise
-    // "Videos" is a control you have to press to find out is empty.
-    await withMedia();
-    const videos = await inCtx(() =>
-      dbMediaRepo.list({ ...DEFAULT_MEDIA_QUERY, kind: "video" }),
+  it("reports which products use each asset", async () => {
+    const { make } = await seed();
+    const [a, b] = await inCtx(() =>
+      dbMediaRepo.createMany([image("a"), image("b")]),
     );
+    const tote = await make("Tote");
+    const vase = await make("Vase");
+    // One asset on two products — the thing the old schema could not express.
+    await inCtx(() => dbProductRepo.setMedia(tote.id, [a.id]));
+    await inCtx(() => dbProductRepo.setMedia(vase.id, [a.id, b.id]));
 
-    expect(videos.items).toHaveLength(1);
-    expect(videos.total).toBe(1);
-    expect(videos.counts).toEqual({ all: 3, image: 2, video: 1 });
+    const page = await inCtx(() => dbMediaRepo.list(DEFAULT_MEDIA_QUERY));
+    const forA = page.items.find((i) => i.asset.id === a.id);
+    expect(forA?.usedBy.map((p) => p.name)).toEqual(["Tote", "Vase"]);
+    expect(page.counts.unused).toBe(0);
   });
 
-  it("filters to one product", async () => {
-    const { vase } = await withMedia();
+  it("filters to what nothing is using", async () => {
+    const { make } = await seed();
+    const [a] = await inCtx(() =>
+      dbMediaRepo.createMany([image("a"), image("b")]),
+    );
+    const tote = await make("Tote");
+    await inCtx(() => dbProductRepo.setMedia(tote.id, [a.id]));
+
     const page = await inCtx(() =>
-      dbMediaRepo.list({ ...DEFAULT_MEDIA_QUERY, productId: vase.id }),
+      dbMediaRepo.list({ ...DEFAULT_MEDIA_QUERY, unusedOnly: true }),
     );
-    expect(page.items).toHaveLength(1);
-    expect(page.counts.all).toBe(1);
+    expect(page.items.map((i) => i.asset.alt)).toEqual(["b"]);
+    // The counts still describe the whole library, so the tabs stay honest
+    // while a filter is on.
+    expect(page.counts.all).toBe(2);
+    expect(page.total).toBe(1);
+  });
+
+  it("filters to one product's media", async () => {
+    const { make } = await seed();
+    const [a] = await inCtx(() =>
+      dbMediaRepo.createMany([image("a"), image("b")]),
+    );
+    const tote = await make("Tote");
+    await inCtx(() => dbProductRepo.setMedia(tote.id, [a.id]));
+
+    const page = await inCtx(() =>
+      dbMediaRepo.list({ ...DEFAULT_MEDIA_QUERY, productId: tote.id }),
+    );
+    expect(page.items.map((i) => i.asset.alt)).toEqual(["a"]);
+  });
+
+  it("deleting from the library takes it off every product too", async () => {
+    // Otherwise the product renders a broken image with nothing in the UI
+    // able to name the cause.
+    const { make } = await seed();
+    const [a] = await inCtx(() => dbMediaRepo.createMany([image("a")]));
+    const tote = await make("Tote");
+    await inCtx(() => dbProductRepo.setMedia(tote.id, [a.id]));
+
+    await inCtx(() => dbMediaRepo.remove([a.id]));
+
+    expect(await inCtx(() => dbMediaRepo.getMany([a.id]))).toEqual([]);
+    expect((await inCtx(() => dbProductRepo.getById(tote.id)))?.media).toEqual(
+      [],
+    );
+    const orphans = await db.selectFrom("product_media").selectAll().execute();
+    expect(orphans).toEqual([]);
   });
 
   it("offers only products that actually have media", async () => {
-    // Listing the products that would return an empty grid is listing ways to
-    // be disappointed.
-    const { bare } = await withMedia();
+    const { make } = await seed();
+    const [a] = await inCtx(() => dbMediaRepo.createMany([image("a")]));
+    const tote = await make("Tote");
+    const bare = await make("No Media");
+    await inCtx(() => dbProductRepo.setMedia(tote.id, [a.id]));
+
     const products = await inCtx(() => dbMediaRepo.productsWithMedia());
-    expect(products.map((p) => p.name)).toEqual(["Tote", "Vase"]);
+    expect(products.map((p) => p.name)).toEqual(["Tote"]);
     expect(products.some((p) => p.id === bare.id)).toBe(false);
   });
 
-  it("returns an empty page rather than failing past the end", async () => {
-    await withMedia();
-    const page = await inCtx(() =>
-      dbMediaRepo.list({ ...DEFAULT_MEDIA_QUERY, page: 9 }),
-    );
-    expect(page.items).toEqual([]);
-    expect(page.total).toBe(3);
-  });
-
-  it("reports zeroes rather than NaN on an empty catalogue", async () => {
+  it("reports zeroes rather than NaN on an empty library", async () => {
     // SUM over no rows is NULL, not 0 — the coercion is what stops the tabs
     // rendering "NaN".
     await seed();
     const page = await inCtx(() => dbMediaRepo.list(DEFAULT_MEDIA_QUERY));
-    expect(page.counts).toEqual({ all: 0, image: 0, video: 0 });
+    expect(page.counts).toEqual({ all: 0, image: 0, video: 0, unused: 0 });
     expect(page.total).toBe(0);
+  });
+
+  it("returns an empty page past the end rather than failing", async () => {
+    await seed();
+    await inCtx(() => dbMediaRepo.createMany([image("a")]));
+    const page = await inCtx(() =>
+      dbMediaRepo.list({ ...DEFAULT_MEDIA_QUERY, page: 9 }),
+    );
+    expect(page.items).toEqual([]);
+    expect(page.total).toBe(1);
+  });
+
+  it("updates alt text on the asset, where it describes the picture", async () => {
+    await seed();
+    const [a] = await inCtx(() => dbMediaRepo.createMany([image("a")]));
+    const updated = await inCtx(() =>
+      dbMediaRepo.updateAlt(a.id, "A silk swatch"),
+    );
+    expect(updated?.alt).toBe("A silk swatch");
+    expect(
+      await inCtx(() => dbMediaRepo.updateAlt("gone" as MediaId, "x")),
+    ).toBeNull();
   });
 });

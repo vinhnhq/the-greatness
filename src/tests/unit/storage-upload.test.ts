@@ -10,7 +10,7 @@ import type { PreparedMedia } from "@/lib/media/types";
 import type { StorageDriver, UploadInput } from "@/lib/storage/types";
 import { uploadPreparedWith } from "@/lib/storage/upload";
 
-const IDS = { productId: "prod-1", attachmentId: "att-1" };
+const IDS = { mediaId: "att-1" };
 
 const blob = (bytes: number) => new Blob([new Uint8Array(bytes)]);
 
@@ -68,8 +68,8 @@ describe("uploadPreparedWith — images", () => {
     const result = await uploadPreparedWith(driver, imageMedia(), IDS);
 
     expect(driver.calls.map((c) => c.key)).toEqual([
-      "products/prod-1/att-1/origin-tote-bag.jpg",
-      "products/prod-1/att-1/optimized-tote-bag.webp",
+      "media/att-1/origin-tote-bag.jpg",
+      "media/att-1/optimized-tote-bag.webp",
     ]);
     expect(result.originUrl).toContain("origin-tote-bag.jpg");
     expect(result.optimizedUrl).toContain("optimized-tote-bag.webp");
@@ -133,8 +133,8 @@ describe("uploadPreparedWith — video", () => {
     const result = await uploadPreparedWith(driver, videoMedia(), IDS);
 
     expect(driver.calls.map((c) => c.key)).toEqual([
-      "products/prod-1/att-1/origin-demo.mp4",
-      "products/prod-1/att-1/poster-demo.webp",
+      "media/att-1/origin-demo.mp4",
+      "media/att-1/poster-demo.webp",
     ]);
     expect(result.optimizedUrl).toBeNull();
     expect(result.posterUrl).toContain("poster-demo.webp");

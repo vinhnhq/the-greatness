@@ -9,15 +9,15 @@
  * wrong. Everything wrong is reported at once.
  */
 
-import { MAX_ATTACHMENTS_PER_PRODUCT } from "@/lib/media/constraints";
 import { isCurrency } from "@/lib/money";
 import { err, ok, type Result } from "@/lib/result";
 import { slugify } from "@/lib/slug";
 
 import type { CategoryId } from "../../../categories/entity";
+import type { MediaId } from "../../../media/entity";
 import {
-  ATTACHMENT_ALT_MAX,
   isProductStatus,
+  MAX_MEDIA_PER_PRODUCT,
   PRODUCT_DESCRIPTION_MAX,
   PRODUCT_NAME_MAX,
   PRODUCT_SKU_MAX,
@@ -36,19 +36,15 @@ export type SaveProductInput = {
   readonly currency: string;
   readonly status: string;
   readonly categoryIds: readonly string[];
-  readonly attachments: readonly {
-    readonly kind: string;
-    readonly originUrl: string;
-    readonly optimizedUrl: string | null;
-    readonly posterUrl: string | null;
-    readonly mime: string;
-    readonly bytes: number;
-    readonly optimizedBytes: number | null;
-    readonly width: number | null;
-    readonly height: number | null;
-    readonly durationMs: number | null;
-    readonly alt: string | null;
-  }[];
+  /**
+   * The library assets this product shows, **in gallery order**.
+   *
+   * Ids, not rows: the assets already exist by the time a product is saved —
+   * the browser uploaded the bytes and `createMediaAssets` wrote the rows.
+   * Accepting rows here is what would let a product write its own copy of an
+   * asset instead of linking to the one in the library.
+   */
+  readonly mediaIds: readonly string[];
 };
 
 /** A failure named by the field it belongs to, so the form can put each
@@ -63,7 +59,7 @@ export type FieldError = {
     | "currency"
     | "status"
     | "categoryIds"
-    | "attachments";
+    | "mediaIds";
   readonly code: string;
 };
 
@@ -82,7 +78,7 @@ export type ValidatedProduct = {
   readonly currency: string;
   readonly status: string;
   readonly categoryIds: readonly CategoryId[];
-  readonly attachments: SaveProductInput["attachments"];
+  readonly mediaIds: readonly MediaId[];
 };
 
 export type ValidationContext = {
@@ -92,6 +88,10 @@ export type ValidationContext = {
   readonly skuTaken: boolean;
   /** Categories that exist — a stale form must not link to a deleted one. */
   readonly knownCategoryIds: ReadonlySet<string>;
+  /** Library assets that exist. Same reason: a form left open while someone
+   * else emptied the library would otherwise write links to nothing, and the
+   * product's gallery would silently render blank. */
+  readonly knownMediaIds: ReadonlySet<string>;
 };
 
 export const validateSaveProduct = (
@@ -162,24 +162,20 @@ export const validateSaveProduct = (
     errors.push({ field: "categoryIds", code: "unknown" });
   }
 
-  if (input.attachments.length > MAX_ATTACHMENTS_PER_PRODUCT) {
-    errors.push({ field: "attachments", code: "too-many" });
+  // Order matters here and de-duplication is not cosmetic: the link table's
+  // composite key would reject a repeat, and the same photo twice in one
+  // gallery is not a state anyone means.
+  const mediaIds = [...new Set(input.mediaIds.map((id) => id.trim()))].filter(
+    (id) => id !== "",
+  );
+  if (mediaIds.length > MAX_MEDIA_PER_PRODUCT) {
+    errors.push({ field: "mediaIds", code: "too-many" });
   }
-  for (const attachment of input.attachments) {
-    if (attachment.kind !== "image" && attachment.kind !== "video") {
-      errors.push({ field: "attachments", code: "invalid-kind" });
-      break;
-    }
-  }
-  if (input.attachments.some((a) => a.originUrl.trim() === "")) {
-    // The origin is the one file that cannot be regenerated. A row without it
-    // is an attachment that renders nothing and can never be repaired.
-    errors.push({ field: "attachments", code: "missing-origin" });
-  }
-  if (
-    input.attachments.some((a) => (a.alt ?? "").length > ATTACHMENT_ALT_MAX)
-  ) {
-    errors.push({ field: "attachments", code: "alt-too-long" });
+  if (mediaIds.some((id) => !context.knownMediaIds.has(id))) {
+    // A form left open while someone else emptied the library would otherwise
+    // write links to nothing, and the product's gallery would render blank
+    // with nothing in the UI able to say why.
+    errors.push({ field: "mediaIds", code: "unknown" });
   }
 
   if (errors.length > 0) return err({ tag: "SaveProductInvalid", errors });
@@ -193,6 +189,6 @@ export const validateSaveProduct = (
     currency: input.currency,
     status: input.status,
     categoryIds: categoryIds as CategoryId[],
-    attachments: input.attachments,
+    mediaIds: mediaIds as MediaId[],
   });
 };

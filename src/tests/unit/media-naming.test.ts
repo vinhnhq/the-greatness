@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { attachmentKeys, extensionFor, safeStem } from "@/lib/media/naming";
+import { extensionFor, mediaKeys, safeStem } from "@/lib/media/naming";
 
 describe("safeStem", () => {
   it("lowercases and dashes a plain filename", () => {
@@ -50,10 +50,9 @@ describe("extensionFor", () => {
   });
 });
 
-describe("attachmentKeys", () => {
-  const keys = attachmentKeys({
-    productId: "0197f0a3-1c2d-7e4f-8a1b-2c3d4e5f6071",
-    attachmentId: "0197f0a3-1c2d-7e4f-8a1b-2c3d4e5f6072",
+describe("mediaKeys", () => {
+  const keys = mediaKeys({
+    mediaId: "0197f0a3-1c2d-7e4f-8a1b-2c3d4e5f6072",
     filename: "Summer Tote.jpeg",
     mime: "image/jpeg",
   });
@@ -64,28 +63,29 @@ describe("attachmentKeys", () => {
     expect(keys.poster).toMatch(/\/poster-summer-tote\.webp$/);
   });
 
-  it("scopes all three under the product and the attachment", () => {
+  it("scopes all three under the ASSET, not under a product", () => {
+    // An asset in the library has no owner, and one used by three products
+    // cannot live in three directories.
     for (const key of Object.values(keys)) {
       expect(
-        key.startsWith("products/0197f0a3-1c2d-7e4f-8a1b-2c3d4e5f6071/"),
+        key.startsWith("media/0197f0a3-1c2d-7e4f-8a1b-2c3d4e5f6072/"),
       ).toBe(true);
+      expect(key).not.toContain("products/");
       expect(key).not.toContain("..");
     }
   });
 
   it("gives two files with the same name distinct keys", () => {
-    const other = attachmentKeys({
-      productId: "p",
-      attachmentId: "a2",
+    const a = mediaKeys({
+      mediaId: "a1",
       filename: "Summer Tote.jpeg",
       mime: "image/jpeg",
     });
-    const same = attachmentKeys({
-      productId: "p",
-      attachmentId: "a1",
+    const b = mediaKeys({
+      mediaId: "a2",
       filename: "Summer Tote.jpeg",
       mime: "image/jpeg",
     });
-    expect(other.origin).not.toBe(same.origin);
+    expect(a.origin).not.toBe(b.origin);
   });
 });

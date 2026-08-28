@@ -18,7 +18,21 @@
 
 Ship facts in [`done.md`](done.md). What follows is what v1 deliberately left.
 
-## N — Next, in the order it is worth doing
+## v2 → ✅ **SHIPPED 2026-08-28**
+
+Ship facts in [`done.md`](done.md). What v2 deliberately left:
+
+- [ ] **V2.7** ↷ **Paging or search in the library picker.** It loads one page
+      (60) and stops. A real catalogue will make it obvious which of the two
+      it needs; guessing now means building the wrong one.
+- [ ] **V2.8** ↷ **Bulk attach from the gallery.** Selection mode can delete;
+      "add these six to a product" is the natural other verb, and needs a
+      product picker that does not exist yet.
+- [ ] **V2.9** **Replace a file in place.** Today swapping a photo means
+      uploading the new one and unlinking the old one on every product using
+      it. A library is where "replace" starts being expected.
+
+## N — Later, unrelated to v2
 
 - [ ] **N.0** ↷ **Infinite scroll on `/gallery`.** It pages at 60 with a
       pager, which is consistent with `/products` and linkable. A photo
@@ -29,12 +43,13 @@ Ship facts in [`done.md`](done.md). What follows is what v1 deliberately left.
       Accessibility ≥ 95 — the quality bar's last unverified line). The list is
       server-rendered with no client data fetching, so the likely findings are
       image sizing on the thumbnail column and contrast on the status badges.
-- [ ] **N.2** **Orphan-file sweep.** Deleting a product leaves its uploaded
-      bytes behind (deliberate — a best-effort delete half-succeeds on a
-      network blip and leaves rows pointing at files that are _sometimes_
-      gone). Decide between a reference-counted delete and a sweep job when a
-      second feature also uploads. Same question covers files uploaded into a
-      product form that was then abandoned.
+- [ ] **N.2** **Orphan-file sweep.** Deleting from the library removes the
+      row and its links but leaves the bytes (deliberate — a best-effort
+      delete half-succeeds on a network blip and leaves rows pointing at files
+      that are _sometimes_ gone). v2 makes this more visible, not worse: an
+      asset uploaded in the gallery and never attached is now a first-class
+      state with its own filter, so the sweep has a clear definition of what
+      it may collect — a stored file with no `media_assets` row.
 - [ ] **N.3** **Deploy path.** Provision Neon + Vercel Blob, set
       `DATABASE_URL` / `BLOB_READ_WRITE_TOKEN`, migrate the remote branch
       (the runner refuses a Postgres target without `--allow-remote`), and

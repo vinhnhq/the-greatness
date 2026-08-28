@@ -5,14 +5,13 @@
 
 import { describe, expect, it } from "vitest";
 
-import { attachmentKeys } from "@/lib/media/naming";
+import { mediaKeys } from "@/lib/media/naming";
 import { assertSafeKey, isSafeKey, MAX_KEY_LENGTH } from "@/lib/storage/keys";
 
 describe("isSafeKey", () => {
   it("accepts the keys the naming module actually produces", () => {
-    const keys = attachmentKeys({
-      productId: "0197f0a3-1c2d-7e4f-8a1b-2c3d4e5f6071",
-      attachmentId: "0197f0a3-1c2d-7e4f-8a1b-2c3d4e5f6072",
+    const keys = mediaKeys({
+      mediaId: "0197f0a3-1c2d-7e4f-8a1b-2c3d4e5f6072",
       filename: "Áo dài lụa.jpeg",
       mime: "image/jpeg",
     });
@@ -20,17 +19,17 @@ describe("isSafeKey", () => {
   });
 
   it.each([
-    ["traversal", "products/../../etc/passwd"],
-    ["traversal mid-path", "products/a/../../../x.png"],
+    ["traversal", "media/../../etc/passwd"],
+    ["traversal mid-path", "media/a/../../../x.png"],
     ["absolute", "/etc/passwd"],
     ["leading dot", ".ssh/id_rsa"],
-    ["doubled slash", "products//x.png"],
-    ["trailing slash", "products/x/"],
-    ["backslash", "products\\..\\x.png"],
-    ["NUL byte", "products/x\0.png"],
-    ["newline", "products/x\n.png"],
-    ["space", "products/my file.png"],
-    ["url-encoded traversal", "products/%2e%2e/x.png"],
+    ["doubled slash", "media//x.png"],
+    ["trailing slash", "media/x/"],
+    ["backslash", "media\\..\\x.png"],
+    ["NUL byte", "media/x\0.png"],
+    ["newline", "media/x\n.png"],
+    ["space", "media/my file.png"],
+    ["url-encoded traversal", "media/%2e%2e/x.png"],
     ["empty", ""],
   ])("rejects %s", (_label, key) => {
     expect(isSafeKey(key)).toBe(false);
@@ -43,9 +42,7 @@ describe("isSafeKey", () => {
 
 describe("assertSafeKey", () => {
   it("returns the key when it is safe", () => {
-    expect(assertSafeKey("products/p/a/origin-x.jpg")).toBe(
-      "products/p/a/origin-x.jpg",
-    );
+    expect(assertSafeKey("media/a/origin-x.jpg")).toBe("media/a/origin-x.jpg");
   });
 
   it("throws without echoing an unbounded string back", () => {

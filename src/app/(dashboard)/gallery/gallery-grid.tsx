@@ -1,29 +1,29 @@
 "use client";
 
 /**
- * The grid itself: square tiles, grouped by month with sticky headers, the
+ * The library grid: square tiles, grouped by month with sticky headers, the
  * way a photo library reads.
  *
- * Two things are deliberate and would each be easy to do the other way:
+ * Three things are deliberate and would each be easy to do the other way:
  *
  *   - **Tiles are square and cropped** (`aspect-square` + `object-cover`).
- *     A masonry layout preserving each image's ratio is prettier for one
- *     screenshot and much harder to scan, because the eye has no grid to
- *     follow. The uncropped image is one tap away in the viewer.
+ *     A masonry layout preserving each ratio is prettier for one screenshot
+ *     and much harder to scan, because the eye has no grid to follow. The
+ *     uncropped image is one tap away.
  *   - **It goes edge-to-edge on a phone**, cancelling the page padding. Photos
- *     does this for a reason: at 390px, gutters either side plus a gap
- *     between columns is a tenth of the screen spent on nothing.
- *
- * Column counts step with the viewport rather than being fixed, so a 27"
- * monitor shows more photos rather than bigger ones — which is the point of
- * giving this page a wider container than the rest of the app.
+ *     does this for a reason: at 390px, gutters either side plus a gap between
+ *     columns is a tenth of the screen spent on nothing.
+ *   - **Selecting is a mode, not a hover affordance.** A checkbox that only
+ *     appears on hover does not exist on a touch screen, and this is the
+ *     surface where the destructive action lives.
  */
 
-import { Play } from "lucide-react";
+import { Check, Play } from "lucide-react";
 import { useState } from "react";
 
-import { groupByMonth, monthLabel } from "@/lib/domain/products/media-grouping";
-import type { MediaItem } from "@/lib/domain/products/media-repository";
+import { groupByMonth, monthLabel } from "@/lib/domain/media/grouping";
+import type { LibraryItem } from "@/lib/domain/media/repository";
+import { cn } from "@/lib/utils";
 
 import { GalleryViewer } from "./gallery-viewer";
 
@@ -34,8 +34,14 @@ const durationLabel = (ms: number): string => {
 
 export function GalleryGrid({
   items,
+  selecting = false,
+  selected = new Set<string>(),
+  onToggle,
 }: {
-  readonly items: readonly MediaItem[];
+  readonly items: readonly LibraryItem[];
+  readonly selecting?: boolean;
+  readonly selected?: ReadonlySet<string>;
+  readonly onToggle?: (id: string) => void;
 }) {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
   // Each item arrives with its position in the flat page, so the viewer's
@@ -54,59 +60,96 @@ export function GalleryGrid({
               </span>
             </h2>
 
-            {/* Named so it is distinguishable from the sidebar's menu, which
-                is also a list of list-items. */}
-            {/* `-mx-4` cancels the page padding below `sm`: Photos is
-                edge-to-edge for a reason — at 390px a 16px gutter either side
-                is 8% of the screen spent on nothing. A deliberate full-bleed,
-                and the only negative margin in the app. */}
+            {/* `-mx-4` cancels the page padding below `sm` — a deliberate
+                full-bleed, and the only negative margin in the app. */}
             <ul
               aria-label={`Media added in ${monthLabel(group.key)}`}
               className="-mx-4 grid grid-cols-3 gap-0.5 sm:mx-0 sm:grid-cols-4 sm:gap-1 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-10"
             >
               {group.items.map(({ item, index }) => {
-                const { attachment, product } = item;
+                const { asset, usedBy } = item;
+                const isSelected = selected.has(asset.id);
                 return (
-                  <li key={attachment.id}>
+                  <li key={asset.id}>
                     <button
                       type="button"
-                      onClick={() => setOpenIndex(index)}
-                      className="group relative block aspect-square w-full overflow-hidden bg-muted focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring sm:rounded-sm"
+                      onClick={() =>
+                        selecting ? onToggle?.(asset.id) : setOpenIndex(index)
+                      }
+                      aria-pressed={selecting ? isSelected : undefined}
+                      className={cn(
+                        "group relative block aspect-square w-full overflow-hidden bg-muted focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring sm:rounded-sm",
+                        isSelected && "ring-2 ring-primary",
+                      )}
                     >
-                      {/* A plain <img>: these are operator uploads served
-                          from our own origin or Blob, already at the size the
-                          media library produced. */}
+                      {/* A plain <img>: operator uploads served from our own
+                          origin or from Blob, already at the size the media
+                          library produced. */}
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         src={item.src}
                         alt=""
                         loading="lazy"
                         decoding="async"
-                        className="size-full object-cover transition-transform duration-200 ease-out motion-safe:group-hover:scale-105"
+                        className={cn(
+                          "size-full object-cover transition-transform duration-200 ease-out",
+                          !selecting && "motion-safe:group-hover:scale-105",
+                          isSelected && "scale-90",
+                        )}
                       />
 
-                      {attachment.kind === "video" && (
+                      {selecting && (
+                        <span
+                          className={cn(
+                            "absolute left-1 top-1 flex size-5 items-center justify-center rounded-full border-2 border-white/80 shadow",
+                            isSelected
+                              ? "bg-primary text-primary-foreground"
+                              : "bg-black/25",
+                          )}
+                        >
+                          {isSelected && (
+                            <Check className="size-3" aria-hidden />
+                          )}
+                        </span>
+                      )}
+
+                      {asset.kind === "video" && (
                         <span className="absolute bottom-1 right-1 flex items-center gap-1 rounded bg-black/60 px-1 py-0.5 text-[10px] font-medium text-white">
                           <Play className="size-2.5 fill-current" aria-hidden />
-                          {attachment.durationMs
-                            ? durationLabel(attachment.durationMs)
+                          {asset.durationMs
+                            ? durationLabel(asset.durationMs)
                             : "Video"}
                         </span>
                       )}
 
-                      {/* The product name on hover — enough to know what you
-                          are looking at without opening it. Hidden on touch,
-                          where there is no hover and a tap opens the viewer
-                          anyway. */}
+                      {/* Unattached assets are marked: "what have I uploaded
+                          and not used yet" is answerable at a glance, or not
+                          at all. */}
+                      {usedBy.length === 0 && !selecting && (
+                        <span className="absolute left-1 top-1 rounded bg-black/55 px-1 py-0.5 text-[10px] font-medium text-white">
+                          Unused
+                        </span>
+                      )}
+
+                      {/* Hover label: enough to know what you are looking at
+                          without opening it. Hidden on touch, where there is
+                          no hover and a tap opens the viewer anyway. */}
                       <span className="pointer-events-none absolute inset-x-0 bottom-0 hidden bg-gradient-to-t from-black/70 to-transparent p-1.5 pt-6 text-left text-[11px] leading-tight text-white opacity-0 transition-opacity group-hover:opacity-100 md:block">
-                        <span className="line-clamp-2">{product.name}</span>
+                        <span className="line-clamp-2">
+                          {usedBy[0]?.name ?? (asset.alt || "Not used yet")}
+                        </span>
                       </span>
 
                       {/* The accessible name. The visual label is decorative
                           and hover-only; this is what a screen reader reads. */}
                       <span className="sr-only">
-                        {attachment.alt ??
-                          `${attachment.kind} for ${product.name}`}
+                        {asset.alt ??
+                          `${asset.kind}${
+                            usedBy.length > 0
+                              ? ` used on ${usedBy.map((p) => p.name).join(", ")}`
+                              : ", not used yet"
+                          }`}
+                        {selecting && isSelected ? ", selected" : ""}
                       </span>
                     </button>
                   </li>

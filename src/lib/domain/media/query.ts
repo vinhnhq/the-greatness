@@ -1,16 +1,16 @@
 /**
  * The gallery's query state, parsed from and written back to the URL.
  *
- * Same shape and same reasoning as `list-query.ts`: the URL is the query, so a
- * filtered gallery is linkable, and every field is untrusted input that gets
- * parsed against a closed set rather than validated.
+ * Same reasoning as the product list's: the URL is the query, so a filtered
+ * library is linkable, and every field is untrusted input parsed against a
+ * closed set rather than validated.
  *
- * The page size is much larger than the product list's. A gallery is scanned,
- * not read — sixty thumbnails is one or two screens of scrolling, where
- * twenty-five would put a pager in front of someone every few seconds.
+ * v2 adds `unusedOnly`. "What have I uploaded and not used yet" is the
+ * question a library gets asked most, and it is unanswerable from the kind
+ * tabs alone.
  */
 
-import type { ProductId } from "./entity";
+import type { ProductId } from "../products/entity";
 
 export const MEDIA_KINDS = ["all", "image", "video"] as const;
 export type MediaFilter = (typeof MEDIA_KINDS)[number];
@@ -19,7 +19,9 @@ export const MEDIA_PAGE_SIZE = 60;
 
 export type MediaQuery = {
   readonly kind: MediaFilter;
-  /** Only this product's media, or all of it. */
+  /** Only assets no product links to. */
+  readonly unusedOnly: boolean;
+  /** Only this product's assets, or all of them. */
   readonly productId: ProductId | null;
   /** 1-based. */
   readonly page: number;
@@ -27,6 +29,7 @@ export type MediaQuery = {
 
 export const DEFAULT_MEDIA_QUERY: MediaQuery = {
   kind: "all",
+  unusedOnly: false,
   productId: null,
   page: 1,
 };
@@ -40,7 +43,7 @@ const first = (value: string | string[] | undefined): string =>
   (Array.isArray(value) ? value[0] : value) ?? "";
 
 /** Parse, never validate-and-throw: a hand-edited URL should show the default
- * gallery, not an error page. */
+ * library, not an error page. */
 export const parseMediaQuery = (raw: RawParams): MediaQuery => {
   const kind = first(raw.kind);
   const product = first(raw.product).trim();
@@ -48,6 +51,7 @@ export const parseMediaQuery = (raw: RawParams): MediaQuery => {
 
   return {
     kind: isMediaFilter(kind) ? kind : "all",
+    unusedOnly: first(raw.unused) === "1",
     productId: product === "" ? null : (product as ProductId),
     page: Number.isInteger(page) && page > 0 ? page : 1,
   };
@@ -58,6 +62,7 @@ export const parseMediaQuery = (raw: RawParams): MediaQuery => {
 export const toMediaSearchParams = (query: MediaQuery): URLSearchParams => {
   const params = new URLSearchParams();
   if (query.kind !== "all") params.set("kind", query.kind);
+  if (query.unusedOnly) params.set("unused", "1");
   if (query.productId) params.set("product", query.productId);
   if (query.page > 1) params.set("page", String(query.page));
   return params;
@@ -69,7 +74,7 @@ export const galleryHref = (query: MediaQuery): string => {
 };
 
 /** Change one facet. Anything but paging returns to page 1 — narrowing while
- * on page 4 otherwise shows an empty grid that reads as "no media". */
+ * on page 4 otherwise shows an empty grid that reads as "nothing here". */
 export const withMediaQuery = (
   query: MediaQuery,
   patch: Partial<MediaQuery>,

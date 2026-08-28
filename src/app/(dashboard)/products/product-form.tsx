@@ -57,12 +57,12 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import type { Category } from "@/lib/domain/categories/entity";
 import type { CategoryId } from "@/lib/domain/categories/entity";
+import type { MediaAsset } from "@/lib/domain/media/entity";
 import {
   PRODUCT_STATUSES,
   type ProductStatus,
   type ProductWithRelations,
 } from "@/lib/domain/products/entity";
-import { newId } from "@/lib/id";
 import {
   CURRENCIES,
   type Currency,
@@ -72,34 +72,7 @@ import {
 import { slugify } from "@/lib/slug";
 
 import { deleteProduct, saveProduct } from "./actions";
-import {
-  type AttachmentDraft,
-  isSavable,
-  toSubmitted,
-} from "./attachment-draft";
-import { AttachmentsField } from "./attachments-field";
-
-const storedDrafts = (
-  product: ProductWithRelations | null,
-): readonly AttachmentDraft[] =>
-  (product?.attachments ?? []).map((a) => ({
-    id: a.id,
-    filename: a.alt ?? a.originUrl.split("/").pop() ?? "attachment",
-    state: {
-      tag: "stored" as const,
-      kind: a.kind,
-      originUrl: a.originUrl,
-      optimizedUrl: a.optimizedUrl,
-      posterUrl: a.posterUrl,
-      mime: a.mime,
-      bytes: a.bytes,
-      optimizedBytes: a.optimizedBytes,
-      width: a.width,
-      height: a.height,
-      durationMs: a.durationMs,
-      alt: a.alt ?? "",
-    },
-  }));
+import { ProductMediaField } from "./media-field";
 
 function FieldError({ message }: { readonly message?: string }) {
   if (!message) return null;
@@ -121,10 +94,6 @@ export function ProductForm({
   const [pending, startTransition] = useTransition();
   const [deleting, startDeleting] = useTransition();
 
-  // Stable for the life of the form — an upload key needs it before the row
-  // exists. `useState`'s initializer runs once, so this survives re-renders.
-  const [productId] = useState(() => product?.id ?? newId());
-
   const [name, setName] = useState(product?.name ?? "");
   const [slug, setSlug] = useState(product?.slug ?? "");
   const [slugTouched, setSlugTouched] = useState(Boolean(product));
@@ -142,8 +111,10 @@ export function ProductForm({
   const [categoryIds, setCategoryIds] = useState<readonly CategoryId[]>(
     product?.categoryIds ?? [],
   );
-  const [drafts, setDrafts] = useState<readonly AttachmentDraft[]>(() =>
-    storedDrafts(product),
+  // Links, in this product's gallery order. The assets themselves live in
+  // the library; this is which ones and in what order.
+  const [media, setMedia] = useState<readonly MediaAsset[]>(
+    product?.media ?? [],
   );
   const [errors, setErrors] = useState<Readonly<Record<string, string>>>({});
 
@@ -151,10 +122,6 @@ export function ProductForm({
     setName(value);
     if (!slugTouched) setSlug(slugify(value));
   };
-
-  const uploading = drafts.some(
-    (d) => d.state.tag === "preparing" || d.state.tag === "uploading",
-  );
 
   const submit = () => {
     setErrors({});
@@ -171,10 +138,8 @@ export function ProductForm({
         currency,
         status,
         categoryIds: [...categoryIds],
-        // Drafts still in flight or failed are dropped rather than saved
-        // half-formed; the button is disabled while any are in flight, so
-        // this only ever drops failures.
-        attachments: drafts.filter(isSavable).map(toSubmitted),
+        // Ids in gallery order; the array index becomes `position`.
+        mediaIds: media.map((a) => a.id as string),
       });
 
       if (result.status === "invalid") {
@@ -196,7 +161,8 @@ export function ProductForm({
 
   const confirmDelete = () => {
     startDeleting(async () => {
-      const result = await deleteProduct(productId);
+      if (!product) return;
+      const result = await deleteProduct(product.id);
       if (!result.ok) {
         toast.error("That product could not be deleted.");
         return;
@@ -395,27 +361,20 @@ export function ProductForm({
         <CardHeader>
           <CardTitle>Media</CardTitle>
           <CardDescription>
-            Each file is stored twice — the original you uploaded, and an
+            Pick from the library, or upload — anything uploaded here joins the
+            library too. Each file is stored twice: the original, and an
             optimized copy the catalogue serves. The first image is the
             product&rsquo;s primary.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <AttachmentsField
-            productId={productId}
-            drafts={drafts}
-            onChange={setDrafts}
-          />
-          <FieldError message={errors.attachments} />
+          <ProductMediaField media={media} onChange={setMedia} />
+          <FieldError message={errors.mediaIds} />
         </CardContent>
       </Card>
 
       <div className="flex flex-wrap items-center gap-2">
-        <Button
-          type="submit"
-          disabled={pending || uploading}
-          aria-busy={pending}
-        >
+        <Button type="submit" disabled={pending} aria-busy={pending}>
           {pending ? (
             <Loader2 className="size-4 animate-spin" aria-hidden />
           ) : (
@@ -433,18 +392,8 @@ export function ProductForm({
         </Button>
 
         <span aria-live="polite" className="sr-only">
-          {pending
-            ? "Saving"
-            : uploading
-              ? "Waiting for uploads to finish"
-              : ""}
+          {pending ? "Saving" : ""}
         </span>
-
-        {uploading && (
-          <span className="text-sm text-muted-foreground">
-            Waiting for uploads to finish…
-          </span>
-        )}
 
         {product && (
           <AlertDialog>
@@ -470,10 +419,11 @@ export function ProductForm({
                   Delete &ldquo;{product.name}&rdquo;?
                 </AlertDialogTitle>
                 <AlertDialogDescription>
-                  This removes the product, its category links and its{" "}
-                  {product.attachments.length} attachment
-                  {product.attachments.length === 1 ? "" : "s"}. To take it out
-                  of the catalogue without losing it, set the status to archived
+                  This removes the product and its category links, and takes its{" "}
+                  {product.media.length} media file
+                  {product.media.length === 1 ? "" : "s"} off it. The files
+                  themselves stay in the library. To take the product out of the
+                  catalogue without losing it, set the status to archived
                   instead.
                 </AlertDialogDescription>
               </AlertDialogHeader>

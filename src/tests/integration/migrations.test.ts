@@ -54,8 +54,9 @@ describe("migrations", () => {
     expect(await tableNames()).toEqual([
       "accounts",
       "categories",
-      "product_attachments",
+      "media_assets",
       "product_categories",
+      "product_media",
       "products",
       "sessions",
       "users",
@@ -75,7 +76,7 @@ describe("migrations", () => {
 
     const again = await migrator.migrateToLatest();
     expect(again.error).toBeUndefined();
-    expect(await tableNames()).toHaveLength(8);
+    expect(await tableNames()).toHaveLength(9);
   });
 
   it("enforces the unique constraints the save path relies on", async () => {
@@ -120,5 +121,152 @@ describe("migrations", () => {
         .execute();
     await link();
     await expect(link()).rejects.toThrow();
+  });
+});
+
+describe("migration 004 — the media backfill", () => {
+  /** The pre-004 world: run every migration, then undo just this one. */
+  const atMigration003 = async () => {
+    await migrator.migrateToLatest();
+    await migrator.migrateDown();
+  };
+
+  const legacyAttachment = (id: string, productId: string, position: number) =>
+    db
+      .insertInto("product_attachments" as never)
+      .values({
+        id,
+        productId,
+        kind: "image",
+        originUrl: `/uploads/products/${productId}/${id}/origin.png`,
+        optimizedUrl: `/uploads/products/${productId}/${id}/optimized.png`,
+        posterUrl: null,
+        mime: "image/png",
+        bytes: 900_000,
+        optimizedBytes: 50_000,
+        width: 900,
+        height: 900,
+        durationMs: null,
+        position,
+        alt: `alt-${id}`,
+        createdAt: new Date("2026-08-01"),
+      } as never)
+      .execute();
+
+  it("carries every existing attachment into the library, keeping its id", async () => {
+    // The point of the backfill: a migration that needs `db:reset` is a reset
+    // with extra steps, and it would throw away every image already uploaded.
+    // Ids are preserved so the paths already on disk keep resolving.
+    await atMigration003();
+    await legacyAttachment("att-1", "prod-1", 0);
+    await legacyAttachment("att-2", "prod-1", 1);
+    await legacyAttachment("att-3", "prod-2", 0);
+
+    const { error } = await migrator.migrateToLatest();
+    expect(error).toBeUndefined();
+
+    const assets = await db
+      .selectFrom("media_assets")
+      .selectAll()
+      .orderBy("id", "asc")
+      .execute();
+    expect(assets.map((a) => a.id)).toEqual(["att-1", "att-2", "att-3"]);
+    // Alt moved onto the asset, and the stored URL is untouched.
+    expect(assets[0].alt).toBe("alt-att-1");
+    expect(assets[0].originUrl).toBe(
+      "/uploads/products/prod-1/att-1/origin.png",
+    );
+
+    const links = await db
+      .selectFrom("product_media")
+      .selectAll()
+      .orderBy("productId", "asc")
+      .orderBy("position", "asc")
+      .execute();
+    expect(links.map((l) => [l.productId, l.mediaId, l.position])).toEqual([
+      ["prod-1", "att-1", 0],
+      ["prod-1", "att-2", 1],
+      ["prod-2", "att-3", 0],
+    ]);
+  });
+
+  it("leaves no trace of the old table", async () => {
+    await atMigration003();
+    await legacyAttachment("att-1", "prod-1", 0);
+    await migrator.migrateToLatest();
+
+    expect(await tableNames()).not.toContain("product_attachments");
+  });
+
+  it("migrates an empty database without complaint", async () => {
+    // The common case on a fresh clone, and the one where a backfill written
+    // as an INSERT…SELECT over no rows can still fail on a typo.
+    await atMigration003();
+    const { error } = await migrator.migrateToLatest();
+    expect(error).toBeUndefined();
+    expect(await db.selectFrom("media_assets").selectAll().execute()).toEqual(
+      [],
+    );
+  });
+
+  it("rolls back lossily but coherently", async () => {
+    // Down is lossy and cannot not be: the old schema has nowhere to put a
+    // file that belongs to nobody. What it must not do is produce a row that
+    // breaks the old shape's primary key.
+    await migrator.migrateToLatest();
+    const now = new Date("2026-08-01");
+    await db
+      .insertInto("media_assets")
+      .values([
+        {
+          id: "m-shared",
+          kind: "image",
+          originUrl: "/uploads/media/m-shared/origin.png",
+          optimizedUrl: null,
+          posterUrl: null,
+          mime: "image/png",
+          bytes: 1,
+          optimizedBytes: null,
+          width: null,
+          height: null,
+          durationMs: null,
+          alt: null,
+          createdAt: now,
+        },
+        {
+          id: "m-orphan",
+          kind: "image",
+          originUrl: "/uploads/media/m-orphan/origin.png",
+          optimizedUrl: null,
+          posterUrl: null,
+          mime: "image/png",
+          bytes: 1,
+          optimizedBytes: null,
+          width: null,
+          height: null,
+          durationMs: null,
+          alt: null,
+          createdAt: now,
+        },
+      ])
+      .execute();
+    await db
+      .insertInto("product_media")
+      .values([
+        { productId: "p-a", mediaId: "m-shared", position: 0 },
+        { productId: "p-b", mediaId: "m-shared", position: 0 },
+      ])
+      .execute();
+
+    const { error } = await migrator.migrateDown();
+    expect(error).toBeUndefined();
+
+    const rows = await db
+      .selectFrom("product_attachments" as never)
+      .selectAll()
+      .execute();
+    // One row for the shared asset (the second link cannot fit; its id is
+    // already taken) and none for the orphan (no product to hang it on).
+    expect(rows).toHaveLength(1);
   });
 });

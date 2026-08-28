@@ -41,10 +41,11 @@ const createProductWithImage = async (page: Page, name: string) => {
   await page.getByLabel("Name").fill(name);
   await page.getByLabel("Price").fill("120000");
   await page.setInputFiles('input[type="file"]', "e2e/fixtures/swatch.png");
-  await expect(page.getByRole("link", { name: "View original" })).toBeVisible({
-    timeout: 30_000,
-  });
-  await page.getByLabel(/^Alt text for/).fill(`${name} swatch`);
+  await expect(
+    page
+      .getByRole("list", { name: "This product's media" })
+      .getByRole("listitem"),
+  ).toHaveCount(1, { timeout: 60_000 });
   await page.getByRole("button", { name: "Create product" }).click();
   await expect(page).toHaveURL(/\/products\/[0-9a-f-]{36}$/, {
     timeout: 30_000,

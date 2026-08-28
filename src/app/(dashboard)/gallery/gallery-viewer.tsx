@@ -16,9 +16,13 @@
  *     where an operator is checking what they actually uploaded, and
  *     stretching a 200px image to fill a monitor hides exactly the problem
  *     they came here to find.
- *   - **The caption carries the reason you are here** — which product, what it
- *     costs, and a way to go edit it. A viewer that shows only the picture
- *     makes you memorise it and navigate back.
+ *   - **The caption carries the reason you are here** — which products use
+ *     this asset, and a way to go to each. A viewer that shows only the
+ *     picture makes you memorise it and navigate back.
+ *   - **Alt text is edited here.** It describes the picture, so the place to
+ *     write it is the one screen showing the picture at full size. It was
+ *     previously edited on a 120px thumbnail in the product form, which is
+ *     asking someone to describe something they cannot see.
  *
  * Built on shadcn's `Dialog` for the focus trap and Esc handling, with its
  * chrome removed: those are the accessibility parts that are tedious and
@@ -28,15 +32,24 @@
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { ChevronLeft, ChevronRight, ExternalLink, X } from "lucide-react";
 import Link from "next/link";
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import type { MediaItem } from "@/lib/domain/products/media-repository";
-import { formatMoney } from "@/lib/money";
+import { Input } from "@/components/ui/input";
+import { MEDIA_ALT_MAX } from "@/lib/domain/media/entity";
+import type { LibraryItem } from "@/lib/domain/media/repository";
 import { cn } from "@/lib/utils";
 
-import { formatBytes } from "../products/attachment-draft";
+import { updateMediaAlt } from "./actions";
+
+/** Human file size, for the "4.2 MB → 310 KB" line. That comparison is the
+ * only place the optimization's value is visible. */
+const formatBytes = (bytes: number): string => {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+};
 
 /** Below this, a horizontal drag is a swipe rather than a stray touch. */
 const SWIPE_THRESHOLD_PX = 50;
@@ -47,14 +60,25 @@ export function GalleryViewer({
   onIndexChange,
   onClose,
 }: {
-  readonly items: readonly MediaItem[];
+  readonly items: readonly LibraryItem[];
   /** `null` when nothing is open. */
   readonly index: number | null;
   readonly onIndexChange: (index: number) => void;
   readonly onClose: () => void;
 }) {
   const touchStartX = useRef<number | null>(null);
+  const [, startSaving] = useTransition();
   const item = index === null ? undefined : items[index];
+
+  // Keyed on the asset so moving to the next item resets the field rather
+  // than carrying the previous one's text across.
+  const [alt, setAlt] = useState("");
+  const currentId = item?.asset.id;
+  useEffect(() => {
+    setAlt(item?.asset.alt ?? "");
+    // `currentId` rather than `item`: the item object is rebuilt on every
+    // parent render, which would reset the field mid-typing.
+  }, [currentId, item?.asset.alt]);
 
   const step = useCallback(
     (delta: -1 | 1) => {
@@ -81,8 +105,8 @@ export function GalleryViewer({
   // guard is on the item rather than on a separate `open` boolean.
   if (item === undefined || index === null) return null;
 
-  const { attachment, product } = item;
-  const isVideo = attachment.kind === "video";
+  const { asset, usedBy } = item;
+  const isVideo = asset.kind === "video";
   const hasPrevious = index > 0;
   const hasNext = index < items.length - 1;
 
@@ -116,7 +140,7 @@ export function GalleryViewer({
           {/* Radix requires both for the dialog to be announced; neither
               belongs on screen over a photograph. */}
           <DialogPrimitive.Title className="sr-only">
-            {attachment.alt ?? `${product.name} media`}
+            {asset.alt ?? "Library item"}
           </DialogPrimitive.Title>
           <DialogPrimitive.Description className="sr-only">
             Item {index + 1} of {items.length}. Use the left and right arrow
@@ -145,8 +169,8 @@ export function GalleryViewer({
               // video is meant to play.
               // eslint-disable-next-line jsx-a11y/media-has-caption
               <video
-                key={attachment.id}
-                src={attachment.originUrl}
+                key={asset.id}
+                src={asset.originUrl}
                 controls
                 playsInline
                 className="max-h-full max-w-full"
@@ -156,9 +180,9 @@ export function GalleryViewer({
               // file is already the optimized variant the grid served.
               // eslint-disable-next-line @next/next/no-img-element
               <img
-                key={attachment.id}
+                key={asset.id}
                 src={item.src}
-                alt={attachment.alt ?? ""}
+                alt={asset.alt ?? ""}
                 className="max-h-full max-w-full object-contain"
               />
             )}
@@ -197,33 +221,61 @@ export function GalleryViewer({
           </div>
 
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] text-sm text-white/80">
-            <Link
-              href={`/products/${product.id}`}
-              className="font-medium text-white hover:underline"
-            >
-              {product.name}
-            </Link>
-            <span className="tabular-nums">
-              {formatMoney({
-                minor: product.priceMinor,
-                currency: product.currency,
-              })}
-            </span>
-            <Badge variant="secondary" className="capitalize">
-              {product.status}
-            </Badge>
+            {/* Where this asset is used. In a library, that is the question
+                the viewer exists to answer — an asset with no answer is one
+                you can delete without checking anything. */}
+            {usedBy.length === 0 ? (
+              <Badge variant="secondary">Not used yet</Badge>
+            ) : (
+              <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                <span className="text-white/50">Used on</span>
+                {usedBy.map((product) => (
+                  <Link
+                    key={product.id}
+                    href={`/products/${product.id}`}
+                    className="font-medium text-white hover:underline"
+                  >
+                    {product.name}
+                  </Link>
+                ))}
+              </span>
+            )}
 
             <span className="text-white/50">
-              {attachment.width && attachment.height
-                ? `${attachment.width}×${attachment.height} · `
+              {asset.width && asset.height
+                ? `${asset.width}×${asset.height} · `
                 : ""}
-              {formatBytes(attachment.bytes)}
-              {attachment.optimizedBytes !== null &&
-                ` → ${formatBytes(attachment.optimizedBytes)}`}
+              {formatBytes(asset.bytes)}
+              {asset.optimizedBytes !== null &&
+                ` → ${formatBytes(asset.optimizedBytes)}`}
             </span>
 
+            {/* Saved on blur, not on every keystroke: a server round-trip per
+                character is a lot of writes for a sentence, and the field is
+                small enough that leaving it is an unambiguous "done". */}
+            <Input
+              aria-label="Alt text"
+              value={alt}
+              maxLength={MEDIA_ALT_MAX}
+              onChange={(e) => setAlt(e.target.value)}
+              onBlur={() => {
+                if (alt === (asset.alt ?? "")) return;
+                startSaving(async () => {
+                  await updateMediaAlt(asset.id, alt);
+                });
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") e.currentTarget.blur();
+                // Otherwise the viewer's arrow-key navigation fires while
+                // someone is moving the caret through their own sentence.
+                e.stopPropagation();
+              }}
+              placeholder="Describe this image"
+              className="h-8 min-w-48 flex-1 border-white/20 bg-white/10 text-white placeholder:text-white/40"
+            />
+
             <a
-              href={attachment.originUrl}
+              href={asset.originUrl}
               target="_blank"
               rel="noreferrer"
               className="ml-auto inline-flex items-center gap-1 text-white/70 hover:text-white"

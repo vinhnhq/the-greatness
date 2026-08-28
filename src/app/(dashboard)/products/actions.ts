@@ -18,6 +18,8 @@ import { revalidatePath } from "next/cache";
 
 import { baseContext, runWithContext, withTransaction } from "@/lib/context";
 import { dbCategoryRepo } from "@/lib/domain/categories/repository";
+import { DEFAULT_MEDIA_QUERY } from "@/lib/domain/media/query";
+import { dbMediaRepo } from "@/lib/domain/media/repository";
 import type { ProductId } from "@/lib/domain/products/entity";
 import {
   createDeleteProduct,
@@ -53,11 +55,9 @@ const MESSAGES: Readonly<Record<string, string>> = {
   "status:invalid": "Choose a status.",
   "categoryIds:unknown":
     "One of those categories no longer exists — reload and pick again.",
-  "attachments:too-many": "That is more attachments than a product can carry.",
-  "attachments:invalid-kind": "One attachment is neither an image nor a video.",
-  "attachments:missing-origin":
-    "One attachment did not finish uploading. Remove it and try again.",
-  "attachments:alt-too-long": "One alt text is too long.",
+  "mediaIds:too-many": "That is more media than one product can carry.",
+  "mediaIds:unknown":
+    "One of those files is no longer in the library — reload and pick again.",
 };
 
 export async function saveProduct(
@@ -69,6 +69,7 @@ export async function saveProduct(
     const save = createSaveProduct({
       productRepo: dbProductRepo,
       categoryRepo: dbCategoryRepo,
+      mediaRepo: dbMediaRepo,
     });
 
     const result = await withTransaction(() =>
@@ -92,6 +93,9 @@ export async function saveProduct(
 
     revalidatePath("/products");
     revalidatePath(`/products/${result.value.id}`);
+    // The gallery shows which products use each asset, so a save that changed
+    // the links changed that page too.
+    revalidatePath("/gallery");
     return {
       status: "saved",
       id: result.value.id,
@@ -110,5 +114,23 @@ export async function deleteProduct(
     const result = await withTransaction(() => remove(id as ProductId));
     revalidatePath("/products");
     return { ok: result.ok };
+  });
+}
+
+/**
+ * The library, for the "Add from library" picker.
+ *
+ * A server action rather than a route handler: it is called from one client
+ * component in this feature and needs the same session gate as everything
+ * else here, and an action gives both without a second endpoint to secure.
+ *
+ * One page's worth. A library past that needs paging or search in the
+ * dialog — worth doing when a real catalogue makes it obvious which.
+ */
+export async function listLibraryForPicker() {
+  const user = await requireUser();
+  return runWithContext(baseContext(user), async () => {
+    const page = await dbMediaRepo.list(DEFAULT_MEDIA_QUERY);
+    return page.items.map((i) => i.asset);
   });
 }

@@ -16,7 +16,7 @@
  * plain unit test.
  */
 
-import { attachmentKeys } from "../media/naming";
+import { mediaKeys } from "../media/naming";
 import type { PreparedMedia } from "../media/types";
 import type { StorageDriver } from "./types";
 
@@ -27,8 +27,9 @@ export type UploadedAttachment = {
 };
 
 export type UploadIds = {
-  readonly productId: string;
-  readonly attachmentId: string;
+  /** Minted in the browser before the upload starts, so progress has a stable
+   * key to report against and the storage path exists before the row does. */
+  readonly mediaId: string;
 };
 
 export const uploadPreparedWith = async (
@@ -38,7 +39,7 @@ export const uploadPreparedWith = async (
   onProgress?: (fraction: number) => void,
   signal?: AbortSignal,
 ): Promise<UploadedAttachment> => {
-  const keys = attachmentKeys({
+  const keys = mediaKeys({
     ...ids,
     filename: media.origin.filename,
     mime: media.origin.mime,

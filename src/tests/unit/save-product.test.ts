@@ -8,6 +8,8 @@ import { describe, expect, it } from "vitest";
 
 import type { Category, CategoryId } from "@/lib/domain/categories/entity";
 import { createInMemoryCategoryRepo } from "@/lib/domain/categories/repository";
+import type { MediaAsset, MediaId } from "@/lib/domain/media/entity";
+import { createInMemoryMediaRepo } from "@/lib/domain/media/in-memory";
 import type { ProductId } from "@/lib/domain/products/entity";
 import {
   createDeleteProduct,
@@ -21,6 +23,24 @@ import { createInMemoryProductRepo } from "@/lib/domain/products/repository";
 
 const CAT_A = "cat-a" as CategoryId;
 const CAT_B = "cat-b" as CategoryId;
+const MEDIA_1 = "media-1" as MediaId;
+const MEDIA_2 = "media-2" as MediaId;
+
+const libraryAsset = (id: MediaId): MediaAsset => ({
+  id,
+  kind: "image",
+  originUrl: `/uploads/media/${id}/origin.png`,
+  optimizedUrl: null,
+  posterUrl: null,
+  mime: "image/png",
+  bytes: 1,
+  optimizedBytes: null,
+  width: null,
+  height: null,
+  durationMs: null,
+  alt: null,
+  createdAt: new Date(0),
+});
 
 const category = (id: CategoryId, name: string): Category => ({
   id,
@@ -42,18 +62,24 @@ const validInput = (
   currency: "VND",
   status: "draft",
   categoryIds: [CAT_A],
-  attachments: [],
+  mediaIds: [],
   ...overrides,
 });
 
 const setup = () => {
   const productRepo = createInMemoryProductRepo(() => new Date("2026-08-28"));
   const categoryRepo = createInMemoryCategoryRepo();
+  const mediaRepo = createInMemoryMediaRepo();
   categoryRepo.seed([category(CAT_A, "Bags"), category(CAT_B, "Leather")]);
+  mediaRepo.seed([libraryAsset(MEDIA_1), libraryAsset(MEDIA_2)]);
+  // The product twin resolves ids against its own copy of the library, the
+  // way the SQL side resolves them through a JOIN.
+  productRepo.seedLibrary([libraryAsset(MEDIA_1), libraryAsset(MEDIA_2)]);
   return {
     productRepo,
     categoryRepo,
-    save: createSaveProduct({ productRepo, categoryRepo }),
+    mediaRepo,
+    save: createSaveProduct({ productRepo, categoryRepo, mediaRepo }),
     remove: createDeleteProduct({ productRepo }),
   };
 };
@@ -62,6 +88,7 @@ const emptyContext = {
   takenSlugs: new Set<string>(),
   skuTaken: false,
   knownCategoryIds: new Set([CAT_A as string, CAT_B as string]),
+  knownMediaIds: new Set([MEDIA_1 as string, MEDIA_2 as string]),
 };
 
 describe("validateSaveProduct", () => {
@@ -172,87 +199,51 @@ describe("validateSaveProduct", () => {
     if (r.ok) expect(r.value.categoryIds).toEqual([CAT_A, CAT_B]);
   });
 
-  it("rejects an attachment with no origin url", () => {
-    // The origin is the only file that cannot be regenerated; a row without
-    // it renders nothing and can never be repaired.
+  it("de-duplicates the media selection and keeps the order", () => {
+    // Order is the product's gallery order, so it must survive
+    // de-duplication rather than being sorted.
     const r = validateSaveProduct(
-      validInput({
-        attachments: [
-          {
-            kind: "image",
-            originUrl: "",
-            optimizedUrl: "/uploads/x.webp",
-            posterUrl: null,
-            mime: "image/png",
-            bytes: 1,
-            optimizedBytes: 1,
-            width: 1,
-            height: 1,
-            durationMs: null,
-            alt: null,
-          },
-        ],
-      }),
+      validInput({ mediaIds: [MEDIA_2, MEDIA_1, MEDIA_2] }),
+      emptyContext,
+    );
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.value.mediaIds).toEqual([MEDIA_2, MEDIA_1]);
+  });
+
+  it("rejects an asset that is no longer in the library", () => {
+    // A form left open while someone emptied the library would otherwise
+    // write links to nothing, and the gallery would render blank.
+    const r = validateSaveProduct(
+      validInput({ mediaIds: ["media-gone"] }),
       emptyContext,
     );
     expect(r.ok).toBe(false);
     if (!r.ok) {
       expect(r.error.errors).toContainEqual({
-        field: "attachments",
-        code: "missing-origin",
+        field: "mediaIds",
+        code: "unknown",
       });
     }
   });
 
-  it("rejects more attachments than the grid can carry", () => {
-    const one = {
-      kind: "image" as const,
-      originUrl: "/uploads/x.png",
-      optimizedUrl: null,
-      posterUrl: null,
-      mime: "image/png",
-      bytes: 1,
-      optimizedBytes: null,
-      width: null,
-      height: null,
-      durationMs: null,
-      alt: null,
-    };
+  it("rejects more media than one product's grid can carry", () => {
     const r = validateSaveProduct(
-      validInput({ attachments: Array.from({ length: 21 }, () => one) }),
-      emptyContext,
+      validInput({ mediaIds: Array.from({ length: 21 }, () => MEDIA_1) }),
+      { ...emptyContext, knownMediaIds: new Set([MEDIA_1 as string]) },
     );
-    expect(r.ok).toBe(false);
-    if (!r.ok) {
-      expect(r.error.errors).toContainEqual({
-        field: "attachments",
-        code: "too-many",
-      });
-    }
+    // De-duplication runs first, so twenty-one copies of one asset is one
+    // asset — the limit is on distinct media, which is what a gallery shows.
+    expect(r.ok).toBe(true);
   });
 });
 
 describe("createSaveProduct — create", () => {
-  it("writes the product, its links and its attachments", async () => {
+  it("writes the product, its category links and its media links", async () => {
     const { save, productRepo } = setup();
     const r = await save({
       input: validInput({
         categoryIds: [CAT_A, CAT_B],
-        attachments: [
-          {
-            kind: "image",
-            originUrl: "/uploads/a-origin.jpg",
-            optimizedUrl: "/uploads/a-optimized.webp",
-            posterUrl: null,
-            mime: "image/jpeg",
-            bytes: 900_000,
-            optimizedBytes: 50_000,
-            width: 3000,
-            height: 2000,
-            durationMs: null,
-            alt: "  ",
-          },
-        ],
+        mediaIds: [MEDIA_2, MEDIA_1],
       }),
     });
 
@@ -262,11 +253,27 @@ describe("createSaveProduct — create", () => {
     const saved = await productRepo.getById(r.value.id);
     expect(saved?.name).toBe("Leather Tote Bag");
     expect(saved?.categoryIds).toEqual([CAT_A, CAT_B]);
-    expect(saved?.attachments).toHaveLength(1);
-    // A whitespace-only alt is stored as null, not as "  ", so a screen
-    // reader announces the fallback rather than a blank.
-    expect(saved?.attachments[0].alt).toBeNull();
-    expect(saved?.attachments[0].position).toBe(0);
+    // In the submitted order, which is the gallery order.
+    expect(saved?.media.map((m) => m.id)).toEqual([MEDIA_2, MEDIA_1]);
+  });
+
+  it("links to the library asset rather than copying it", async () => {
+    // The whole point of v2: two products can show the same photograph, and
+    // neither owns it.
+    const { save, productRepo } = setup();
+    const first = await save({
+      input: validInput({ sku: "A", mediaIds: [MEDIA_1] }),
+    });
+    const second = await save({
+      input: validInput({ name: "Second", sku: "B", mediaIds: [MEDIA_1] }),
+    });
+    expect(first.ok && second.ok).toBe(true);
+    if (!first.ok || !second.ok) return;
+
+    const a = await productRepo.getById(first.value.id);
+    const b = await productRepo.getById(second.value.id);
+    expect(a?.media[0].id).toBe(MEDIA_1);
+    expect(b?.media[0].id).toBe(MEDIA_1);
   });
 
   it("suffixes a derived slug when two products share a name", async () => {
@@ -326,41 +333,34 @@ describe("createSaveProduct — update", () => {
     expect(saved?.categoryIds).toEqual([CAT_B]);
   });
 
-  it("renumbers positions from the submitted order", async () => {
+  it("reorders the links from the submitted order", async () => {
     const { save, productRepo } = setup();
-    const attachment = (url: string) => ({
-      kind: "image" as const,
-      originUrl: url,
-      optimizedUrl: null,
-      posterUrl: null,
-      mime: "image/png",
-      bytes: 1,
-      optimizedBytes: null,
-      width: null,
-      height: null,
-      durationMs: null,
-      alt: null,
-    });
-
     const created = await save({
-      input: validInput({
-        attachments: [attachment("/a.png"), attachment("/b.png")],
-      }),
+      input: validInput({ mediaIds: [MEDIA_1, MEDIA_2] }),
     });
     if (!created.ok) throw new Error("setup failed");
 
     await save({
       id: created.value.id,
-      input: validInput({
-        attachments: [attachment("/b.png"), attachment("/a.png")],
-      }),
+      input: validInput({ mediaIds: [MEDIA_2, MEDIA_1] }),
     });
 
     const saved = await productRepo.getById(created.value.id);
-    expect(saved?.attachments.map((a) => [a.originUrl, a.position])).toEqual([
-      ["/b.png", 0],
-      ["/a.png", 1],
-    ]);
+    expect(saved?.media.map((m) => m.id)).toEqual([MEDIA_2, MEDIA_1]);
+  });
+
+  it("unlinking leaves the asset in the library", async () => {
+    // A product form is not a place where files get destroyed.
+    const { save, productRepo, mediaRepo } = setup();
+    const created = await save({
+      input: validInput({ mediaIds: [MEDIA_1] }),
+    });
+    if (!created.ok) throw new Error("setup failed");
+
+    await save({ id: created.value.id, input: validInput({ mediaIds: [] }) });
+
+    expect((await productRepo.getById(created.value.id))?.media).toEqual([]);
+    expect(await mediaRepo.getMany([MEDIA_1])).toHaveLength(1);
   });
 
   it("lets a product keep its own slug and sku", async () => {
@@ -390,14 +390,18 @@ describe("createSaveProduct — update", () => {
 });
 
 describe("createDeleteProduct", () => {
-  it("removes the product and its relations", async () => {
-    const { save, remove, productRepo } = setup();
-    const created = await save({ input: validInput() });
+  it("removes the product and its links, but not the media", async () => {
+    // The assets belong to the library, and another product may be using them.
+    const { save, remove, productRepo, mediaRepo } = setup();
+    const created = await save({
+      input: validInput({ mediaIds: [MEDIA_1] }),
+    });
     if (!created.ok) throw new Error("setup failed");
 
     const r = await remove(created.value.id);
     expect(r.ok).toBe(true);
     expect(await productRepo.getById(created.value.id)).toBeNull();
+    expect(await mediaRepo.getMany([MEDIA_1])).toHaveLength(1);
   });
 
   it("reports a missing product", async () => {

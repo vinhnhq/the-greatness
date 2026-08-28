@@ -12,6 +12,8 @@ import path from "node:path";
 
 import { expect, type Page, test } from "@playwright/test";
 
+import { resetCatalogue } from "./reset-catalogue";
+
 /** The sidebar link, not the breadcrumb link to the same place. */
 const sidebar = (page: Page) => page.getByRole("list", { name: "Sections" });
 
@@ -32,6 +34,13 @@ const PRODUCT = `Áo Dài Lụa ${UNIQUE}`;
 const RENAMED = `${PRODUCT} — revised`;
 
 test.describe.configure({ mode: "serial" });
+
+// This spec asserts the "No products yet" empty state, which is the clearest
+// way to distinguish it from "no products match" — and only holds from empty.
+// The suite shares one database across every file, so it resets first.
+test.beforeEach(async () => {
+  await resetCatalogue();
+});
 
 test("sign in, create a product with an image, find it, edit it", async ({
   page,
@@ -70,19 +79,15 @@ test("sign in, create a product with an image, find it, edit it", async ({
 
   // --- upload an image -------------------------------------------------
   // A real file through the real input: prepare() decodes it, re-encodes it
-  // to WebP and uploads both copies before the product is ever saved.
+  // to WebP, uploads both copies, and writes the library row — all before the
+  // product is ever saved, because a product links to an asset that exists.
   await page.setInputFiles(
     'input[type="file"]',
     path.resolve("e2e/fixtures/swatch.png"),
   );
 
-  const card = page.getByRole("listitem").filter({ hasText: "swatch.png" });
-  await expect(card).toBeVisible();
-  // The optimized size appears only once the upload has landed.
-  await expect(card.getByRole("link", { name: "View original" })).toBeVisible({
-    timeout: 30_000,
-  });
-  await card.getByLabel(/^Alt text for/).fill("Silk swatch");
+  const grid = page.getByRole("list", { name: "This product's media" });
+  await expect(grid.getByRole("listitem")).toHaveCount(1, { timeout: 60_000 });
 
   await page.getByRole("button", { name: "Create product" }).click();
   await expect(page).toHaveURL(/\/products\/[0-9a-f-]{36}$/, {
@@ -126,8 +131,12 @@ test("sign in, create a product with an image, find it, edit it", async ({
     timeout: 30_000,
   });
 
-  // The attachment survived the round-trip with its alt text.
-  await expect(page.getByLabel(/^Alt text for/)).toHaveValue("Silk swatch");
+  // The media survived the round-trip.
+  await expect(
+    page
+      .getByRole("list", { name: "This product's media" })
+      .getByRole("listitem"),
+  ).toHaveCount(1);
 
   // And the list reflects the rename without a manual refresh.
   await sidebar(page).getByRole("link", { name: "Products" }).click();

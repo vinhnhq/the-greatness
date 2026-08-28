@@ -27,6 +27,7 @@ import type { DB } from "@/lib/db-types";
 import { SqliteDialect } from "@/lib/db/sqlite-dialect";
 import type { CategoryId } from "@/lib/domain/categories/entity";
 import { dbCategoryRepo } from "@/lib/domain/categories/repository";
+import { dbMediaRepo } from "@/lib/domain/media/repository";
 import type { ProductId } from "@/lib/domain/products/entity";
 import { dbProductRepo } from "@/lib/domain/products/repository";
 
@@ -160,23 +161,25 @@ describe("withTransaction", () => {
   });
 
   it("rolls back a partial save the way the save action would", async () => {
-    // The concrete shape: product + links + attachments, with the last write
-    // failing. Nothing may survive.
-    const bogusAttachment = {
-      kind: "image" as const,
-      originUrl: "/uploads/a.png",
-      optimizedUrl: null,
-      posterUrl: null,
-      mime: "image/png",
-      bytes: 1,
-      optimizedBytes: null,
-      width: null,
-      height: null,
-      durationMs: null,
-      alt: null,
-    };
-
+    // The concrete shape: product + category links + media links, with the
+    // failure after all three. Nothing may survive.
     await runWithContext(ctx, async () => {
+      const [media] = await dbMediaRepo.createMany([
+        {
+          kind: "image",
+          originUrl: "/uploads/media/m1/origin.png",
+          optimizedUrl: null,
+          posterUrl: null,
+          mime: "image/png",
+          bytes: 1,
+          optimizedBytes: null,
+          width: null,
+          height: null,
+          durationMs: null,
+          alt: null,
+        },
+      ]);
+
       await expect(
         withTransaction(async () => {
           const product = await dbProductRepo.create(
@@ -185,18 +188,23 @@ describe("withTransaction", () => {
           await dbProductRepo.setCategories(product.id, [
             "cat-1" as CategoryId,
           ]);
-          await dbProductRepo.setAttachments(product.id, [bogusAttachment]);
+          await dbProductRepo.setMedia(product.id, [media.id]);
           // Whatever fails after the writes — a validation slip, a lost
           // connection — must take all three with it.
           throw new Error("late failure");
         }),
       ).rejects.toThrow("late failure");
+
+      // The asset was created OUTSIDE the transaction, the way the real flow
+      // creates it: the bytes are uploaded and the row written before the
+      // product is saved. A rolled-back save must not take it with it.
+      expect(await dbMediaRepo.getMany([media.id])).toHaveLength(1);
     });
 
     expect(await countProducts()).toBe(0);
-    expect(
-      await db.selectFrom("product_attachments").selectAll().execute(),
-    ).toEqual([]);
+    expect(await db.selectFrom("product_media").selectAll().execute()).toEqual(
+      [],
+    );
     expect(
       await db.selectFrom("product_categories").selectAll().execute(),
     ).toEqual([]);

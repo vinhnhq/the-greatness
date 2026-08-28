@@ -19,14 +19,9 @@ import {
   parseCategoryStrict,
 } from "@/lib/domain/categories/entity";
 import {
-  displayUrl,
   isProductStatus,
-  parseAttachment,
-  parseAttachmentStrict,
   parseProduct,
   parseProductStrict,
-  primaryImage,
-  type Attachment,
 } from "@/lib/domain/products/entity";
 
 const categoryRow = (over: Record<string, unknown> = {}) => ({
@@ -50,25 +45,6 @@ const productRow = (over: Record<string, unknown> = {}) => ({
   status: "active",
   createdAt: "2026-08-28T10:00:00.000Z",
   updatedAt: "2026-08-28T10:00:00.000Z",
-  ...over,
-});
-
-const attachmentRow = (over: Record<string, unknown> = {}) => ({
-  id: "att-1",
-  productId: "prod-1",
-  kind: "image",
-  originUrl: "/uploads/a-origin.jpg",
-  optimizedUrl: "/uploads/a-optimized.webp",
-  posterUrl: null,
-  mime: "image/jpeg",
-  bytes: 900_000,
-  optimizedBytes: 50_000,
-  width: 3000,
-  height: 2000,
-  durationMs: null,
-  position: 0,
-  alt: "Front",
-  createdAt: "2026-08-28T10:00:00.000Z",
   ...over,
 });
 
@@ -139,52 +115,6 @@ describe("parseProduct", () => {
   });
 });
 
-describe("parseAttachment", () => {
-  it("parses an image row", () => {
-    const r = parseAttachment(attachmentRow());
-    expect(r.ok).toBe(true);
-    if (r.ok) expect(r.value.optimizedUrl).toBe("/uploads/a-optimized.webp");
-  });
-
-  it("treats a null optimizedUrl as normal, not as an error", () => {
-    // prepare() declines to store a re-encode that came out larger, so this
-    // is the ordinary shape for a small PNG.
-    const r = parseAttachment(
-      attachmentRow({ optimizedUrl: null, optimizedBytes: null }),
-    );
-    expect(r.ok).toBe(true);
-  });
-
-  it("parses a video row with a poster and a duration", () => {
-    const r = parseAttachment(
-      attachmentRow({
-        kind: "video",
-        mime: "video/mp4",
-        optimizedUrl: null,
-        optimizedBytes: null,
-        posterUrl: "/uploads/b-poster.webp",
-        durationMs: 8_000,
-      }),
-    );
-    expect(r.ok).toBe(true);
-    if (r.ok) expect(r.value.durationMs).toBe(8_000);
-  });
-
-  it("rejects an unknown kind", () => {
-    expect(parseAttachment(attachmentRow({ kind: "audio" })).ok).toBe(false);
-  });
-
-  it("rejects an empty origin url", () => {
-    expect(parseAttachment(attachmentRow({ originUrl: "" })).ok).toBe(false);
-  });
-
-  it("throws on drift in the strict parser", () => {
-    expect(() =>
-      parseAttachmentStrict(attachmentRow({ position: "first" })),
-    ).toThrow(/schema drift/);
-  });
-});
-
 describe("isProductStatus", () => {
   it.each([
     ["draft", true],
@@ -194,74 +124,5 @@ describe("isProductStatus", () => {
     ["", false],
   ])("%s → %s", (value, expected) => {
     expect(isProductStatus(value)).toBe(expected);
-  });
-});
-
-const attachment = (over: Partial<Attachment>): Attachment => {
-  const parsed = parseAttachment(attachmentRow());
-  if (!parsed.ok) throw new Error("fixture is invalid");
-  return { ...parsed.value, ...over };
-};
-
-describe("displayUrl", () => {
-  it("prefers an image's optimized variant", () => {
-    expect(displayUrl(attachment({}))).toBe("/uploads/a-optimized.webp");
-  });
-
-  it("falls back to an image's origin when there is no variant", () => {
-    expect(displayUrl(attachment({ optimizedUrl: null }))).toBe(
-      "/uploads/a-origin.jpg",
-    );
-  });
-
-  it("shows a video's POSTER, not the video", () => {
-    // `a.optimizedUrl ?? a.originUrl`, written inline at each call site, gets
-    // this wrong and renders a 40 MB file into a 40px box.
-    expect(
-      displayUrl(
-        attachment({
-          kind: "video",
-          optimizedUrl: null,
-          posterUrl: "/uploads/b-poster.webp",
-          originUrl: "/uploads/b.mp4",
-        }),
-      ),
-    ).toBe("/uploads/b-poster.webp");
-  });
-
-  it("falls back to a video's origin when the poster failed", () => {
-    expect(
-      displayUrl(
-        attachment({
-          kind: "video",
-          optimizedUrl: null,
-          posterUrl: null,
-          originUrl: "/uploads/b.mp4",
-        }),
-      ),
-    ).toBe("/uploads/b.mp4");
-  });
-});
-
-describe("primaryImage", () => {
-  it("returns the first image by position, not by array order", () => {
-    const chosen = primaryImage([
-      attachment({ id: "b" as Attachment["id"], position: 2 }),
-      attachment({ id: "a" as Attachment["id"], position: 1 }),
-    ]);
-    expect(chosen?.id).toBe("a");
-  });
-
-  it("skips videos — a poster is a frame, not a chosen shot", () => {
-    const chosen = primaryImage([
-      attachment({ id: "v" as Attachment["id"], kind: "video", position: 0 }),
-      attachment({ id: "i" as Attachment["id"], position: 1 }),
-    ]);
-    expect(chosen?.id).toBe("i");
-  });
-
-  it("returns null when there is no image at all", () => {
-    expect(primaryImage([])).toBeNull();
-    expect(primaryImage([attachment({ kind: "video" })])).toBeNull();
   });
 });

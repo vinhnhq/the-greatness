@@ -1,15 +1,14 @@
 /**
- * `Product` and `Attachment` — plain rows.
+ * `Product` — a plain row, and the media it links to.
  *
- * Two shapes worth naming:
+ * **A product no longer owns its media** (migration 004). It links to assets
+ * in the library, and the link carries the order. `Attachment` is gone; the
+ * row lives in `domain/media/entity.ts` as `MediaAsset`, and a product's
+ * gallery is `readonly MediaAsset[]` in link order.
  *
- *   - **`ProductStatus` is a union, not a string.** `draft | active | archived`
- *     is the whole lifecycle; a `ts-pattern` match over it fails to compile
- *     when a fourth state is added and a branch is forgotten.
- *   - **An attachment's `optimizedUrl` is nullable and that is normal**, not an
- *     error state. `lib/media/prepare.ts` declines to store a re-encode that
- *     came out larger, and keeps the origin when a decode fails. Readers use
- *     `displayUrl()` rather than reaching for one field.
+ * `ProductStatus` is a union, not a string: `draft | active | archived` is the
+ * whole lifecycle, and a `ts-pattern` match over it fails to compile when a
+ * fourth state is added and a branch is forgotten.
  */
 
 import type { Tagged } from "type-fest";
@@ -19,9 +18,9 @@ import { type Currency, isCurrency } from "@/lib/money";
 import { err, ok, type Result } from "@/lib/result";
 
 import type { CategoryId } from "../categories/entity";
+import type { MediaAsset } from "../media/entity";
 
 export type ProductId = Tagged<string, "ProductId">;
-export type AttachmentId = Tagged<string, "AttachmentId">;
 
 export const PRODUCT_STATUSES = ["draft", "active", "archived"] as const;
 export type ProductStatus = (typeof PRODUCT_STATUSES)[number];
@@ -32,25 +31,10 @@ export const isProductStatus = (value: string): value is ProductStatus =>
 export const PRODUCT_NAME_MAX = 140;
 export const PRODUCT_SKU_MAX = 60;
 export const PRODUCT_DESCRIPTION_MAX = 5_000;
-export const ATTACHMENT_ALT_MAX = 200;
 
-export interface Attachment {
-  readonly id: AttachmentId;
-  readonly productId: ProductId;
-  readonly kind: "image" | "video";
-  readonly originUrl: string;
-  readonly optimizedUrl: string | null;
-  readonly posterUrl: string | null;
-  readonly mime: string;
-  readonly bytes: number;
-  readonly optimizedBytes: number | null;
-  readonly width: number | null;
-  readonly height: number | null;
-  readonly durationMs: number | null;
-  readonly position: number;
-  readonly alt: string | null;
-  readonly createdAt: Date;
-}
+/** How many assets one product's gallery may carry. Not a storage limit: past
+ * roughly this many, the reorder grid stops being usable. */
+export const MAX_MEDIA_PER_PRODUCT = 20;
 
 export interface Product {
   readonly id: ProductId;
@@ -69,46 +53,10 @@ export interface Product {
  * the two surfaces cannot drift into needing different queries. */
 export interface ProductWithRelations extends Product {
   readonly categoryIds: readonly CategoryId[];
-  readonly attachments: readonly Attachment[];
+  /** In link order, which is this product's gallery order — not the order the
+   * assets were uploaded in. */
+  readonly media: readonly MediaAsset[];
 }
-
-/**
- * What to render for an attachment: the optimized variant when there is one,
- * the poster for a video, the origin otherwise. One function, because
- * `a.optimizedUrl ?? a.originUrl` written at six call sites is six chances to
- * forget that a video's thumbnail is the poster, not the video.
- */
-export const displayUrl = (attachment: Attachment): string =>
-  attachment.kind === "video"
-    ? (attachment.posterUrl ?? attachment.originUrl)
-    : (attachment.optimizedUrl ?? attachment.originUrl);
-
-/** The image a product shows in a list: the first image by position. A video
- * is never a product's thumbnail — its poster is a frame, not a chosen shot. */
-export const primaryImage = (
-  attachments: readonly Attachment[],
-): Attachment | null =>
-  [...attachments]
-    .sort((a, b) => a.position - b.position)
-    .find((a) => a.kind === "image") ?? null;
-
-const attachmentRowSchema = z.object({
-  id: z.string().min(1),
-  productId: z.string().min(1),
-  kind: z.enum(["image", "video"]),
-  originUrl: z.string().min(1),
-  optimizedUrl: z.string().min(1).nullable(),
-  posterUrl: z.string().min(1).nullable(),
-  mime: z.string().min(1),
-  bytes: z.coerce.number().int().nonnegative(),
-  optimizedBytes: z.coerce.number().int().nonnegative().nullable(),
-  width: z.coerce.number().int().positive().nullable(),
-  height: z.coerce.number().int().positive().nullable(),
-  durationMs: z.coerce.number().int().nonnegative().nullable(),
-  position: z.coerce.number().int().nonnegative(),
-  alt: z.string().nullable(),
-  createdAt: z.coerce.date(),
-});
 
 const productRowSchema = z.object({
   id: z.string().min(1),
@@ -160,28 +108,5 @@ export const parseProductStrict = (raw: unknown): Product => {
   if (r.ok) return r.value;
   throw new Error(
     `parseProductStrict: schema drift — ${r.error.issues.join(", ")}`,
-  );
-};
-
-export const parseAttachment = (
-  raw: unknown,
-): Result<ParseProductError, Attachment> => {
-  const parsed = attachmentRowSchema.safeParse(raw);
-  if (!parsed.success) {
-    return err({ tag: "ParseProductError", issues: issuesOf(parsed.error) });
-  }
-  const d = parsed.data;
-  return ok({
-    ...d,
-    id: d.id as AttachmentId,
-    productId: d.productId as ProductId,
-  });
-};
-
-export const parseAttachmentStrict = (raw: unknown): Attachment => {
-  const r = parseAttachment(raw);
-  if (r.ok) return r.value;
-  throw new Error(
-    `parseAttachmentStrict: schema drift — ${r.error.issues.join(", ")}`,
   );
 };
