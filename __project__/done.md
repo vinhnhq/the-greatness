@@ -118,7 +118,7 @@ photograph was rejected before the thing built to shrink it ever saw the file.
 
 ## v1 — Product admin dashboard · ✅ COMPLETE 2026-08-28
 
-Spec: [`spec.md`](spec.md). Four commits on `main`, gates green at each.
+Spec: [`specs/v1-product-dashboard.md`](specs/v1-product-dashboard.md). Four commits on `main`, gates green at each.
 All nine acceptance criteria met. **319 unit + integration tests, 2 Playwright
 specs**, coverage 93.4% lines / 90.8% branches / 91.6% functions.
 

@@ -1,0 +1,31 @@
+# Project keystone. One owner per fact: conventions live here, beside the
+# project, rather than in a second config file.
+slug: the-greatness
+name: The Greatness
+tagline: A product-catalogue admin dashboard with a browser-side media library
+status: active
+visibility: private
+stack:
+  - next
+  - react
+  - typescript
+  - bun
+  - kysely
+  - sqlite
+  - neon
+  - better-auth
+  - tailwind
+  - shadcn
+conventions:
+  docRoot: __project__
+  backlog: backlog.md
+  # Specs freeze at intent; v1 is superseded in part by v2 and says so in its
+  # own header rather than being edited into agreement.
+  specs: specs
+  decisions: decisions
+links:
+  repo: https://github.com/vinhnhq/the-greatness
+public_highlights:
+  - Media library with browser-side optimization — origin plus a WebP variant, no server pipeline
+  - One Kysely query layer over embedded SQLite locally and Neon deployed, chosen by env
+  - Diacritic-insensitive search that behaves identically on both drivers

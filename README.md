@@ -178,14 +178,20 @@ src/
   db/migrations/        kysely migrations
   tests/{unit,integration}/
 e2e/                    playwright smoke
-__project__/            spec, backlog, done — the trail of what and why
+__project__/            specs, decisions, backlog, done, retro
 ```
 
 ## Where the reasoning lives
 
-- [`__project__/spec.md`](__project__/spec.md) — goal, out of scope, acceptance criteria.
+- [`__project__/specs/`](__project__/specs/) — goal, out of scope, acceptance
+  criteria, per version. **v1 is frozen and partly superseded** by v2; its
+  header says which parts.
+- [`__project__/decisions/`](__project__/decisions/README.md) — the two
+  structural decisions: media ownership, and the 4096px archive cap.
 - [`__project__/backlog.md`](__project__/backlog.md) — what is left.
 - [`__project__/done.md`](__project__/done.md) — what shipped, newest first.
+- [`__project__/retro.md`](__project__/retro.md) — what the traps were.
+- [`CLAUDE.md`](CLAUDE.md) — conventions and the load-bearing gotchas.
 - [`dev-workflow.md`](dev-workflow.md) — the process and the quality bar.
 - Module docblocks carry the _why_. Where a decision looks arbitrary, the
   comment above it usually names the failure it prevents.

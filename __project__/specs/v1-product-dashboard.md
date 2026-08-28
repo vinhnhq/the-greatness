@@ -1,6 +1,13 @@
 # v1 — Product admin dashboard
 
-**Status:** ✅ Shipped 2026-08-28 — all nine AC met. Ship facts in [`done.md`](done.md); what was deliberately left is in [`backlog.md`](backlog.md). This file freezes at intent: do not add an "as-built" section.
+**Status:** ✅ Shipped 2026-08-28 — all nine AC met. Ship facts in
+[`../done.md`](../done.md); open work in [`../backlog.md`](../backlog.md).
+
+> **Frozen at intent.** Do not add an "as-built" section, and do not correct it
+> where later work moved on. **AC-6 and AC-7 describe media as belonging to a
+> product; [v2](v2-media-library.md) inverted that** — media became a library
+> and products link to it. Reading this file for current behaviour will
+> mislead you; read it to understand what v1 set out to do.
 
 ## Goal
 

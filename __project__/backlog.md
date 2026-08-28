@@ -10,7 +10,8 @@
 > Gates for every ticket — see [dev-workflow.md §Quality bar](../dev-workflow.md#quality-bar):
 > `bun run lint` · `bunx tsc --noEmit` · `bun run test:coverage` · `bun run build`.
 >
-> Spec: [`spec.md`](spec.md). Status legend: pending · ↷ stretch · ⏸ blocked
+> Specs: [`specs/`](specs/) · decisions: [`decisions/`](decisions/README.md)
+> · lessons: [`retro.md`](retro.md). Status legend: pending · ↷ stretch · ⏸ blocked
 
 ---
 
