@@ -13,6 +13,9 @@ const baseURL = `http://localhost:${PORT}`;
 
 export default defineConfig({
   testDir: "./e2e",
+  // Each spec file creates and deletes products in the same database, so they
+  // must not interleave. Isolation, not speed, is what makes a failure here
+  // mean something.
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,

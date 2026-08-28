@@ -1,6 +1,8 @@
 import "server-only";
 import { z } from "zod";
 
+import { getLocalStorageDir, getStorageDriver } from "./storage/config";
+
 /**
  * Server-side environment, validated once.
  *
@@ -57,10 +59,12 @@ export const env = (): ServerEnv => {
 export const devLoginEnabled = (e = env()): boolean =>
   e.NODE_ENV !== "production" && e.ALLOW_DEV_LOGIN === "1";
 
-export const storageDriverName = (e = env()): "local" | "blob" =>
-  e.STORAGE_DRIVER ?? (e.BLOB_READ_WRITE_TOKEN ? "blob" : "local");
-
-/** Where the local driver writes. Relative paths resolve from the project
- * root, which is the working directory for both `next dev` and a build. */
-export const localStorageDir = (e = env()): string =>
-  e.STORAGE_DIR ?? ".data/uploads";
+/**
+ * Re-exported from `storage/config.ts` rather than reimplemented.
+ *
+ * That module has no `server-only`, so `bun run seed` can read it — this
+ * file cannot be imported from a CLI script at all. Two implementations of
+ * "which driver is live" is one more than can stay in agreement.
+ */
+export { getStorageDriver as storageDriverName };
+export { getLocalStorageDir as localStorageDir };

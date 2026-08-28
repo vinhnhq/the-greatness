@@ -106,7 +106,7 @@ function CategoryRow({
         )}
       </TableCell>
 
-      <TableCell className="text-muted-foreground">
+      <TableCell className="hidden text-muted-foreground sm:table-cell">
         <code className="text-xs">{category.slug}</code>
       </TableCell>
 
@@ -237,7 +237,7 @@ export function CategoriesTable({
           <TableHeader>
             <TableRow>
               <TableHead>Name</TableHead>
-              <TableHead>Slug</TableHead>
+              <TableHead className="hidden sm:table-cell">Slug</TableHead>
               <TableHead>Products</TableHead>
               <TableHead className="text-right">
                 <span className="sr-only">Actions</span>

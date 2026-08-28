@@ -26,6 +26,8 @@ import type { CategoryId } from "@/lib/domain/categories/entity";
 import { dbCategoryRepo } from "@/lib/domain/categories/repository";
 import { DEFAULT_QUERY } from "@/lib/domain/products/list-query";
 import type { ProductListQuery } from "@/lib/domain/products/list-query";
+import { DEFAULT_MEDIA_QUERY } from "@/lib/domain/products/media-query";
+import { dbMediaRepo } from "@/lib/domain/products/media-repository";
 import { dbProductRepo } from "@/lib/domain/products/repository";
 
 let db: Kysely<DB>;
@@ -411,5 +413,125 @@ describe("dbCategoryRepo", () => {
     const taken = await inCtx(() => dbCategoryRepo.takenSlugs(bags));
     expect(taken.has("bags")).toBe(false);
     expect(taken.has("decor")).toBe(true);
+  });
+});
+
+describe("dbMediaRepo", () => {
+  const image = (url: string) => ({
+    kind: "image" as const,
+    originUrl: url,
+    optimizedUrl: `${url}.webp`,
+    posterUrl: null,
+    mime: "image/png",
+    bytes: 900_000,
+    optimizedBytes: 50_000,
+    width: 900,
+    height: 900,
+    durationMs: null,
+    alt: null,
+  });
+
+  const video = (url: string) => ({
+    kind: "video" as const,
+    originUrl: url,
+    optimizedUrl: null,
+    posterUrl: `${url}-poster.webp`,
+    mime: "video/mp4",
+    bytes: 40_000_000,
+    optimizedBytes: null,
+    width: 1920,
+    height: 1080,
+    durationMs: 8_000,
+    alt: null,
+  });
+
+  const withMedia = async () => {
+    const { make } = await seed();
+    const tote = await make("Tote");
+    const vase = await make("Vase");
+    const bare = await make("No Media");
+    await inCtx(() =>
+      dbProductRepo.setAttachments(tote.id, [
+        image("/uploads/tote-1.png"),
+        video("/uploads/tote-2.mp4"),
+      ]),
+    );
+    await inCtx(() =>
+      dbProductRepo.setAttachments(vase.id, [image("/uploads/vase-1.png")]),
+    );
+    return { tote, vase, bare };
+  };
+
+  it("returns every attachment with the product that owns it", async () => {
+    const { tote } = await withMedia();
+    const page = await inCtx(() => dbMediaRepo.list(DEFAULT_MEDIA_QUERY));
+
+    expect(page.total).toBe(3);
+    expect(page.items).toHaveLength(3);
+    const toteItems = page.items.filter((i) => i.product.id === tote.id);
+    expect(toteItems).toHaveLength(2);
+    // The caption's data comes from the JOIN, not a second query.
+    expect(toteItems[0].product.name).toBe("Tote");
+    expect(toteItems[0].product.currency).toBe("VND");
+  });
+
+  it("serves the optimized variant for an image and the poster for a video", async () => {
+    await withMedia();
+    const page = await inCtx(() => dbMediaRepo.list(DEFAULT_MEDIA_QUERY));
+
+    const img = page.items.find((i) => i.attachment.kind === "image");
+    const vid = page.items.find((i) => i.attachment.kind === "video");
+    expect(img?.src).toMatch(/\.webp$/);
+    // A video tile must never be the 40 MB file itself.
+    expect(vid?.src).toBe("/uploads/tote-2.mp4-poster.webp");
+  });
+
+  it("counts every kind in one pass, regardless of the active filter", async () => {
+    // The tabs show counts even for the tab you are not on — otherwise
+    // "Videos" is a control you have to press to find out is empty.
+    await withMedia();
+    const videos = await inCtx(() =>
+      dbMediaRepo.list({ ...DEFAULT_MEDIA_QUERY, kind: "video" }),
+    );
+
+    expect(videos.items).toHaveLength(1);
+    expect(videos.total).toBe(1);
+    expect(videos.counts).toEqual({ all: 3, image: 2, video: 1 });
+  });
+
+  it("filters to one product", async () => {
+    const { vase } = await withMedia();
+    const page = await inCtx(() =>
+      dbMediaRepo.list({ ...DEFAULT_MEDIA_QUERY, productId: vase.id }),
+    );
+    expect(page.items).toHaveLength(1);
+    expect(page.counts.all).toBe(1);
+  });
+
+  it("offers only products that actually have media", async () => {
+    // Listing the products that would return an empty grid is listing ways to
+    // be disappointed.
+    const { bare } = await withMedia();
+    const products = await inCtx(() => dbMediaRepo.productsWithMedia());
+    expect(products.map((p) => p.name)).toEqual(["Tote", "Vase"]);
+    expect(products.some((p) => p.id === bare.id)).toBe(false);
+  });
+
+  it("returns an empty page rather than failing past the end", async () => {
+    await withMedia();
+    const page = await inCtx(() =>
+      dbMediaRepo.list({ ...DEFAULT_MEDIA_QUERY, page: 9 }),
+    );
+    expect(page.items).toEqual([]);
+    expect(page.total).toBe(3);
+  });
+
+  it("reports zeroes rather than NaN on an empty catalogue", async () => {
+    // SUM over no rows is NULL, not 0 — the coercion is what stops the tabs
+    // rendering "NaN".
+    await seed();
+    const page = await inCtx(() => dbMediaRepo.list(DEFAULT_MEDIA_QUERY));
+    expect(page.counts).toEqual({ all: 0, image: 0, video: 0 });
+    expect(page.total).toBe(0);
   });
 });

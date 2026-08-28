@@ -1,3 +1,4 @@
+import { PageContainer } from "@/components/app-shell/page-container";
 import { dbCategoryRepo } from "@/lib/domain/categories/repository";
 
 import { CategoriesTable } from "./categories-table";
@@ -9,7 +10,7 @@ export default async function CategoriesPage() {
   const categories = await dbCategoryRepo.listWithCounts();
 
   return (
-    <div className="flex flex-col gap-4">
+    <PageContainer>
       <div>
         <h1 className="text-xl font-semibold tracking-tight">Categories</h1>
         <p className="text-sm text-muted-foreground">
@@ -18,6 +19,6 @@ export default async function CategoriesPage() {
         </p>
       </div>
       <CategoriesTable categories={categories} />
-    </div>
+    </PageContainer>
   );
 }

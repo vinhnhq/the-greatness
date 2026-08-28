@@ -13,7 +13,7 @@
  * a header that silently described the previous one.
  */
 
-import { LayoutGrid, LogOut, Package, Tags } from "lucide-react";
+import { Images, LayoutGrid, LogOut, Package, Tags } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Fragment } from "react";
@@ -59,6 +59,7 @@ import { isId } from "@/lib/id";
 
 const NAV = [
   { href: "/products", label: "Products", icon: Package },
+  { href: "/gallery", label: "Gallery", icon: Images },
   { href: "/categories", label: "Categories", icon: Tags },
 ] as const;
 
@@ -158,73 +159,94 @@ function Shell({
       </Sidebar>
 
       <SidebarInset>
-        <header className="sticky top-0 z-10 flex h-14 shrink-0 items-center gap-2 border-b bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-          <SidebarTrigger />
-          <Separator orientation="vertical" className="mr-1 h-4" />
-          <Breadcrumb>
-            <BreadcrumbList>
-              {crumbs.map((crumb, index) => (
-                <Fragment key={crumb.href}>
-                  {index > 0 && <BreadcrumbSeparator />}
-                  <BreadcrumbItem>
-                    {index === crumbs.length - 1 ? (
-                      <BreadcrumbPage className="max-w-[40vw] truncate">
-                        {crumb.label}
-                      </BreadcrumbPage>
-                    ) : (
-                      <BreadcrumbLink asChild>
-                        <Link href={crumb.href}>{crumb.label}</Link>
-                      </BreadcrumbLink>
+        <header className="sticky top-0 z-10 flex h-14 shrink-0 items-center border-b bg-background/95 px-3 backdrop-blur supports-[backdrop-filter]:bg-background/60 sm:px-4">
+          {/* `min-w-0` lets the breadcrumb truncate instead of pushing the
+              theme and account controls off a narrow screen. */}
+          <div className="mx-auto flex w-full min-w-0 max-w-[120rem] items-center gap-2">
+            <SidebarTrigger />
+            <Separator orientation="vertical" className="mr-1 h-4" />
+            <Breadcrumb className="min-w-0">
+              <BreadcrumbList className="flex-nowrap">
+                {crumbs.map((crumb, index) => (
+                  <Fragment key={crumb.href}>
+                    {index > 0 && (
+                      <BreadcrumbSeparator
+                        className={
+                          index < crumbs.length - 1 ? "" : "hidden sm:block"
+                        }
+                      />
                     )}
-                  </BreadcrumbItem>
-                </Fragment>
-              ))}
-            </BreadcrumbList>
-          </Breadcrumb>
+                    <BreadcrumbItem
+                      className={
+                        index === crumbs.length - 1
+                          ? "min-w-0"
+                          : "hidden sm:flex"
+                      }
+                    >
+                      {index === crumbs.length - 1 ? (
+                        <BreadcrumbPage className="truncate">
+                          {crumb.label}
+                        </BreadcrumbPage>
+                      ) : (
+                        <BreadcrumbLink asChild>
+                          <Link href={crumb.href}>{crumb.label}</Link>
+                        </BreadcrumbLink>
+                      )}
+                    </BreadcrumbItem>
+                  </Fragment>
+                ))}
+              </BreadcrumbList>
+            </Breadcrumb>
 
-          <div className="ml-auto flex items-center gap-1">
-            <ThemeToggle />
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  aria-label="Account"
-                  className="rounded-full"
-                >
-                  <Avatar className="size-7">
-                    {user.image && <AvatarImage src={user.image} alt="" />}
-                    <AvatarFallback className="text-xs">
-                      {initials}
-                    </AvatarFallback>
-                  </Avatar>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuLabel className="font-normal">
-                  <div className="truncate text-sm font-medium">
-                    {user.name ?? "Operator"}
-                  </div>
-                  <div className="truncate text-xs text-muted-foreground">
-                    {user.email}
-                  </div>
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <form action={signOut}>
-                  <DropdownMenuItem asChild>
-                    <button type="submit" className="w-full cursor-pointer">
-                      <LogOut className="size-4" /> Sign out
-                    </button>
-                  </DropdownMenuItem>
-                </form>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <div className="ml-auto flex items-center gap-1">
+              <ThemeToggle />
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label="Account"
+                    className="rounded-full"
+                  >
+                    <Avatar className="size-7">
+                      {user.image && <AvatarImage src={user.image} alt="" />}
+                      <AvatarFallback className="text-xs">
+                        {initials}
+                      </AvatarFallback>
+                    </Avatar>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuLabel className="font-normal">
+                    <div className="truncate text-sm font-medium">
+                      {user.name ?? "Operator"}
+                    </div>
+                    <div className="truncate text-xs text-muted-foreground">
+                      {user.email}
+                    </div>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <form action={signOut}>
+                    <DropdownMenuItem asChild>
+                      <button type="submit" className="w-full cursor-pointer">
+                        <LogOut className="size-4" /> Sign out
+                      </button>
+                    </DropdownMenuItem>
+                  </form>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
         </header>
 
-        <main className="flex flex-1 flex-col gap-4 p-4 md:p-6">
+        {/* A `div`, not a `main`: `SidebarInset` already renders the main
+            landmark, and nesting a second one is invalid HTML — a screen
+            reader offers two "main" landmarks and neither is the page.
+            Padding only; the width belongs to each page's `PageContainer`,
+            because a table and a photo grid want different answers. */}
+        <div className="flex flex-1 flex-col px-4 py-4 sm:px-6 sm:py-6">
           {children}
-        </main>
+        </div>
       </SidebarInset>
     </SidebarProvider>
   );

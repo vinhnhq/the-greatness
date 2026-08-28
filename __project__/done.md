@@ -3,6 +3,38 @@
 > Newest at top: `YYYY-MM-DD · <sha> · <task id> <description>`.
 > Cut the line out of [`backlog.md`](backlog.md); never keep-and-tick.
 
+## v1.1 — Gallery and responsive container · ✅ 2026-08-28
+
+- **`/gallery`** — every attachment in one Photos-style grid: square cropped
+  tiles, month grouping with sticky headers, edge-to-edge on a phone, 3→10
+  columns by viewport, and a full-screen viewer with arrow-key and swipe
+  navigation. Kind tabs carry counts; the product filter offers only products
+  that actually have media.
+- **`PageContainer`** — a centred column per page, 1280px for tables and forms
+  and 1920px for the gallery. Tables drop secondary columns on a phone rather
+  than scrolling sideways.
+- **The seed now generates placeholder images** (`seed-media.ts`, PNG encoded
+  in-process), so the gallery means something on a fresh clone. Every fourth
+  product is left bare on purpose — a row with no image has to look deliberate.
+
+### Four findings from this arc
+
+1. **A client component must not import a repository module.** `gallery-grid`
+   imported `groupByMonth` from `media-repository.ts`, which dragged
+   `readContext` → `db.ts` → `node:async_hooks` into the browser bundle and
+   failed the route's build outright. The pure fold now lives in
+   `media-grouping.ts`, whose only repository import is type-only.
+2. **`SidebarInset` already renders `<main>`.** The shell nested a second one
+   — invalid HTML, and two "main" landmarks for a screen reader. Found by an
+   E2E assertion that could not locate the landmark it needed.
+3. **Content is centred within `<main>`, not the viewport.** The first version
+   of that test failed by exactly the sidebar's 256px. The layout was right;
+   the assertion was measuring the wrong box.
+4. **An `<img>` cannot hold a table column open.** Preflight caps images at
+   `max-width: 100%`, so beside a `w-full` neighbour the image sizes to the
+   cell while the cell sizes to the image, and the pair settles at 4px. A
+   fixed-size wrapper `div` breaks the cycle.
+
 ## v1 — Product admin dashboard · ✅ COMPLETE 2026-08-28
 
 Spec: [`spec.md`](spec.md). Four commits on `main`, gates green at each.

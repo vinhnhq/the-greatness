@@ -1,3 +1,4 @@
+import { PageContainer } from "@/components/app-shell/page-container";
 import { Skeleton } from "@/components/ui/skeleton";
 
 /**
@@ -7,7 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
  */
 export default function Loading() {
   return (
-    <div className="flex flex-col gap-4">
+    <PageContainer>
       <div className="flex items-center justify-between">
         <div className="flex flex-col gap-2">
           <Skeleton className="h-6 w-28" />
@@ -34,6 +35,6 @@ export default function Loading() {
           </div>
         ))}
       </div>
-    </div>
+    </PageContainer>
   );
 }

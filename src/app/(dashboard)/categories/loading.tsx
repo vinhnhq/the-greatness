@@ -1,8 +1,9 @@
+import { PageContainer } from "@/components/app-shell/page-container";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function Loading() {
   return (
-    <div className="flex flex-col gap-4">
+    <PageContainer>
       <Skeleton className="h-6 w-32" />
       <Skeleton className="h-9 w-80" />
       <div className="rounded-lg border">
@@ -17,6 +18,6 @@ export default function Loading() {
           </div>
         ))}
       </div>
-    </div>
+    </PageContainer>
   );
 }

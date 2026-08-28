@@ -5,6 +5,12 @@
  * every screen-reader user the ability to navigate it by column. The
  * thumbnail cell is `aria-hidden` because the product name in the next cell
  * already names the row; announcing both means hearing everything twice.
+ *
+ * **On a phone, secondary columns are hidden rather than scrolled to.** Six
+ * columns in a 390px viewport means a horizontal scrollbar under every row,
+ * and a horizontal scrollbar inside a vertically-scrolling page is a fight.
+ * Name, status and price stay; categories and the update date move into the
+ * name cell as a second line, where they are still readable and still there.
  */
 
 import { ImageOff, Play } from "lucide-react";
@@ -51,29 +57,34 @@ function Thumbnail({ product }: { readonly product: ProductListRow }) {
   const image = primaryImage(product.attachments);
   const video = product.attachments.find((a) => a.kind === "video");
 
-  if (image) {
-    return (
-      <Image
-        src={displayUrl(image)}
-        alt=""
-        width={40}
-        height={40}
-        className="size-10 rounded-md border object-cover"
-        // The list shows at most 25 of these and they are above the fold on a
-        // tall screen; unoptimized keeps the local driver's files serving
-        // straight from disk rather than through the image optimizer, which
-        // cannot reach a relative path during a build.
-        unoptimized
-      />
-    );
-  }
-
+  // A fixed-size wrapper, always — including around the image.
+  //
+  // An `<img>` cannot hold this column open on its own: Tailwind's preflight
+  // caps images at `max-width: 100%`, so next to a `w-full` neighbour the
+  // image sizes to the cell while the cell sizes to the image, and the pair
+  // settles at a 4px strip. A `div` with an explicit width has no such cycle.
   return (
-    <div className="flex size-10 items-center justify-center rounded-md border bg-muted text-muted-foreground">
-      {video ? (
-        <Play className="size-4" aria-hidden />
+    <div className="size-10 overflow-hidden rounded-md border bg-muted">
+      {image ? (
+        <Image
+          src={displayUrl(image)}
+          alt=""
+          width={40}
+          height={40}
+          className="size-full object-cover"
+          // Unoptimized keeps the local driver's files serving straight from
+          // disk rather than through the image optimizer, which cannot reach
+          // a relative path during a build.
+          unoptimized
+        />
       ) : (
-        <ImageOff className="size-4" aria-hidden />
+        <div className="flex size-full items-center justify-center text-muted-foreground">
+          {video ? (
+            <Play className="size-4" aria-hidden />
+          ) : (
+            <ImageOff className="size-4" aria-hidden />
+          )}
+        </div>
       )}
     </div>
   );
@@ -93,40 +104,60 @@ export function ProductsTable({
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead className="w-14">
+            <TableHead className="w-px pr-0">
               <span className="sr-only">Image</span>
             </TableHead>
             <TableHead>Product</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Categories</TableHead>
-            <TableHead className="text-right">Price</TableHead>
-            <TableHead className="text-right">Updated</TableHead>
+            <TableHead className="w-px">Status</TableHead>
+            <TableHead className="hidden lg:table-cell">Categories</TableHead>
+            <TableHead className="whitespace-nowrap text-right">
+              Price
+            </TableHead>
+            <TableHead className="hidden text-right md:table-cell">
+              Updated
+            </TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {products.map((product) => (
             <TableRow key={product.id}>
-              <TableCell aria-hidden>
+              {/* The width is repeated on the cell, not just the header:
+                  `w-full` on the name cell claims space from every neighbour
+                  that has not pinned its own, which collapsed this to a 4px
+                  strip of image. */}
+              <TableCell aria-hidden className="w-px pr-0">
                 <Thumbnail product={product} />
               </TableCell>
 
-              <TableCell>
+              {/* `w-full` claims the leftover width and `max-w-0` lets the
+                  content truncate inside it — the pair is what stops a table
+                  splitting space evenly and rendering "Ceramic..." next to a
+                  half-empty price column. */}
+              <TableCell className="w-full max-w-0">
                 <Link
                   href={`/products/${product.id}`}
-                  className="font-medium hover:underline"
+                  className="block truncate font-medium hover:underline"
                 >
                   {product.name}
                 </Link>
-                <div className="text-xs text-muted-foreground">
+                <div className="truncate text-xs text-muted-foreground">
                   {product.sku ?? "No SKU"}
+                  {/* The categories column is hidden below `lg`; rather than
+                      losing the information, it folds in here. */}
+                  <span className="lg:hidden">
+                    {product.categoryIds.length > 0 &&
+                      ` · ${product.categoryIds
+                        .map((id) => categoryName.get(id) ?? "Unknown")
+                        .join(", ")}`}
+                  </span>
                 </div>
               </TableCell>
 
-              <TableCell>
+              <TableCell className="w-px">
                 <StatusBadge status={product.status} />
               </TableCell>
 
-              <TableCell>
+              <TableCell className="hidden lg:table-cell">
                 {product.categoryIds.length === 0 ? (
                   <span className="text-sm text-muted-foreground">—</span>
                 ) : (
@@ -140,14 +171,14 @@ export function ProductsTable({
                 )}
               </TableCell>
 
-              <TableCell className="text-right tabular-nums">
+              <TableCell className="w-px whitespace-nowrap text-right tabular-nums">
                 {formatMoney({
                   minor: product.priceMinor,
                   currency: product.currency,
                 })}
               </TableCell>
 
-              <TableCell className="text-right text-sm text-muted-foreground">
+              <TableCell className="hidden text-right text-sm text-muted-foreground md:table-cell">
                 <time dateTime={product.updatedAt.toISOString()}>
                   {product.updatedAt.toLocaleDateString("en-GB", {
                     day: "2-digit",

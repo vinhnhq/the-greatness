@@ -10,6 +10,12 @@
  * Idempotent: re-running replaces the seeded rows rather than doubling them,
  * so it is safe to run against a database you have been clicking around in.
  * `bun run db:reset` is the sledgehammer.
+ *
+ * Most products get a **generated placeholder image** (`seed-media.ts`), so
+ * `/gallery` and the list's thumbnail column mean something on a fresh clone.
+ * A few are deliberately left without one — a row with no image has to look
+ * deliberate rather than broken, and that is only visible when some rows have
+ * one and some do not.
  */
 
 import { promises as fs } from "node:fs";
@@ -25,6 +31,9 @@ import { dbProductRepo } from "@/lib/domain/products/repository";
 import { newId } from "@/lib/id";
 import type { Currency } from "@/lib/money";
 import { slugify } from "@/lib/slug";
+import { getLocalStorageDir, getStorageDriver } from "@/lib/storage/config";
+
+import { writePlaceholder } from "./seed-media";
 
 export const SEED_OPERATOR_EMAIL = "operator@the-greatness.local";
 
@@ -356,7 +365,20 @@ const main = async (): Promise<void> => {
       byName.set(name, category.id);
     }
 
-    for (const seed of PRODUCTS) {
+    // Placeholders are files on disk, so they only make sense for the local
+    // driver. Seeding generated squares into a real Blob store is not
+    // something to do by accident.
+    const canWriteMedia = getStorageDriver() === "local";
+    const storageRoot = path.resolve(getLocalStorageDir());
+    if (canWriteMedia) {
+      await fs.rm(path.join(storageRoot, "products"), {
+        recursive: true,
+        force: true,
+      });
+    }
+
+    let mediaCount = 0;
+    for (const [index, seed] of PRODUCTS.entries()) {
       const product = await dbProductRepo.create({
         name: seed.name,
         slug: slugify(seed.name),
@@ -373,14 +395,47 @@ const main = async (): Promise<void> => {
           return id ? [id] : [];
         }),
       );
+
+      // Every fourth product is left bare, on purpose — see the docblock.
+      if (!canWriteMedia || index % 4 === 3) continue;
+
+      // One or two images, so the gallery has products with a set rather than
+      // a uniform one-each grid.
+      const howMany = index % 3 === 0 ? 2 : 1;
+      const attachments = [];
+      for (let n = 0; n < howMany; n++) {
+        const attachmentId = newId();
+        const file = await writePlaceholder(
+          storageRoot,
+          { productId: product.id, attachmentId },
+          `${seed.sku}-${n}`,
+        );
+        attachments.push({
+          kind: "image" as const,
+          originUrl: file.originUrl,
+          optimizedUrl: file.optimizedUrl,
+          posterUrl: null,
+          mime: "image/png",
+          bytes: file.bytes,
+          optimizedBytes: file.optimizedBytes,
+          width: file.width,
+          height: file.height,
+          durationMs: null,
+          alt: n === 0 ? seed.name : `${seed.name}, detail`,
+        });
+        mediaCount += 1;
+      }
+      await dbProductRepo.setAttachments(product.id, attachments);
     }
 
     console.log(
-      `seeded: 1 operator (${SEED_OPERATOR_EMAIL}) · ${CATEGORIES.length} categories · ${PRODUCTS.length} products`,
+      `seeded: 1 operator (${SEED_OPERATOR_EMAIL}) · ${CATEGORIES.length} categories · ${PRODUCTS.length} products · ${mediaCount} images`,
     );
-    console.log(
-      "no attachments — upload one from /products/<id> to exercise the media pipeline.",
-    );
+    if (!canWriteMedia) {
+      console.log(
+        "STORAGE_DRIVER is not `local`, so no placeholder images were written.",
+      );
+    }
   });
 
   await db.destroy();

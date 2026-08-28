@@ -16,6 +16,7 @@
 import { Plus, PackageOpen, SearchX } from "lucide-react";
 import Link from "next/link";
 
+import { PageContainer } from "@/components/app-shell/page-container";
 import { Button } from "@/components/ui/button";
 import {
   Empty,
@@ -56,7 +57,7 @@ export default async function ProductsPage({
   const to = Math.min(query.page * PAGE_SIZE, page.total);
 
   return (
-    <div className="flex flex-col gap-4">
+    <PageContainer>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h1 className="text-xl font-semibold tracking-tight">Products</h1>
@@ -124,6 +125,6 @@ export default async function ProductsPage({
           </EmptyContent>
         </Empty>
       )}
-    </div>
+    </PageContainer>
   );
 }

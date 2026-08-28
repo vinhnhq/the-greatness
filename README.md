@@ -2,10 +2,15 @@
 
 A product-catalogue admin dashboard. Sign in, then list · search · filter ·
 sort · create · edit products, each with many categories and an ordered set of
-image and video attachments.
+image and video attachments — plus a **gallery** of every asset in the
+catalogue, laid out like a photo library.
 
 Every attachment is stored **twice**: the untouched original, and a
 web-delivery variant produced in the browser before upload.
+
+Built for both ends of the range: a centred column that stops a table
+stretching across a 27" monitor, and a layout that holds at 390px with no
+horizontal scrolling anywhere.
 
 ## Start it
 
@@ -72,6 +77,33 @@ Three properties it holds, each with tests written around it:
 Uploading is deliberately asymmetric (`src/lib/storage/upload.ts`): the origin
 goes first and alone, and a derived file failing afterwards is swallowed to
 null rather than losing an upload the operator already waited for.
+
+## The gallery
+
+`/gallery` is every image and video in the catalogue in one grid — the inverse
+of `/products`, which is products that happen to have media.
+
+- Square cropped tiles, grouped by month with sticky headers, **edge-to-edge
+  on a phone** and three-to-ten columns depending on the viewport. A wider
+  screen means more photos, not bigger ones, which is why this page gets a
+  wider container than the rest of the app.
+- Tapping one opens a full-screen viewer: arrow keys and swipe move between
+  items, Escape closes, and the caption names the product, its price and a
+  link to edit it. The image is never cropped and **never upscaled** — this is
+  the screen where an operator checks what they actually uploaded.
+- The kind tabs carry counts (`Videos 0`), because a tab you have to press to
+  discover is empty is a tab that punishes pressing it.
+
+## Layout
+
+Every page renders inside a `PageContainer`, and pages disagree about width
+on purpose: tables and forms get 1280px, the gallery gets 1920px. Baking one
+width into the shell means the page that needs another escapes with negative
+margins.
+
+The E2E suite asserts both ends — no page scrolls sideways at 390px, and the
+content stays centred within `<main>` at 2560px. Those are the two failures a
+unit test structurally cannot catch.
 
 ## Search
 

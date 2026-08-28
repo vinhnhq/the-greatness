@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 
 import { BreadcrumbTitle } from "@/components/app-shell/breadcrumb-title";
+import { PageContainer } from "@/components/app-shell/page-container";
 import { dbCategoryRepo } from "@/lib/domain/categories/repository";
 import type { ProductId } from "@/lib/domain/products/entity";
 import { dbProductRepo } from "@/lib/domain/products/repository";
@@ -35,7 +36,7 @@ export default async function EditProductPage({
   if (!product) notFound();
 
   return (
-    <div className="flex flex-col gap-4">
+    <PageContainer>
       {/* Renders nothing — replaces the uuid in the breadcrumb. */}
       <BreadcrumbTitle title={product.name} />
       <div className="flex flex-wrap items-center gap-3">
@@ -44,6 +45,6 @@ export default async function EditProductPage({
         <code className="text-xs text-muted-foreground">/{product.slug}</code>
       </div>
       <ProductForm product={product} categories={categories} />
-    </div>
+    </PageContainer>
   );
 }

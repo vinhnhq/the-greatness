@@ -14,13 +14,18 @@
 
 ---
 
-## v1 → ✅ **SHIPPED 2026-08-28**
+## v1 · v1.1 → ✅ **SHIPPED 2026-08-28**
 
 Ship facts in [`done.md`](done.md). What follows is what v1 deliberately left.
 
 ## N — Next, in the order it is worth doing
 
-- [ ] **N.1** ↷ **Lighthouse pass on `/products`** (Performance ≥ 90,
+- [ ] **N.0** ↷ **Infinite scroll on `/gallery`.** It pages at 60 with a
+      pager, which is consistent with `/products` and linkable. A photo
+      library is scanned rather than read, so continuous loading may suit it
+      better — but that trades away the bookmarkable URL, so it is a product
+      call rather than an obvious upgrade.
+- [ ] **N.1** ↷ **Lighthouse pass on `/products` and `/gallery`** (Performance ≥ 90,
       Accessibility ≥ 95 — the quality bar's last unverified line). The list is
       server-rendered with no client data fetching, so the likely findings are
       image sizing on the thumbnail column and contrast on the status badges.
