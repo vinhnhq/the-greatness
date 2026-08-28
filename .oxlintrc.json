@@ -1,0 +1,55 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["typescript", "unicorn", "oxc", "react", "nextjs", "jsx-a11y"],
+  "categories": {
+    "correctness": "error",
+    "suspicious": "warn"
+  },
+  "env": {
+    "browser": true,
+    "node": true,
+    "es2024": true
+  },
+  "rules": {
+    "react/react-in-jsx-scope": "off",
+    "react/set-state-in-effect": "warn",
+    "react/refs": "error",
+    "react/purity": "error",
+    "typescript/no-unsafe-type-assertion": "off",
+    "typescript/restrict-template-expressions": "off",
+    "typescript/no-base-to-string": "warn",
+    "typescript/unbound-method": "warn",
+    "typescript/require-array-sort-compare": "warn",
+    "unicorn/no-array-sort": "off",
+    "react-hooks/exhaustive-deps": "warn",
+    "nextjs/no-img-element": "warn",
+    "jsx-a11y/no-autofocus": "off",
+    "jsx-a11y/click-events-have-key-events": "warn",
+    "jsx-a11y/no-static-element-interactions": "warn",
+    "jsx-a11y/no-noninteractive-element-interactions": "warn",
+    "jsx-a11y/media-has-caption": "warn",
+    "jsx-a11y/prefer-tag-over-role": "off"
+  },
+  "overrides": [
+    {
+      "files": ["src/components/ui/**"],
+      "rules": {
+        "eslint/no-shadow": "off",
+        "eslint/no-underscore-dangle": "off",
+        "typescript/no-unnecessary-type-conversion": "off",
+        "jsx-a11y/click-events-have-key-events": "warn",
+        "jsx-a11y/no-noninteractive-element-interactions": "warn"
+      }
+    }
+  ],
+  "ignorePatterns": [
+    "**/.next",
+    "**/node_modules",
+    "**/.data",
+    "**/.vercel",
+    "**/.claude",
+    "**/coverage",
+    "**/playwright-report",
+    "**/test-results"
+  ]
+}

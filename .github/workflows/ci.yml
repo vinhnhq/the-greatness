@@ -1,0 +1,81 @@
+# Seeded from @vinhnnn/dev-workflow v3.0.1, owned by this repo since.
+#
+# Quality gate. Why it exists: a broken test once shipped because the only
+# thing running in CI was the deploy provider's build. The host still owns
+# deploys; this runs the local gates on every PR.
+#
+# Secrets:
+#   DATABASE_TEST_URL — a Neon `test`-branch connection string. Absent, the
+#   integration project runs against a scratch bun:sqlite file instead, so CI
+#   is fully useful with no secret at all (see vitest.config.ts).
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      # Absent secret is the normal case: the integration project falls back
+      # to a scratch bun:sqlite file, which is what local development uses
+      # too. Set the secret to additionally exercise the Postgres dialect.
+      DATABASE_TEST_URL: ${{ secrets.DATABASE_TEST_URL }}
+      DATABASE_DRIVER: sqlite
+      STORAGE_DRIVER: local
+      BETTER_AUTH_SECRET: ci-only-not-a-real-secret
+    steps:
+      - uses: actions/checkout@v5
+
+      # Installs the bun/node pinned in mise.toml — CI and laptops share
+      # one source of truth for toolchain versions.
+      - uses: jdx/mise-action@v4
+        with:
+          cache: true
+
+      # Bun's package cache — keyed on the lockfile; saves the install step
+      # re-downloading every tarball per run.
+      - name: Cache bun install
+        uses: actions/cache@v6
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+          restore-keys: bun-${{ runner.os }}-
+
+      # Framework incremental build cache (e.g. Next.js's "No build cache
+      # found" warning). Keyed on lockfile + source hash; restore-keys let a
+      # source-only change reuse the previous cache.
+      - name: Cache framework build
+        uses: actions/cache@v6
+        with:
+          path: .next/cache
+          key: build-${{ runner.os }}-${{ hashFiles('bun.lock') }}-${{ hashFiles('src/**/*.ts', 'src/**/*.tsx') }}
+          restore-keys: |
+            build-${{ runner.os }}-${{ hashFiles('bun.lock') }}-
+            build-${{ runner.os }}-
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      # The four gates, same as the ship ritual runs locally — in the same
+      # order, so a CI failure maps onto a command you can re-run.
+      - name: Lint
+        run: bun run lint
+
+      - name: Type-check
+        run: bunx tsc --noEmit
+
+      # The real gate — both projects plus the coverage thresholds. Not
+      # `test`, which skips thresholds and can go green on uncovered code.
+      - name: Tests
+        run: bun run test:coverage
+
+      - name: Build
+        run: bun run build

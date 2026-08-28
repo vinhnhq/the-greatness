@@ -1,0 +1,60 @@
+import type { NextConfig } from "next";
+
+// React's dev runtime uses eval() for callstack reconstruction; production
+// React never does. This widens only the local CSP, never production.
+const isDev = process.env.NODE_ENV !== "production";
+const scriptSrcEval = isDev ? "'unsafe-eval' " : "";
+
+// `blob:` in img-src/media-src is load-bearing here, not boilerplate: the
+// attachments field renders object-URL previews of the optimized variant
+// *before* it is uploaded anywhere (src/lib/media/).
+const securityHeaders = [
+  { key: "X-Content-Type-Options", value: "nosniff" },
+  { key: "X-Frame-Options", value: "DENY" },
+  {
+    key: "Strict-Transport-Security",
+    value: "max-age=63072000; includeSubDomains; preload",
+  },
+  { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+  {
+    key: "Permissions-Policy",
+    value: "camera=(), microphone=(), geolocation=()",
+  },
+  {
+    key: "Content-Security-Policy",
+    value: [
+      "default-src 'self'",
+      `script-src 'self' 'unsafe-inline' ${scriptSrcEval}`,
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' data: blob: https://*.public.blob.vercel-storage.com https://lh3.googleusercontent.com",
+      "media-src 'self' blob: https://*.public.blob.vercel-storage.com",
+      // `https://vercel.com` is @vercel/blob/client's token-exchange API; the
+      // storage host is where the PUT itself lands. Both are needed for any
+      // client-direct upload.
+      "connect-src 'self' https://vercel.com https://*.public.blob.vercel-storage.com",
+      "frame-src https://accounts.google.com",
+      "frame-ancestors 'none'",
+      "base-uri 'self'",
+      "form-action 'self' https://accounts.google.com",
+    ].join("; "),
+  },
+];
+
+const nextConfig: NextConfig = {
+  reactCompiler: true,
+  // TypeScript 7's native compiler ships no JS API yet, so `next build` must
+  // shell out to the project-local `tsc` CLI. Without this flag the build
+  // refuses to run with typescript@7 installed.
+  experimental: { useTypeScriptCli: true },
+  images: {
+    remotePatterns: [
+      { protocol: "https", hostname: "*.public.blob.vercel-storage.com" },
+      { protocol: "https", hostname: "lh3.googleusercontent.com" },
+    ],
+  },
+  async headers() {
+    return [{ source: "/(.*)", headers: securityHeaders }];
+  },
+};
+
+export default nextConfig;

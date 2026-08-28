@@ -1,0 +1,7 @@
+# Per-project toolchain pins (mise — https://mise.jdx.dev)
+# `mise install` fetches these; CI reads the same file via `jdx/mise-action`,
+# so laptops and CI can't drift. Versions float within the major, so security
+# patches arrive with `mise up`.
+[tools]
+bun = "1.3"
+node = "24"

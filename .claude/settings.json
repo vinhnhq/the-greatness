@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "SessionEnd": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bun run \"$CLAUDE_PROJECT_DIR/.claude/scripts/session-log-upsert.ts\"",
+            "timeout": 90,
+            "statusMessage": "Upserting session log into the PR…"
+          }
+        ]
+      }
+    ]
+  }
+}
