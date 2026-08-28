@@ -80,6 +80,9 @@ export interface ProductsTable {
   priceMinor: number;
   currency: string;
   status: string;
+  /** Folded name + sku + description. Written only by the product repository
+   * — see `lib/search-text.ts` for why the fold is not done in SQL. */
+  searchText: string;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }

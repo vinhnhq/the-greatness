@@ -1,0 +1,415 @@
+/**
+ * `dbProductRepo` against a real database.
+ *
+ * The unit tests run the list query against the in-memory twin. That is fast
+ * and it is also a second implementation of the same rules — so the only
+ * thing proving the twin is not quietly lying is this file, which runs the
+ * **same expectations** through actual SQL. Where they disagree, one of them
+ * is a bug, and the disagreement is the point.
+ *
+ * Case-insensitive search is the specific reason this exists: `LIKE` behaves
+ * differently across drivers and `includes()` behaves like neither, so the
+ * twin cannot be trusted about it.
+ */
+
+import { promises as fs } from "node:fs";
+import path from "node:path";
+
+import { Kysely } from "kysely";
+import { FileMigrationProvider, Migrator } from "kysely/migration";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+
+import { type RequestContext, runWithContext } from "@/lib/context";
+import type { DB } from "@/lib/db-types";
+import { SqliteDialect } from "@/lib/db/sqlite-dialect";
+import type { CategoryId } from "@/lib/domain/categories/entity";
+import { dbCategoryRepo } from "@/lib/domain/categories/repository";
+import { DEFAULT_QUERY } from "@/lib/domain/products/list-query";
+import type { ProductListQuery } from "@/lib/domain/products/list-query";
+import { dbProductRepo } from "@/lib/domain/products/repository";
+
+let db: Kysely<DB>;
+let ctx: RequestContext;
+
+const inCtx = <T>(fn: () => Promise<T>): Promise<T> =>
+  runWithContext(ctx, fn) as Promise<T>;
+
+const query = (patch: Partial<ProductListQuery> = {}): ProductListQuery => ({
+  ...DEFAULT_QUERY,
+  ...patch,
+});
+
+beforeEach(async () => {
+  db = new Kysely<DB>({ dialect: new SqliteDialect({ filename: ":memory:" }) });
+  ctx = { db, user: null, requestId: "test" };
+  const migrator = new Migrator({
+    db,
+    provider: new FileMigrationProvider({
+      fs,
+      path,
+      migrationFolder: path.resolve("src/db/migrations"),
+    }),
+  });
+  const { error } = await migrator.migrateToLatest();
+  if (error) throw error;
+});
+
+afterEach(async () => {
+  await db.destroy();
+});
+
+const seed = async () => {
+  const bags = await inCtx(() =>
+    dbCategoryRepo.create({ name: "Bags", slug: "bags" }),
+  );
+  const decor = await inCtx(() =>
+    dbCategoryRepo.create({ name: "Decor", slug: "decor" }),
+  );
+
+  const make = async (
+    name: string,
+    over: Partial<{
+      slug: string;
+      sku: string | null;
+      description: string | null;
+      priceMinor: number;
+      status: "draft" | "active" | "archived";
+      categories: CategoryId[];
+    }> = {},
+  ) => {
+    const product = await inCtx(() =>
+      dbProductRepo.create({
+        name,
+        slug: over.slug ?? name.toLowerCase().replace(/\s+/g, "-"),
+        sku: over.sku ?? null,
+        description: over.description ?? null,
+        priceMinor: over.priceMinor ?? 100_000,
+        currency: "VND",
+        status: over.status ?? "active",
+      }),
+    );
+    if (over.categories) {
+      await inCtx(() =>
+        dbProductRepo.setCategories(product.id, over.categories ?? []),
+      );
+    }
+    return product;
+  };
+
+  return { bags: bags.id, decor: decor.id, make };
+};
+
+describe("dbProductRepo.list — filters", () => {
+  it("searches name, sku and description", async () => {
+    const { make } = await seed();
+    await make("Leather Tote", { sku: "TOTE-01", description: "Full grain." });
+    await make("Ceramic Vase", { sku: "VASE-09", description: "Hand thrown." });
+
+    const byName = await inCtx(() =>
+      dbProductRepo.list(query({ search: "tote" })),
+    );
+    expect(byName.rows.map((r) => r.name)).toEqual(["Leather Tote"]);
+
+    const bySku = await inCtx(() =>
+      dbProductRepo.list(query({ search: "VASE-09" })),
+    );
+    expect(bySku.rows.map((r) => r.name)).toEqual(["Ceramic Vase"]);
+
+    const byDescription = await inCtx(() =>
+      dbProductRepo.list(query({ search: "hand thrown" })),
+    );
+    expect(byDescription.rows.map((r) => r.name)).toEqual(["Ceramic Vase"]);
+  });
+
+  it("matches regardless of case AND of diacritics", async () => {
+    // The assertion that made `searchText` exist. `LOWER()` in SQLite is
+    // ASCII-only, so `LOWER(name) LIKE LOWER(?)` finds nothing here — and
+    // Postgres would have found it, so the bug would appear on exactly one
+    // driver. The last two terms are the real reason: nobody types diacritics
+    // into a search box.
+    const { make } = await seed();
+    await make("Áo Dài Lụa", { slug: "ao-dai-lua" });
+
+    for (const term of ["áo dài", "ÁO DÀI", "Áo Dài", "ao dai", "AO DAI"]) {
+      const found = await inCtx(() =>
+        dbProductRepo.list(query({ search: term })),
+      );
+      expect(found.rows, `searching ${term}`).toHaveLength(1);
+    }
+  });
+
+  it("finds a product whose đ the searcher typed as d", async () => {
+    const { make } = await seed();
+    await make("Đèn Bàn Gỗ", { slug: "den-ban-go" });
+    const found = await inCtx(() =>
+      dbProductRepo.list(query({ search: "den ban" })),
+    );
+    expect(found.rows).toHaveLength(1);
+  });
+
+  it("treats a user-typed % or _ as a literal, not a wildcard", async () => {
+    // Without escaping, searching "%" returns the whole catalogue and "100%"
+    // returns it too — silently, and only for data that contains one.
+    const { make } = await seed();
+    await make("Cotton 100% Tee", { slug: "cotton-tee" });
+    await make("Wool Scarf", { slug: "wool-scarf" });
+
+    const wildcard = await inCtx(() =>
+      dbProductRepo.list(query({ search: "%" })),
+    );
+    // Matches the one product containing a literal "%", not both rows.
+    expect(wildcard.rows.map((r) => r.name)).toEqual(["Cotton 100% Tee"]);
+
+    const underscore = await inCtx(() =>
+      dbProductRepo.list(query({ search: "_" })),
+    );
+    expect(underscore.total).toBe(0);
+
+    const literal = await inCtx(() =>
+      dbProductRepo.list(query({ search: "100%" })),
+    );
+    expect(literal.rows.map((r) => r.name)).toEqual(["Cotton 100% Tee"]);
+  });
+
+  it("filters by status", async () => {
+    const { make } = await seed();
+    await make("Draft One", { status: "draft" });
+    await make("Live One", { status: "active" });
+    await make("Old One", { status: "archived" });
+
+    const drafts = await inCtx(() =>
+      dbProductRepo.list(query({ status: "draft" })),
+    );
+    expect(drafts.rows.map((r) => r.name)).toEqual(["Draft One"]);
+    expect(drafts.total).toBe(1);
+  });
+
+  it("filters by category without duplicating a product in two categories", async () => {
+    // A naive JOIN returns the product once per matching link row, which
+    // shows up as the same product twice in the table.
+    const { make, bags, decor } = await seed();
+    await make("Tote", { categories: [bags, decor] });
+    await make("Vase", { categories: [decor] });
+
+    const inDecor = await inCtx(() =>
+      dbProductRepo.list(query({ categoryId: decor })),
+    );
+    expect(inDecor.total).toBe(2);
+    expect(inDecor.rows.map((r) => r.name).sort()).toEqual(["Tote", "Vase"]);
+
+    const inBags = await inCtx(() =>
+      dbProductRepo.list(query({ categoryId: bags })),
+    );
+    expect(inBags.rows.map((r) => r.name)).toEqual(["Tote"]);
+  });
+
+  it("combines search, status and category", async () => {
+    const { make, bags } = await seed();
+    await make("Tote Draft", { status: "draft", categories: [bags] });
+    await make("Tote Live", { status: "active", categories: [bags] });
+    await make("Vase Live", { status: "active" });
+
+    const found = await inCtx(() =>
+      dbProductRepo.list(
+        query({ search: "tote", status: "active", categoryId: bags }),
+      ),
+    );
+    expect(found.rows.map((r) => r.name)).toEqual(["Tote Live"]);
+    expect(found.total).toBe(1);
+  });
+});
+
+describe("dbProductRepo.list — sorting and paging", () => {
+  it("sorts by name, price and update time in both directions", async () => {
+    const { make } = await seed();
+    await make("Beta", { priceMinor: 300 });
+    await make("Alpha", { priceMinor: 100 });
+    await make("Gamma", { priceMinor: 200 });
+
+    const byName = await inCtx(() =>
+      dbProductRepo.list(query({ sort: "name-asc" })),
+    );
+    expect(byName.rows.map((r) => r.name)).toEqual(["Alpha", "Beta", "Gamma"]);
+
+    const byNameDesc = await inCtx(() =>
+      dbProductRepo.list(query({ sort: "name-desc" })),
+    );
+    expect(byNameDesc.rows.map((r) => r.name)).toEqual([
+      "Gamma",
+      "Beta",
+      "Alpha",
+    ]);
+
+    const byPrice = await inCtx(() =>
+      dbProductRepo.list(query({ sort: "price-asc" })),
+    );
+    expect(byPrice.rows.map((r) => r.priceMinor)).toEqual([100, 200, 300]);
+  });
+
+  it("pages without dropping or repeating a row", async () => {
+    // 30 products created in the same test share a timestamp to the second,
+    // which is exactly the tie the uuid v7 tiebreaker exists for: without it,
+    // a row can appear on both pages or on neither.
+    const { make } = await seed();
+    for (let n = 0; n < 30; n++) {
+      await make(`Product ${String(n).padStart(2, "0")}`);
+    }
+
+    const first = await inCtx(() => dbProductRepo.list(query({ page: 1 })));
+    const second = await inCtx(() => dbProductRepo.list(query({ page: 2 })));
+
+    expect(first.total).toBe(30);
+    expect(first.rows).toHaveLength(25);
+    expect(second.rows).toHaveLength(5);
+
+    const ids = [...first.rows, ...second.rows].map((r) => r.id);
+    expect(new Set(ids).size).toBe(30);
+  });
+
+  it("returns an empty page past the end rather than failing", async () => {
+    const { make } = await seed();
+    await make("Only One");
+    const page = await inCtx(() => dbProductRepo.list(query({ page: 9 })));
+    expect(page.rows).toEqual([]);
+    expect(page.total).toBe(1);
+  });
+});
+
+describe("dbProductRepo — relations", () => {
+  it("loads attachments in position order on the list, not N+1", async () => {
+    const { make } = await seed();
+    const product = await make("Gallery");
+    await inCtx(() =>
+      dbProductRepo.setAttachments(product.id, [
+        {
+          kind: "image",
+          originUrl: "/uploads/a.jpg",
+          optimizedUrl: "/uploads/a.webp",
+          posterUrl: null,
+          mime: "image/jpeg",
+          bytes: 900_000,
+          optimizedBytes: 50_000,
+          width: 3000,
+          height: 2000,
+          durationMs: null,
+          alt: "Front",
+        },
+        {
+          kind: "video",
+          originUrl: "/uploads/b.mp4",
+          optimizedUrl: null,
+          posterUrl: "/uploads/b-poster.webp",
+          mime: "video/mp4",
+          bytes: 40_000_000,
+          optimizedBytes: null,
+          width: 1920,
+          height: 1080,
+          durationMs: 8_000,
+          alt: null,
+        },
+      ]),
+    );
+
+    const page = await inCtx(() => dbProductRepo.list(query()));
+    const attachments = page.rows[0].attachments;
+    expect(attachments.map((a) => a.position)).toEqual([0, 1]);
+    expect(attachments[0].optimizedUrl).toBe("/uploads/a.webp");
+    // A video keeps origin bytes and gains a poster — the shape prepare.ts
+    // produces, round-tripped through real columns.
+    expect(attachments[1].optimizedUrl).toBeNull();
+    expect(attachments[1].posterUrl).toBe("/uploads/b-poster.webp");
+    expect(attachments[1].durationMs).toBe(8_000);
+  });
+
+  it("replaces attachments rather than appending on a re-save", async () => {
+    const { make } = await seed();
+    const product = await make("Gallery");
+    const one = {
+      kind: "image" as const,
+      originUrl: "/uploads/a.jpg",
+      optimizedUrl: null,
+      posterUrl: null,
+      mime: "image/jpeg",
+      bytes: 1,
+      optimizedBytes: null,
+      width: null,
+      height: null,
+      durationMs: null,
+      alt: null,
+    };
+    await inCtx(() => dbProductRepo.setAttachments(product.id, [one, one]));
+    await inCtx(() => dbProductRepo.setAttachments(product.id, [one]));
+
+    const saved = await inCtx(() => dbProductRepo.getById(product.id));
+    expect(saved?.attachments).toHaveLength(1);
+  });
+
+  it("deletes a product's links and attachments with it", async () => {
+    const { make, bags } = await seed();
+    const product = await make("Doomed", { categories: [bags] });
+    await inCtx(() =>
+      dbProductRepo.setAttachments(product.id, [
+        {
+          kind: "image",
+          originUrl: "/uploads/x.jpg",
+          optimizedUrl: null,
+          posterUrl: null,
+          mime: "image/jpeg",
+          bytes: 1,
+          optimizedBytes: null,
+          width: null,
+          height: null,
+          durationMs: null,
+          alt: null,
+        },
+      ]),
+    );
+
+    await inCtx(() => dbProductRepo.remove(product.id));
+
+    expect(await inCtx(() => dbProductRepo.getById(product.id))).toBeNull();
+    const orphanAttachments = await db
+      .selectFrom("product_attachments")
+      .selectAll()
+      .execute();
+    const orphanLinks = await db
+      .selectFrom("product_categories")
+      .selectAll()
+      .execute();
+    expect(orphanAttachments).toEqual([]);
+    expect(orphanLinks).toEqual([]);
+  });
+
+  it("keeps products when their category is deleted", async () => {
+    // Deleting a category must never delete stock.
+    const { make, bags } = await seed();
+    const product = await make("Survivor", { categories: [bags] });
+
+    await inCtx(() => dbCategoryRepo.remove(bags));
+
+    const saved = await inCtx(() => dbProductRepo.getById(product.id));
+    expect(saved?.name).toBe("Survivor");
+    expect(saved?.categoryIds).toEqual([]);
+  });
+});
+
+describe("dbCategoryRepo", () => {
+  it("counts products per category in one query", async () => {
+    const { make, bags, decor } = await seed();
+    await make("A", { categories: [bags] });
+    await make("B", { categories: [bags, decor] });
+
+    const counts = await inCtx(() => dbCategoryRepo.listWithCounts());
+    expect(counts.map((c) => [c.name, c.productCount])).toEqual([
+      ["Bags", 2],
+      ["Decor", 1],
+    ]);
+  });
+
+  it("excludes the edited row from the taken-slug set", async () => {
+    const { bags } = await seed();
+    const taken = await inCtx(() => dbCategoryRepo.takenSlugs(bags));
+    expect(taken.has("bags")).toBe(false);
+    expect(taken.has("decor")).toBe(true);
+  });
+});

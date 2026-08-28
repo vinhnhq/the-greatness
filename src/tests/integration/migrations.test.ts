@@ -93,6 +93,7 @@ describe("migrations", () => {
           priceMinor: 1000,
           currency: "VND",
           status: "draft",
+          searchText: "anvil",
           createdAt: new Date(),
           updatedAt: new Date(),
         })

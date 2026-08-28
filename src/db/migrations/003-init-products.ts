@@ -9,6 +9,8 @@
  *     column. `lib/money.ts` owns the conversions.
  *   - **`product_categories` has a composite primary key**, so linking the
  *     same category twice is impossible rather than merely discouraged.
+ *   - **`searchText` is denormalised on purpose.** See the column's comment
+ *     below and `lib/search-text.ts`.
  *   - **An attachment stores both URLs.** `originUrl` is what the operator
  *     uploaded and is never regenerated; `optimizedUrl` is derived and may be
  *     null — when browser optimization fails, `lib/media/prepare.ts` keeps the
@@ -28,6 +30,12 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     .addColumn("priceMinor", "integer", (c) => c.notNull().defaultTo(0))
     .addColumn("currency", "text", (c) => c.notNull().defaultTo("VND"))
     .addColumn("status", "text", (c) => c.notNull().defaultTo("draft"))
+    // Name + sku + description, lowercased with diacritics stripped
+    // (`lib/search-text.ts`). Denormalised deliberately: SQLite's LOWER() is
+    // ASCII-only, so folding in SQL would silently fail for exactly the
+    // Vietnamese names this catalogue is full of. Written by the repository
+    // on every save; nothing else may write it.
+    .addColumn("searchText", "text", (c) => c.notNull().defaultTo(""))
     .addColumn("createdAt", "timestamptz", (c) =>
       c.notNull().defaultTo(sql`current_timestamp`),
     )
@@ -43,6 +51,13 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     .on("products")
     .column("sku")
     .unique()
+    .execute();
+
+  // The search box's one predicate.
+  await db.schema
+    .createIndex("idx_products_search")
+    .on("products")
+    .column("searchText")
     .execute();
 
   // The list's default order (newest activity first) and its status filter —

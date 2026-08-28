@@ -40,8 +40,23 @@ const securityHeaders = [
   },
 ];
 
+// The browser needs to know which storage driver is live and whether the dev
+// sign-in bypass exists, but it cannot read `STORAGE_DRIVER` / `ALLOW_DEV_LOGIN`.
+// Deriving the NEXT_PUBLIC_ twins here from the same values keeps one source of
+// truth — a second variable in `.env` is a second thing to forget.
+const publicEnv = {
+  NEXT_PUBLIC_STORAGE_DRIVER:
+    process.env.STORAGE_DRIVER ??
+    (process.env.BLOB_READ_WRITE_TOKEN ? "blob" : "local"),
+  NEXT_PUBLIC_ALLOW_DEV_LOGIN:
+    process.env.NODE_ENV !== "production" && process.env.ALLOW_DEV_LOGIN === "1"
+      ? "1"
+      : "0",
+};
+
 const nextConfig: NextConfig = {
   reactCompiler: true,
+  env: publicEnv,
   // TypeScript 7's native compiler ships no JS API yet, so `next build` must
   // shell out to the project-local `tsc` CLI. Without this flag the build
   // refuses to run with typescript@7 installed.
