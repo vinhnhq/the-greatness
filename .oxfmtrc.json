@@ -20,6 +20,7 @@
     "**/.claude",
     "**/coverage",
     "**/playwright-report",
-    "**/test-results"
+    "**/test-results",
+    "**/data/sapo/**/*.json"
   ]
 }
