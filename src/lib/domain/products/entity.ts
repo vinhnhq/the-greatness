@@ -28,9 +28,16 @@ export type ProductStatus = (typeof PRODUCT_STATUSES)[number];
 export const isProductStatus = (value: string): value is ProductStatus =>
   (PRODUCT_STATUSES as readonly string[]).includes(value);
 
-export const PRODUCT_NAME_MAX = 140;
+/**
+ * The caps exist to keep the form usable, not to police the catalogue — so
+ * they are set from what the real catalogue actually contains. The imported
+ * Sapo data has one 150-character product name and, once its HTML is reduced
+ * to text, an 8,550-character description; both were over the previous
+ * 140/5,000 and would have made 185 real products unsavable.
+ */
+export const PRODUCT_NAME_MAX = 160;
 export const PRODUCT_SKU_MAX = 60;
-export const PRODUCT_DESCRIPTION_MAX = 5_000;
+export const PRODUCT_DESCRIPTION_MAX = 10_000;
 
 /** How many assets one product's gallery may carry. Not a storage limit: past
  * roughly this many, the reorder grid stops being usable. */
@@ -45,6 +52,10 @@ export interface Product {
   readonly priceMinor: number;
   readonly currency: Currency;
   readonly status: ProductStatus;
+  /** The Sapo product id, when this row was imported. Sapo is the system of
+   * record; `lib/sapo.ts` turns this into a link back to it. Never set from
+   * the form — it is provenance, not content. */
+  readonly sapoId: string | null;
   readonly createdAt: Date;
   readonly updatedAt: Date;
 }
@@ -69,6 +80,7 @@ const productRowSchema = z.object({
   priceMinor: z.coerce.number().int(),
   currency: z.string().refine(isCurrency, "unknown currency"),
   status: z.string().refine(isProductStatus, "unknown status"),
+  sapoId: z.string().min(1).nullable(),
   createdAt: z.coerce.date(),
   updatedAt: z.coerce.date(),
 });
@@ -98,6 +110,7 @@ export const parseProduct = (
     priceMinor: d.priceMinor,
     currency: d.currency as Currency,
     status: d.status as ProductStatus,
+    sapoId: d.sapoId,
     createdAt: d.createdAt,
     updatedAt: d.updatedAt,
   });

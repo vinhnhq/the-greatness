@@ -29,6 +29,7 @@ const category = (id: string, name: string): Category => ({
   name,
   slug: name.toLowerCase().replace(/\s+/g, "-"),
   parentId: null,
+  sapoId: null,
   createdAt: new Date(0),
   updatedAt: new Date(0),
 });
@@ -58,6 +59,7 @@ const product = (
   name: "Product",
   slug: "product",
   sku: null,
+  sapoId: null,
   description: null,
   priceMinor: 100,
   currency: "VND",

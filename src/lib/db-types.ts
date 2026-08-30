@@ -64,6 +64,9 @@ export interface CategoriesTable {
   id: string;
   name: string;
   slug: string;
+  /** The Sapo collection this was imported from, or null when it was created
+   * here. Provenance only — see migration 005. */
+  sapoId: string | null;
   /** One flat level in v1; the column exists so a tree needs no migration. */
   parentId: string | null;
   createdAt: Timestamp;
@@ -74,6 +77,9 @@ export interface ProductsTable {
   id: string;
   name: string;
   slug: string;
+  /** The Sapo product this was imported from, or null when it was created
+   * here. Provenance only — see migration 005. */
+  sapoId: string | null;
   sku: string | null;
   description: string | null;
   /** Minor units (cents/đồng). Never a float — see `lib/money.ts`. */

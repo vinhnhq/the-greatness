@@ -2,10 +2,12 @@ import { notFound } from "next/navigation";
 
 import { BreadcrumbTitle } from "@/components/app-shell/breadcrumb-title";
 import { PageContainer } from "@/components/app-shell/page-container";
+import { SapoLink } from "@/components/sapo-link";
 import { dbCategoryRepo } from "@/lib/domain/categories/repository";
 import type { ProductId } from "@/lib/domain/products/entity";
 import { dbProductRepo } from "@/lib/domain/products/repository";
 import { isId } from "@/lib/id";
+import { sapoProductUrl } from "@/lib/sapo";
 
 import { ProductForm } from "../product-form";
 import { StatusBadge } from "../products-table";
@@ -43,6 +45,8 @@ export default async function EditProductPage({
         <h1 className="text-xl font-semibold tracking-tight">{product.name}</h1>
         <StatusBadge status={product.status} />
         <code className="text-xs text-muted-foreground">/{product.slug}</code>
+        {/* Sapo owns this row. Renders nothing for a product created here. */}
+        <SapoLink url={sapoProductUrl(product.sapoId)} />
       </div>
       <ProductForm product={product} categories={categories} />
     </PageContainer>

@@ -47,6 +47,7 @@ const category = (id: CategoryId, name: string): Category => ({
   name,
   slug: name.toLowerCase(),
   parentId: null,
+  sapoId: null,
   createdAt: new Date(0),
   updatedAt: new Date(0),
 });

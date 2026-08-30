@@ -18,6 +18,8 @@ export interface Category {
   readonly name: string;
   readonly slug: string;
   readonly parentId: CategoryId | null;
+  /** The Sapo collection id, when this row was imported. See `lib/sapo.ts`. */
+  readonly sapoId: string | null;
   readonly createdAt: Date;
   readonly updatedAt: Date;
 }
@@ -35,6 +37,7 @@ const rowSchema = z.object({
   name: z.string().min(1),
   slug: z.string().min(1),
   parentId: z.string().min(1).nullable(),
+  sapoId: z.string().min(1).nullable(),
   createdAt: z.coerce.date(),
   updatedAt: z.coerce.date(),
 });
@@ -62,6 +65,7 @@ export const parseCategory = (
     name: d.name,
     slug: d.slug,
     parentId: d.parentId as CategoryId | null,
+    sapoId: d.sapoId,
     createdAt: d.createdAt,
     updatedAt: d.updatedAt,
   });

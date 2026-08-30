@@ -37,3 +37,6 @@ e2e/fixtures/large-photo.png
 # ~212 MB of full-size CDN originals — the JSON beside them holds every URL,
 # so `bun run fetch:sapo --images` puts them back.
 data/sapo/images/
+
+# built by `bun run prepare:sapo-media` from data/sapo/images — 250 MB
+data/sapo/media/

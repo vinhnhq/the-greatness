@@ -9,7 +9,9 @@ deliberately short and delegates everything else.**
 
 A **product-catalogue admin dashboard** built on Next.js 16 + Bun. An operator
 signs in, manages products with many categories, and works from a **media
-library** that products link into. Local development runs on embedded SQLite
+library** that products link into. **Sapo is the system of record** — this is
+a companion view over the same catalogue, and every imported row carries a
+`sapoId` that `lib/sapo.ts` turns into a link back to it. Local development runs on embedded SQLite
 with files on disk; deployed it is Neon + Vercel Blob, chosen by two
 environment variables and nothing else.
 
@@ -46,7 +48,9 @@ bun run build            # next build
 bun run lint             # oxlint --type-aware + oxfmt --check
 bun run format           # oxfmt .
 bun run migrate <cmd>    # latest | up | down | status
-bun run seed             # 1 operator, 8 categories, 30 products, 36 images
+bun run seed             # 1 operator + the real Sapo catalogue (data/sapo/)
+bun run fetch:sapo       # re-pull the catalogue; --images for the originals
+bun run prepare:sapo-media  # de-logo, resize and rename into data/sapo/media/
 bun run db:local         # migrate + seed
 bun run db:reset         # wipe .data and rebuild
 bun run test             # vitest, both projects
@@ -97,6 +101,13 @@ Things a session will hit, in rough order of how much time they cost.
   fixed-size `div`.
 - **Middleware in Next 16 is `src/proxy.ts` exporting `proxy`** — not
   `middleware.ts`. (None exists yet.)
+- **A dev server started before `db:reset` holds the deleted database file.**
+  `db:reset` is `rm -rf .data`, so an already-running `next dev` keeps serving
+  the old inode and fails with `parse…Strict: schema drift`. Restart it; the
+  error names the new column and looks like a repository bug.
+- **`bun run seed` needs `data/sapo/`.** The JSON is committed; the 250 MB of
+  images is not. Without `fetch:sapo --images && prepare:sapo-media` the rows
+  seed with no pictures, and the summary line says so.
 - **Tailwind v4 has no config file.** Tokens live in `src/app/globals.css` via
   `@theme`; the preset is shadcn `radix-maia`, base `neutral`.
 

@@ -16,6 +16,7 @@ import { Check, Loader2, Pencil, Plus, Trash2, X } from "lucide-react";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
+import { SapoLink } from "@/components/sapo-link";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -39,6 +40,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import type { CategoryWithCount } from "@/lib/domain/categories/repository";
+import { sapoCategoryUrl } from "@/lib/sapo";
 
 import { createCategory, deleteCategory, renameCategory } from "./actions";
 
@@ -107,7 +109,11 @@ function CategoryRow({
       </TableCell>
 
       <TableCell className="hidden text-muted-foreground sm:table-cell">
-        <code className="text-xs">{category.slug}</code>
+        <div className="flex items-center gap-3">
+          <code className="text-xs">{category.slug}</code>
+          {/* Nothing renders for a category created here. */}
+          <SapoLink url={sapoCategoryUrl(category.sapoId)} label="Sapo" />
+        </div>
       </TableCell>
 
       <TableCell>

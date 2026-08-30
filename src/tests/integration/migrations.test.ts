@@ -125,10 +125,14 @@ describe("migrations", () => {
 });
 
 describe("migration 004 — the media backfill", () => {
-  /** The pre-004 world: run every migration, then undo just this one. */
+  /**
+   * The pre-004 world. Named explicitly rather than "latest, then one step
+   * down": that stepped past 004 only while 004 *was* the last migration, and
+   * silently stopped meaning it the day 005 landed.
+   */
   const atMigration003 = async () => {
     await migrator.migrateToLatest();
-    await migrator.migrateDown();
+    await migrator.migrateTo("003-init-products");
   };
 
   const legacyAttachment = (id: string, productId: string, position: number) =>
@@ -258,7 +262,9 @@ describe("migration 004 — the media backfill", () => {
       ])
       .execute();
 
-    const { error } = await migrator.migrateDown();
+    // Down to 003 by name, not one step: 005 sits above 004 now, and a bare
+    // `migrateDown()` would undo that instead.
+    const { error } = await migrator.migrateTo("003-init-products");
     expect(error).toBeUndefined();
 
     const rows = await db

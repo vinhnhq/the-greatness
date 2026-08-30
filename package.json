@@ -11,6 +11,7 @@
     "migrate": "bun run src/db/migrate.ts",
     "seed": "bun run src/db/seed.ts",
     "fetch:sapo": "bun run scripts/fetch-sapo.ts",
+    "prepare:sapo-media": "bun run scripts/prepare-sapo-media.ts",
     "db:local": "bun run migrate latest && bun run seed",
     "db:reset": "rm -rf .data && bun run db:local",
     "test": "vitest run",
@@ -69,6 +70,7 @@
     "oxfmt": "^0.65.0",
     "oxlint": "^1.80.0",
     "oxlint-tsgolint": "^7.0.2001",
+    "sharp": "^0.35.4",
     "tailwindcss": "^4",
     "typescript": "7",
     "vitest": "^4.1.11"

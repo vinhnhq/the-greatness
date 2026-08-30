@@ -453,6 +453,9 @@ export const createInMemoryProductRepo = (
       const row: Product = {
         ...input,
         id: newId() as ProductId,
+        // Not part of `ProductInput`: a row created through the repository was
+        // created here, not imported. Only the seed sets it, by id.
+        sapoId: null,
         createdAt: stamp,
         updatedAt: stamp,
       };

@@ -17,6 +17,7 @@ import { Plus, PackageOpen, SearchX } from "lucide-react";
 import Link from "next/link";
 
 import { PageContainer } from "@/components/app-shell/page-container";
+import { SapoLink } from "@/components/sapo-link";
 import { Button } from "@/components/ui/button";
 import {
   Empty,
@@ -35,6 +36,7 @@ import {
   productListHref,
 } from "@/lib/domain/products/list-query";
 import { dbProductRepo } from "@/lib/domain/products/repository";
+import { sapoProductListUrl } from "@/lib/sapo";
 
 import { Pager } from "./pager";
 import { ProductsTable } from "./products-table";
@@ -67,11 +69,16 @@ export default async function ProductsPage({
               : `Showing ${from}–${to} of ${page.total}`}
           </p>
         </div>
-        <Button asChild>
-          <Link href="/products/new">
-            <Plus className="size-4" /> New product
-          </Link>
-        </Button>
+        <div className="flex items-center gap-4">
+          {/* Sapo is the system of record; this is the way back to the list
+              that owns these rows. */}
+          <SapoLink url={sapoProductListUrl()} label="Open catalogue in Sapo" />
+          <Button asChild>
+            <Link href="/products/new">
+              <Plus className="size-4" /> New product
+            </Link>
+          </Button>
+        </div>
       </div>
 
       <ProductsToolbar query={query} categories={categories} />

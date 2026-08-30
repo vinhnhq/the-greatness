@@ -1,22 +1,18 @@
 /**
- * Generated placeholder images for the seed.
+ * A generated PNG, for the one place that still needs one.
  *
- * The gallery is the one page that is meaningless with an empty database, and
- * "run the app, then upload twenty files by hand to see if it works" is not a
- * demo — it is a chore that gets skipped, which is how a page ships broken.
+ * This used to supply the seed with placeholder squares. It no longer does —
+ * `seed-sapo.ts` loads the real catalogue's photographs — and everything that
+ * wrote them to storage went with it. What is left is `placeholderPng`, which
+ * `setup-e2e.ts` uses to build a 5000×3000 file: the E2E suite needs an image
+ * over `ARCHIVE_MAX_EDGE` to prove the browser's resize path, and generating
+ * one beats committing a multi-megabyte fixture.
  *
  * PNGs are encoded here rather than committed as binary fixtures: a few
- * hundred lines of zlib beats a megabyte of blobs in git history, the colours
- * can be derived from the product name so every tile is distinguishable, and
- * nothing has to be regenerated when the seed list changes.
- *
- * Two sizes per product, written through the **real** storage keys, so the
- * seeded rows exercise the same origin/optimized pair a genuine upload
- * produces — including the size difference the attachment card reports.
+ * hundred lines of zlib beats a megabyte of blobs in git history, and the
+ * colours are derived from a seed string so the same input is the same image.
  */
 
-import { promises as fs } from "node:fs";
-import path from "node:path";
 import zlib from "node:zlib";
 
 /** A stable hue per name, so the same product is the same colour every seed. */
@@ -106,51 +102,4 @@ export const placeholderPng = (
     chunk("IDAT", zlib.deflateSync(raw, { level: 9 })),
     chunk("IEND", Buffer.alloc(0)),
   ]);
-};
-
-export type SeededAttachment = {
-  readonly originUrl: string;
-  readonly optimizedUrl: string;
-  readonly bytes: number;
-  readonly optimizedBytes: number;
-  readonly width: number;
-  readonly height: number;
-};
-
-const ORIGIN_SIZE = 900;
-const OPTIMIZED_SIZE = 450;
-
-/**
- * Write one product's placeholder pair under the local storage root and
- * return the row fields.
- *
- * Only meaningful for `STORAGE_DRIVER=local` — a Blob deployment has nowhere
- * on disk to put these, and seeding a production bucket with generated
- * squares is not something to do by accident. The caller checks.
- */
-export const writePlaceholder = async (
-  root: string,
-  mediaId: string,
-  seed: string,
-): Promise<SeededAttachment> => {
-  const dir = path.join(root, "media", mediaId);
-  await fs.mkdir(dir, { recursive: true });
-
-  const origin = placeholderPng(seed, ORIGIN_SIZE);
-  const optimized = placeholderPng(seed, OPTIMIZED_SIZE);
-  const originName = `origin-${mediaId.slice(0, 8)}.png`;
-  const optimizedName = `optimized-${mediaId.slice(0, 8)}.png`;
-
-  await fs.writeFile(path.join(dir, originName), origin);
-  await fs.writeFile(path.join(dir, optimizedName), optimized);
-
-  const base = `/uploads/media/${mediaId}`;
-  return {
-    originUrl: `${base}/${originName}`,
-    optimizedUrl: `${base}/${optimizedName}`,
-    bytes: origin.length,
-    optimizedBytes: optimized.length,
-    width: ORIGIN_SIZE,
-    height: ORIGIN_SIZE,
-  };
 };

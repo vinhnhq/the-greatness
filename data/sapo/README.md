@@ -82,30 +82,64 @@ a fresh machine with no credentials. The script's docblock carries the detail.
   originals are the only thing on offer, which is why they are gitignored.
 - The CDN **403s a request with no `User-Agent`**.
 
-## Bringing it in
+## It is loaded
 
-The export deliberately stops short of our schema so the mapping stays a
-visible decision. What it lines up with:
+`bun run seed` reads these files — see `src/db/seed-sapo.ts`, which records the
+four calls it makes and why. The full pipeline from nothing:
 
-| Snapshot                                 | `db-types.ts`                                                        |
-| ---------------------------------------- | -------------------------------------------------------------------- |
-| `name`, `slug`, `sku`, `descriptionHtml` | `products.name/slug/sku/description`                                 |
-| `priceMinor`, `currency`                 | `products.priceMinor/currency`                                       |
-| —                                        | `products.status` — nothing in the source maps to it; pick a default |
-| —                                        | `products.searchText` — the repository writes it, never the importer |
-| `categories[].name/slug`                 | `categories.name/slug`                                               |
-| `productCount`                           | not a column; drop it                                                |
-| `product-categories.json`                | `product_categories`                                                 |
-| `images[].url/file`                      | `media_assets.originUrl` + `product_media.position`                  |
+```bash
+bun run fetch:sapo --images    # the JSON and 786 CDN originals (~217 MB)
+bun run prepare:sapo-media     # de-logo, resize, rename → data/sapo/media/
+bun run db:reset               # migrate + seed
+```
 
-Open questions an importer has to answer, none of which have an obvious
-default:
+`media.json` is committed; `images/` and `media/` are not.
 
-1. **Variants.** 17 products have more than one, and `L.3` in the backlog says
-   variants are a later spec. Flattening to the first variant loses real data;
-   the snapshot keeps all of them so the decision stays open.
-2. **`status`.** Nothing in the source maps to it.
-3. **Media.** `media_assets` wants `bytes`, `width`, `height` and a `mime` —
-   none of which the API gives. They have to come from the downloaded file.
-4. **The empty 191 categories.** Import them or not? They are the intended
-   taxonomy of the store, just unused so far.
+### What `prepare-sapo-media` does
+
+- **Erases the "Tam Anh Tài" watermark** from the 255 images that carry it, by
+  its three brand colours, and **only when the ring around the box is already
+  white**. Four marketing banners (Shopee, WonderWear) use the same colours and
+  are left alone by that check rather than having a white hole punched in them.
+- **Writes the pair `media_assets` wants**, to the same numbers as
+  `lib/media/optimize-image.ts`: an origin capped at 4096px, and a 1600px WebP
+  at q82. An image that needed neither the erase nor the cap keeps its true
+  bytes.
+- **Names them after the product**: `<slug>-<n>-original.<ext>` and
+  `<slug>-<n>.webp`, numbered even when a product has one image, so adding a
+  second later renames nothing. That filename is also the storage key, so the
+  URL in the database reads as the product.
+
+786 origins are 230 MB; the 786 display copies are 19 MB.
+
+### How it maps onto the schema
+
+| Snapshot                          | `db-types.ts`                                             |
+| --------------------------------- | --------------------------------------------------------- |
+| `name`, `slug`, `sku`             | `products.name/slug/sku`                                  |
+| `descriptionHtml`                 | `products.description`, **reduced to plain text**         |
+| `priceMinor`, `currency`          | `products.priceMinor/currency`                            |
+| `sourceId`                        | `products.sapoId` → the `Open in Sapo` link               |
+| —                                 | `products.status` — all `active`; Sapo has no such field  |
+| —                                 | `products.searchText` — computed with `productSearchText` |
+| `categories[].name/slug/sourceId` | `categories.name/slug/sapoId`                             |
+| `product-categories.json`         | `product_categories`                                      |
+| `media.json`                      | `media_assets` + `product_media.position`                 |
+
+Four judgement calls were made getting there, all recorded in
+`src/db/seed-sapo.ts`:
+
+1. **Description is the HTML reduced to text**, because the form's field is a
+   textarea and Sapo is where the rich version is edited. The HTML stays here.
+2. **`status` is `active` for everything.** `available` is not a status — it
+   reads false on every product because stock is zero store-wide.
+3. **A multi-variant product is one row** with its first variant's SKU.
+   Backlog `L.3` defers variants; the other 35 stay in `products.json`.
+4. **The 191 empty categories are imported.** They are the store's intended
+   taxonomy, and a category with no products is a real state the UI should
+   handle.
+
+Two caps moved to fit the real data — `PRODUCT_NAME_MAX` 140 → 160 and
+`PRODUCT_DESCRIPTION_MAX` 5,000 → 10,000. One real product name is 150
+characters and the longest description is 8,550 once reduced to text; without
+the change 185 real products could not be saved from the form.

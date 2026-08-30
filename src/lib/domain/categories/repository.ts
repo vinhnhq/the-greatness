@@ -95,6 +95,7 @@ export const dbCategoryRepo: CategoryRepository = {
         name: input.name,
         slug: input.slug,
         parentId: input.parentId ?? null,
+        sapoId: null,
         createdAt: now,
         updatedAt: now,
       })
@@ -158,6 +159,9 @@ export const createInMemoryCategoryRepo = (
         name: input.name,
         slug: input.slug,
         parentId: input.parentId ?? null,
+        // Not part of the input: a category created through the repository was
+        // created here, not imported. Only the seed sets it, by id.
+        sapoId: null,
         createdAt: stamp,
         updatedAt: stamp,
       };
