@@ -1,6 +1,6 @@
 # v5 — Sharper pictures, and a catalogue you can walk
 
-**Status:** 🚧 In progress, 2026-09-01. Open questions answered below. Follows
+**Status:** ✅ Shipped 2026-09-01 except `V5.14` (Lighthouse, unmeasured). Open questions answered below. Follows
 [v4](v4-taxonomy-and-sync.md), whose blocks A–C shipped the same day.
 
 > Four requests, grouped because three of them are the same request from

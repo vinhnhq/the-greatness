@@ -117,6 +117,17 @@ Things a session will hit, in rough order of how much time they cost.
   collection creation order — **a one-time reconstruction**, not an ongoing
   derivation, because a category added later gets the highest id and would
   file under whichever group came last. New categories arrive _unfiled_.
+- **A stale `routes.d.ts` in `.next-e2e/` breaks `tsc` for a new route.**
+  Both `.next/types/` and `.next-e2e/dev/types/` are in `tsconfig.include`, so
+  a route added since the last `test:e2e` run fails with "does not satisfy the
+  constraint 'AppRoutes'" even though the main build has it right. Delete the
+  stale directory; it is a build artifact.
+- **Images render through `MediaThumb` / `next/image`, never a bare `<img>`.**
+  `mediaSrc` returns the **archive**, so an `<img>` hands the browser up to
+  1.76 MB for a 40px box. The optimizer works fine on the local `/uploads`
+  route — same-origin, no `remotePatterns` needed — and it is what makes
+  serving the original cheaper than the old baked variant (−73% on the
+  gallery, −98% on the product list).
 - **A Kysely row is not a plain object.** Passing one from a server component
   to a client component builds fine and throws "Only plain objects can be
   passed to Client Components" on the request. Rebuild the fields you need.

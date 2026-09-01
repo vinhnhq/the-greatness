@@ -3,6 +3,52 @@
 > Newest at top: `YYYY-MM-DD · <sha> · <task id> <description>`.
 > Cut the line out of [`backlog.md`](backlog.md); never keep-and-tick.
 
+## v5 — Sharper pictures, and a catalogue you can walk · ✅ 2026-09-01
+
+Four requests. The image half turned out to be a win on both axes rather than
+the tradeoff it looked like.
+
+- **The archive is what gets served now.** `mediaSrc` returned a 1600px q82
+  WebP frozen at upload, so a 40px thumbnail and a lightbox shared one file.
+  It returns the de-logoed original, and every render site goes through
+  `next/image`, which derives per-breakpoint copies at request time.
+  Measured: **gallery 60 tiles 1.66 MB → 0.44 MB (−73%)**, **products 25 rows
+  1.02 MB → 0.02 MB (−98%)**, and the lightbox gained full 2362px detail the
+  old cap had discarded. "Persist without optimize" cost nothing; it saved.
+- **`/categories/[slug]`** walks root → group → category → product, with
+  distinct counts at every level. On "Quạt & Thiết bị làm mát" you see nine
+  subcategories each reading 8 and the group reading 8 — the repetition is the
+  finding, and showing a product only at its deepest category would have
+  hidden it.
+- **Borderless tables**, with an indent rail on the category tree. The tree
+  needed _more_ than the flat lists, not less: depth is vertical information
+  and a rule under a row never expressed it.
+- **Four UI fixes** from walking every route at both widths in both themes.
+
+Tasks: V5.1–V5.13, V5.15, V5.16. Commits `120dee7`, `68ad783`, `c915be8`,
+`98b12a2`. Spec:
+[`specs/v5-pictures-and-walking-the-catalogue.md`](specs/v5-pictures-and-walking-the-catalogue.md).
+
+### Four findings from this arc
+
+1. **The `unoptimized` flag was load-bearing on a false premise.** Its comment
+   said the optimizer "cannot reach a relative path during a build". Verified
+   before relying on it: `/_next/image` on a local `/uploads` path returns a
+   derived WebP, no `remotePatterns` entry needed since it is same-origin.
+   Removing one word made the app 73–98% lighter.
+2. **A stale `routes.d.ts` in an alternate `distDir` breaks `tsc` for a new
+   route.** `.next-e2e/dev/types/` is in `tsconfig.include`, so a route added
+   after the last e2e run fails to typecheck with "does not satisfy the
+   constraint 'AppRoutes'" while `.next/types/` has it right. Delete the
+   stale artifact.
+3. **Dark theme hid a light-theme bug for weeks.** Almost every photograph
+   here is shot on white; against a near-white `bg-muted` the gallery tiles
+   had no edge and the grid dissolved. Invisible in dark, obvious in light —
+   an argument for walking both, not just the default.
+4. **Committing before reading the gate output.** The section-A commit landed
+   with `coverage=1` on screen: a stale assertion still expected the optimized
+   variant. Caught and fixed one commit later, but the order was wrong.
+
 ## v4 A–C — The catalogue gets a shape · ✅ 2026-09-01
 
 Sapo cannot store a hierarchy — no parent field in the collections API, no
