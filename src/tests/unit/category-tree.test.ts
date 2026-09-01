@@ -13,8 +13,10 @@ import { describe, expect, it } from "vitest";
 import type { CategoryNode } from "@/lib/domain/categories/tree";
 import {
   ancestorNames,
+  ancestorsOf,
   buildCategoryForest,
   filterForest,
+  findNode,
 } from "@/lib/domain/categories/tree";
 
 type Row = {
@@ -224,5 +226,62 @@ describe("ancestorNames", () => {
 
   it("stops on a cycle instead of looping forever", () => {
     expect(ancestorNames([cat("a", "b"), cat("b", "a")], "a")).toEqual(["b"]);
+  });
+});
+
+/**
+ * Walking to one category.
+ *
+ * The drill-down needs two things the forest does not hand it directly: the
+ * node for a given id, wherever it sits, and the chain of ancestors above it
+ * for the breadcrumb. Both have to survive the shapes `buildCategoryForest`
+ * tolerates — a dangling parent, and a cycle.
+ */
+describe("findNode and ancestorsOf", () => {
+  const rows = [
+    { ...cat("home", null), name: "Thiết bị gia đình" },
+    { ...cat("fans", "home"), name: "Quạt" },
+    { ...cat("standing", "fans"), name: "Quạt đứng" },
+    { ...cat("other", null), name: "Khác" },
+  ];
+  const forest = buildCategoryForest(rows, []);
+
+  it("finds a leaf two levels down", () => {
+    expect(findNode(forest, "standing")?.category.name).toBe("Quạt đứng");
+  });
+
+  it("finds a root", () => {
+    expect(findNode(forest, "home")?.category.name).toBe("Thiết bị gia đình");
+  });
+
+  it("returns null for an id that is not in the tree", () => {
+    expect(findNode(forest, "nope")).toBeNull();
+  });
+
+  it("returns the node with its children and counts intact", () => {
+    const node = findNode(forest, "fans");
+    expect(node?.children.map((c) => c.category.id)).toEqual(["standing"]);
+    expect(node?.depth).toBe(1);
+  });
+
+  it("gives the ancestor chain outermost first, for a breadcrumb", () => {
+    expect(ancestorsOf(rows, "standing").map((c) => c.id)).toEqual([
+      "home",
+      "fans",
+    ]);
+  });
+
+  it("gives a root no ancestors", () => {
+    expect(ancestorsOf(rows, "home")).toEqual([]);
+  });
+
+  it("stops on a cycle rather than looping forever", () => {
+    expect(
+      ancestorsOf([cat("a", "b"), cat("b", "a")], "a").map((c) => c.id),
+    ).toEqual(["b"]);
+  });
+
+  it("stops where a parent is missing rather than throwing", () => {
+    expect(ancestorsOf([cat("orphan", "gone")], "orphan")).toEqual([]);
   });
 });

@@ -39,6 +39,7 @@ import {
   Trash2,
   X,
 } from "lucide-react";
+import Link from "next/link";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
@@ -69,6 +70,7 @@ import type { CategoryWithCount } from "@/lib/domain/categories/repository";
 import type { CategoryLink, CategoryNode } from "@/lib/domain/categories/tree";
 import { buildCategoryForest } from "@/lib/domain/categories/tree";
 import { sapoCategoryUrl } from "@/lib/sapo";
+import { cn } from "@/lib/utils";
 
 import { createCategory, deleteCategory, renameCategory } from "./actions";
 
@@ -168,9 +170,17 @@ function CategoryRow({
               </Button>
             </form>
           ) : (
-            <span className={hasChildren ? "font-medium" : ""}>
+            // The way into the drill-down. The list is for editing; the link
+            // is for walking down to the products.
+            <Link
+              href={`/categories/${category.slug}`}
+              className={cn(
+                "rounded-sm underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+                hasChildren && "font-medium",
+              )}
+            >
               {category.name}
-            </span>
+            </Link>
           )}
         </div>
       </TableCell>

@@ -34,6 +34,8 @@ export type CategoryRepository = {
    * link to it, in a single query rather than N+1 counts. */
   listWithCounts(): Promise<readonly CategoryWithCount[]>;
   getById(id: CategoryId): Promise<Category | null>;
+  /** By slug — how the drill-down route addresses a category. */
+  getBySlug(slug: string): Promise<Category | null>;
   /**
    * Every product↔category link, for the tree view's subtree counts.
    *
@@ -104,6 +106,16 @@ export const dbCategoryRepo: CategoryRepository = {
       .selectFrom("categories")
       .selectAll()
       .where("id", "=", id)
+      .executeTakeFirst();
+    return row ? parseCategoryStrict(row) : null;
+  },
+
+  getBySlug: async (slug) => {
+    const { db } = await readContext();
+    const row = await db
+      .selectFrom("categories")
+      .selectAll()
+      .where("slug", "=", slug)
       .executeTakeFirst();
     return row ? parseCategoryStrict(row) : null;
   },
@@ -184,6 +196,8 @@ export const createInMemoryCategoryRepo = (
       ),
 
     getById: async (id) => rows.find((r) => r.id === id) ?? null,
+
+    getBySlug: async (slug) => rows.find((r) => r.slug === slug) ?? null,
 
     takenSlugs: async (exceptId) =>
       new Set(rows.filter((r) => r.id !== exceptId).map((r) => r.slug)),

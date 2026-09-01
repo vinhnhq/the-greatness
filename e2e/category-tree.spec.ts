@@ -25,12 +25,15 @@ const GROUP = "E2E Thiết bị gia đình";
 const MID = "E2E Quạt & Thiết bị làm mát";
 const LEAF_A = "E2E Quạt đứng";
 const LEAF_B = "E2E Quạt trần";
+/** Deliberately holds nothing — only 20 of 211 real categories do. */
+const LEAF_EMPTY = "E2E Quạt tháp";
 
 const ids = {
   group: newId(),
   mid: newId(),
   leafA: newId(),
   leafB: newId(),
+  leafEmpty: newId(),
   product: newId(),
 };
 
@@ -83,6 +86,15 @@ const seedTree = async (): Promise<void> => {
           createdAt: now,
           updatedAt: now,
         },
+        {
+          id: ids.leafEmpty,
+          name: LEAF_EMPTY,
+          slug: "e2e-quat-thap",
+          parentId: ids.mid,
+          sapoId: null,
+          createdAt: now,
+          updatedAt: now,
+        },
       ])
       .execute();
 
@@ -124,7 +136,13 @@ const clearTree = async (): Promise<void> => {
     await db.deleteFrom("products").execute();
     await db
       .deleteFrom("categories")
-      .where("id", "in", [ids.leafA, ids.leafB, ids.mid, ids.group])
+      .where("id", "in", [
+        ids.leafA,
+        ids.leafB,
+        ids.leafEmpty,
+        ids.mid,
+        ids.group,
+      ])
       .execute();
   } finally {
     await db.destroy();
@@ -226,4 +244,70 @@ test("the product form's picker groups, searches unaccented, and keeps the selec
   await expect(page.getByText("No category matches")).toBeVisible();
   // The chip is the only thing left saying what is chosen.
   await expect(page.getByRole("button", { name: /^Remove / })).toBeVisible();
+});
+
+test("walks root to product, counting distinctly at every step", async ({
+  page,
+}) => {
+  await signIn(page);
+  await page.goto("/categories");
+
+  // --- into the group from the tree ------------------------------------
+  await page.getByRole("link", { name: GROUP }).click();
+  await expect(page).toHaveURL(/\/categories\/e2e-tbgd$/);
+
+  // A grouping holds nothing itself; the summary has to say that in words
+  // rather than showing a bare 0, which reads as a page that failed.
+  await expect(
+    page.getByText(/0 filed here directly · 1 in this group altogether/),
+  ).toBeVisible();
+  await expect(
+    page.getByText("This is a grouping — look in its subcategories above."),
+  ).toBeVisible();
+
+  // --- down a level ----------------------------------------------------
+  await page.getByRole("link", { name: new RegExp(MID) }).click();
+  await expect(page).toHaveURL(/\/categories\/e2e-quat$/);
+
+  // THE count. One product, linked to this category AND to both of its
+  // children. Summing the subtree would say three.
+  await expect(
+    page.getByText(/1 filed here directly · 1 in this group altogether/),
+  ).toBeVisible();
+
+  // --- the breadcrumb names the path, not the slug ---------------------
+  const crumbs = page.getByRole("navigation", { name: "Breadcrumb" });
+  await expect(crumbs.getByRole("link", { name: GROUP })).toBeVisible();
+
+  // --- and down to the product -----------------------------------------
+  await page.getByRole("link", { name: /E2E Quạt tích điện/ }).click();
+  await expect(page).toHaveURL(/\/products\//);
+});
+
+test("a product filed in a parent and a child is shown at both", async ({
+  page,
+}) => {
+  // Deliberate: eight fans in this catalogue are filed in all eleven fan
+  // categories, and hiding the repetition would hide the problem the page
+  // exists to surface.
+  await signIn(page);
+
+  await page.goto("/categories/e2e-quat");
+  await expect(
+    page.getByRole("link", { name: /E2E Quạt tích điện/ }),
+  ).toBeVisible();
+
+  await page.goto("/categories/e2e-quat-dung");
+  await expect(
+    page.getByRole("link", { name: /E2E Quạt tích điện/ }),
+  ).toBeVisible();
+});
+
+test("an empty branch reads as empty, not as broken", async ({ page }) => {
+  // Only 20 of 211 real categories hold anything, so this is the common case.
+  await signIn(page);
+  await page.goto("/categories/e2e-quat-thap");
+  await expect(
+    page.getByText("No product carries this category yet."),
+  ).toBeVisible();
 });

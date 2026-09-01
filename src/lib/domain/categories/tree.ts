@@ -183,20 +183,41 @@ export const filterForest = <T extends TreeCategory>(
  * mát" is what tells them apart. Guards against a cycle for the same reason
  * `buildCategoryForest` does.
  */
-export const ancestorNames = <T extends TreeCategory>(
+export const ancestorsOf = <T extends TreeCategory>(
   categories: readonly T[],
   id: string,
-): readonly string[] => {
+): readonly T[] => {
   const byId = new Map(categories.map((c) => [c.id, c]));
-  const path: string[] = [];
+  const path: T[] = [];
   const seen = new Set<string>([id]);
   let current = byId.get(id)?.parentId ?? null;
   while (current !== null && !seen.has(current)) {
     const parent = byId.get(current);
     if (parent === undefined) break;
     seen.add(current);
-    path.unshift(parent.name);
+    path.unshift(parent);
     current = parent.parentId;
   }
   return path;
+};
+
+export const ancestorNames = <T extends TreeCategory>(
+  categories: readonly T[],
+  id: string,
+): readonly string[] => ancestorsOf(categories, id).map((c) => c.name);
+
+/**
+ * One node by id, wherever it sits — with its children and counts intact, so
+ * the drill-down does not rebuild what the forest already computed.
+ */
+export const findNode = <T extends TreeCategory>(
+  forest: readonly CategoryNode<T>[],
+  id: string,
+): CategoryNode<T> | null => {
+  for (const node of forest) {
+    if (node.category.id === id) return node;
+    const found = findNode(node.children, id);
+    if (found !== null) return found;
+  }
+  return null;
 };
