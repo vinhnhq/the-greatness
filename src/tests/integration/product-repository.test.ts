@@ -496,14 +496,16 @@ describe("dbMediaRepo — the library", () => {
     expect(page.items.every((i) => i.usedBy.length === 0)).toBe(true);
   });
 
-  it("serves the optimized variant for an image and the poster for a video", async () => {
+  it("serves an image's origin and a video's poster", async () => {
     await seed();
     await inCtx(() => dbMediaRepo.createMany([image("a"), video("c")]));
     const page = await inCtx(() => dbMediaRepo.list(DEFAULT_MEDIA_QUERY));
 
     const img = page.items.find((i) => i.asset.kind === "image");
     const vid = page.items.find((i) => i.asset.kind === "video");
-    expect(img?.src).toMatch(/optimized\.webp$/);
+    // The archive, not the 1600px variant baked at upload — `next/image`
+    // derives the tile from it at request time. See `mediaSrc`.
+    expect(img?.src).toMatch(/origin\.\w+$/);
     // A video tile must never be the 40 MB file itself.
     expect(vid?.src).toBe("/uploads/media/c/poster.webp");
   });
