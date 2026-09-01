@@ -41,6 +41,51 @@ Ship facts in [`done.md`](done.md). What v2 deliberately left:
       uploading the new one and unlinking the old one on every product using
       it. A library is where "replace" starts being expected.
 
+## v4 — The catalogue gets a shape
+
+Spec: [`specs/v4-taxonomy-and-sync.md`](specs/v4-taxonomy-and-sync.md).
+**Blocks A, B and C shipped 2026-09-01** — ship facts in [`done.md`](done.md).
+Superseded `N.8` and `L.4`; absorbed `N.6`.
+
+### D · Propose — open
+
+The only part with an LLM in it, and the only part that is not just cloning
+Sapo into this app. A–C stand on their own without it.
+
+- [ ] **V4.14** **Proposals table.** The one place v4 needs schema: product,
+      suggested category, confidence, reason, state. Migration `006`,
+      append-only, backfills nothing (new table).
+- [ ] **V4.15** **Classifier over the signals that exist** — `vendor`
+      (cleanest: Tefal 357, Philips 69, Fujihome 52), `product_type` (12
+      coarse codes, SDA 329 / CW 198 / FAN 87 …) and the product name.
+      **`tags` is empty on all 832 products** and cannot be used.
+- [ ] **V4.16** **Accept / reject in the UI.** Nothing applies unattended, and
+      nothing reaches Sapo. `V4.15` without this is the bug that put 8 fans in
+      11 categories.
+
+### Follow-ups the shipped work exposed
+
+- [ ] **V4.18** **Where does an operator file an Unfiled category?** The sync
+      brings a new Sapo category in with a null parent and `/categories`
+      renders it at the top level, which is honest but not actionable — there
+      is no way to place it. The spec's open question, now real.
+- [ ] **V4.19** ↷ **Re-parent, rename and merge in the tree view.** v4 seeds
+      the tree and owns it; it cannot yet edit its shape. `V4.18` is the
+      smallest useful slice of this.
+- [ ] **V4.20** ↷ **Decide whether the sync runs on a schedule.** It is
+      manual today, deliberately: a cron implies nobody reads the report, and
+      the reconciliation is one day old. Revisit once it has run a few times
+      against real drift.
+
+### ⊘ Blocked on a decision, deliberately
+
+- [ ] **V4.17** ⏸ **Write-back to Sapo.** `POST /admin/collects.json` works
+      and is authenticated as a private app; Collects 422 on smart
+      collections. It also inverts the system-of-record relationship, and this
+      store pushes to Lazada, Shopee, Tiki, TikTok Shop and Google Shopping —
+      a bad write does not stay in one place. **Needs an ADR first, and the
+      answer may be no.**
+
 ## N — Later, unrelated to v2
 
 - [ ] **N.0** ↷ **Infinite scroll on `/gallery`.** It pages at 60 with a
@@ -71,19 +116,10 @@ Ship facts in [`done.md`](done.md). What v2 deliberately left:
       means **the Postgres dialect is never exercised in CI**. Either add
       `DATABASE_TEST_URL` against a Neon `test` branch, or state in the
       workflow that Postgres is covered only by the deploy.
-- [ ] **N.6** ↷ **The category picker is 211 checkboxes.** The product form
-      renders every category as a flat checkbox list, which was fine for eight
-      and is a wall for two hundred. Needs a search box at minimum; a combobox
-      is the real answer. Only visible now that the form meets the real
-      taxonomy.
 - [ ] **N.7** ↷ **`/gallery` loads 60 full display images at once.** With
       generated 450px squares that was instant; with 60 real 1600px WebPs it is
       visibly progressive. A thumbnail variant (`V2.11` is the server-side
       derivation this needs) or lazy loading below the fold would fix it.
-- [ ] **N.8** ↷ **Reconstruct the category tree.** The 211 Sapo categories are
-      flat but their names imply three levels ("Cảm biến & Điều khiển" → "Cảm
-      biến cửa"). `categories.parentId` already exists and `L.4` is the UI;
-      what is missing is the mapping, which is editorial rather than derivable.
 
 ## L — Later (explicitly deferred, not forgotten)
 
@@ -98,8 +134,6 @@ Ship facts in [`done.md`](done.md). What v2 deliberately left:
 - [ ] **L.3** **Variants and inventory** — options, per-variant SKU/price/stock,
       stock movements. Needs its own spec; roughly doubles the schema and every
       form.
-- [ ] **L.4** **Category tree UI.** `categories.parentId` ships unused and v1
-      renders one flat level. The column is there so this needs no migration.
 - [ ] **L.5** **i18n (en + vi).** English-only was a v1 decision. Strings stay
       grouped per feature, so the `messages.ts` retrofit is mechanical — but the
       catalogue's operators are Vietnamese-speaking, so this is a _when_.

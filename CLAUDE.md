@@ -49,6 +49,7 @@ bun run lint             # oxlint --type-aware + oxfmt --check
 bun run format           # oxfmt .
 bun run migrate <cmd>    # latest | up | down | status
 bun run seed             # 1 operator + the real Sapo catalogue (data/sapo/)
+bun run sync:sapo        # refresh in place — never deletes, never writes parentId
 bun run fetch:sapo       # re-pull the catalogue; --images for the originals
 bun run prepare:sapo-media  # de-logo, resize and rename into data/sapo/media/
 bun run db:local         # migrate + seed
@@ -108,6 +109,17 @@ Things a session will hit, in rough order of how much time they cost.
 - **`bun run seed` needs `data/sapo/`.** The JSON is committed; the 250 MB of
   images is not. Without `fetch:sapo --images && prepare:sapo-media` the rows
   seed with no pictures, and the summary line says so.
+- **`seed` wipes, `sync:sapo` reconciles.** The seed is `deleteFrom` on five
+  tables — right for seeding, catastrophic as a job. Use `sync:sapo` against a
+  database anyone has touched; it never deletes and never writes `parentId`.
+- **The category tree is ours, not Sapo's.** Sapo has no parent field
+  anywhere. `lib/sapo-tree.ts` reconstructs it from the storefront menu plus
+  collection creation order — **a one-time reconstruction**, not an ongoing
+  derivation, because a category added later gets the highest id and would
+  file under whichever group came last. New categories arrive _unfiled_.
+- **A Kysely row is not a plain object.** Passing one from a server component
+  to a client component builds fine and throws "Only plain objects can be
+  passed to Client Components" on the request. Rebuild the fields you need.
 - **Tailwind v4 has no config file.** Tokens live in `src/app/globals.css` via
   `@theme`; the preset is shadcn `radix-maia`, base `neutral`.
 

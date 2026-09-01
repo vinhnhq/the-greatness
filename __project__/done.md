@@ -3,6 +3,59 @@
 > Newest at top: `YYYY-MM-DD · <sha> · <task id> <description>`.
 > Cut the line out of [`backlog.md`](backlog.md); never keep-and-tick.
 
+## v4 A–C — The catalogue gets a shape · ✅ 2026-09-01
+
+Sapo cannot store a hierarchy — no parent field in the collections API, no
+column in the admin list, no indentation in the product picker. The three
+levels its storefront shows live entirely in **theme menu config**. So the
+tree cannot be fetched; v4 reconstructs it, seeds it into the `parentId`
+column migration `002` shipped unused, and **owns it from then on**.
+
+- **The reconstruction agrees with itself.** Menu markup gives root → mid
+  (`data-target="<root>-<own>-menu"`); collection creation order gives
+  mid → leaf. The two reconcile to exactly **6 + 41 + 163 + 1 standalone =
+  211 of 211**, no category with two parents. A disagreement exits non-zero
+  rather than preferring one — it is a self-check, not a fallback.
+- **`/categories` is a tree**, roots open and branches closed, and its counts
+  are **distinct rather than summed**. Eight fans sit in "Quạt & Thiết bị làm
+  mát" _and_ in all nine of its children, so summing reports eighty. The group
+  now reads 8, and THIẾT BỊ GIA ĐÌNH reads "50 · 0 direct".
+- **The 697 are reachable.** `/products?category=none` — a third state of the
+  category facet, `not exists` in SQL so the shared total cannot double-count.
+- **The product picker opens on 7 rows, not 211**, groups by the tree, and
+  searches folded (`quat dung` → `Quạt đứng`) keeping ancestors for context.
+  The bar was Sapo's own admin, which is flat and lists a child four rows
+  above its parent.
+- **`bun run sync:sapo`** refreshes in place without destroying anything
+  local. No delete list exists in the plan's _shape_, and `parentId` cannot
+  appear in an update. Proven adversarially: two rows corrupted locally, the
+  sync reported "1 updated / 210 unchanged" and "1 updated / 831 unchanged",
+  restored both, and left the tree at 7/41/163 with 786 media links intact.
+
+Tasks: V4.1–V4.13. Commits `71699b7`, `ee5ec47`, `cbc6e99`, `a5bb064`,
+`9f58f02`, `15f50ee`. Spec:
+[`specs/v4-taxonomy-and-sync.md`](specs/v4-taxonomy-and-sync.md).
+
+### Four findings from this arc
+
+1. **A parent cycle emptied the forest.** With no root, nothing was reached
+   and every category silently vanished from the page. Anything unreached is
+   now promoted to the top level: a row in the wrong place is fixable, one
+   that is not rendered is invisible. Found by writing the test first.
+2. **Kysely rows are not plain objects.** `listLinks` returned them straight
+   through; it builds fine and throws "Only plain objects can be passed to
+   Client Components" **on the request**. The build is not the gate that
+   catches this — running the app is.
+3. **Creation order is a one-time reconstruction, not a derivation.** A
+   category added tomorrow gets the highest id, lands past every block, and a
+   naive walk files it under whichever group came last. `knownMaxSourceId`
+   turns that into `unfiled`, and the sync never writes `parentId` at all.
+4. **Sapo files VAT rates in the category namespace.** `Thuế 8%` is one of the
+   two "categories" on the store's iron. The storefront API filters them and
+   the admin API does not, so `assertNoTaxRules` **fails** rather than
+   filtering — a tax rule reaching the tree would become a root with 800
+   children.
+
 ## v3 — The real catalogue, and a link back to Sapo · ✅ 2026-08-31
 
 The dashboard stopped being a demo. `bun run seed` now loads **832 real
