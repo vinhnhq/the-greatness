@@ -31,6 +31,7 @@
 
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { ChevronLeft, ChevronRight, ExternalLink, X } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 
@@ -176,14 +177,18 @@ export function GalleryViewer({
                 className="max-h-full max-w-full"
               />
             ) : (
-              // A plain <img>: `object-contain` against the viewport, and the
-              // file is already the optimized variant the grid served.
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
+              // The lightbox is where detail matters most, and `mediaSrc` is
+              // now the archive — up to 1.76 MB here. Sized to the viewport
+              // rather than served raw: on the largest asset that is 133 KB
+              // at its full 2362px, against 1.76 MB for the file itself.
+              <Image
                 key={asset.id}
                 src={item.src}
                 alt={asset.alt ?? ""}
-                className="max-h-full max-w-full object-contain"
+                fill
+                sizes="100vw"
+                priority
+                className="object-contain"
               />
             )}
 

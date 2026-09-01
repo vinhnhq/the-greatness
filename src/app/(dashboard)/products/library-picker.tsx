@@ -159,7 +159,7 @@ export function LibraryPicker({
                       disabled={locked}
                       aria-pressed={isSelected}
                       className={cn(
-                        "relative block aspect-square w-full overflow-hidden rounded-sm bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+                        "relative block aspect-square w-full overflow-hidden rounded-sm bg-muted ring-1 ring-border/70 ring-inset focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
                         isSelected && "ring-2 ring-primary",
                         locked && "cursor-not-allowed opacity-40",
                       )}

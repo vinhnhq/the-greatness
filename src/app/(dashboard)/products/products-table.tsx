@@ -13,7 +13,7 @@
  * name cell as a second line, where they are still readable and still there.
  */
 
-import { ImageOff, Play } from "lucide-react";
+import { ImageIcon, Play } from "lucide-react";
 import Link from "next/link";
 
 import { MediaThumb } from "@/components/media-thumb";
@@ -71,7 +71,10 @@ function Thumbnail({ product }: { readonly product: ProductListRow }) {
           {video ? (
             <Play className="size-4" aria-hidden />
           ) : (
-            <ImageOff className="size-4" aria-hidden />
+            // `ImageOff` — a crossed-out image — read as "failed to load".
+            // 63 of 832 products simply have no photograph, which is a state,
+            // not an error, and it was the most common "error" on the page.
+            <ImageIcon className="size-4 opacity-50" aria-hidden />
           )}
         </div>
       )}
@@ -150,12 +153,25 @@ export function ProductsTable({
                 {product.categoryIds.length === 0 ? (
                   <span className="text-sm text-muted-foreground">—</span>
                 ) : (
-                  <div className="flex flex-wrap gap-1">
-                    {product.categoryIds.map((id) => (
-                      <Badge key={id} variant="secondary">
-                        {categoryName.get(id) ?? "Unknown"}
-                      </Badge>
-                    ))}
+                  // One line, always. Wrapping chips made a row in three
+                  // categories twice the height of its neighbours and the
+                  // list lost its rhythm — and a product here can be in
+                  // eleven. The full set is in the row's own subtitle and on
+                  // the product page.
+                  <div
+                    className="flex items-center gap-1"
+                    title={product.categoryIds
+                      .map((id) => categoryName.get(id) ?? "Unknown")
+                      .join(", ")}
+                  >
+                    <Badge variant="secondary" className="max-w-40 truncate">
+                      {categoryName.get(product.categoryIds[0]!) ?? "Unknown"}
+                    </Badge>
+                    {product.categoryIds.length > 1 && (
+                      <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
+                        +{product.categoryIds.length - 1}
+                      </span>
+                    )}
                   </div>
                 )}
               </TableCell>

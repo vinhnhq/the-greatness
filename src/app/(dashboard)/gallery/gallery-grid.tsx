@@ -79,7 +79,11 @@ export function GalleryGrid({
                       }
                       aria-pressed={selecting ? isSelected : undefined}
                       className={cn(
-                        "group relative block aspect-square w-full overflow-hidden bg-muted focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring sm:rounded-sm",
+                        // The inset ring is not decoration. Almost every product photograph in
+                        // this catalogue is shot on white, and against a near-white
+                        // `bg-muted` in light theme the tile had no edge at all — the
+                        // grid dissolved into the page. Dark theme hid the problem.
+                        "group relative block aspect-square w-full overflow-hidden bg-muted ring-1 ring-border/70 ring-inset focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring sm:rounded-sm",
                         isSelected && "ring-2 ring-primary",
                       )}
                     >
