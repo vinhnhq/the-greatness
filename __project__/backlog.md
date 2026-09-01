@@ -86,6 +86,78 @@ Sapo into this app. A–C stand on their own without it.
       a bad write does not stay in one place. **Needs an ADR first, and the
       answer may be no.**
 
+## v5 — Sharper pictures, and a catalogue you can walk
+
+Spec: [`specs/v5-pictures-and-walking-the-catalogue.md`](specs/v5-pictures-and-walking-the-catalogue.md).
+No migration. Four independent sections — **A** pays off first and **D** is
+the smallest.
+
+### A · Pictures — serve the original, size it on demand
+
+- [ ] **V5.1** ⚠️ **Verify `next/image` optimizes `/uploads/[...key]`.** A
+      spike, not a feature, and **the whole section rests on it**: if the
+      local route cannot be derived from, serving 216.7 MB of origins takes a
+      60-tile gallery page from ~1.5 MB to ~17 MB and A is a different plan.
+      Blob has a `remotePatterns` entry; the local route has nothing.
+- [ ] **V5.2** **Re-sync the originals.** `fetch:sapo --images` →
+      `prepare:sapo-media` → **`sync:sapo`**, never `seed` — the seed wipes
+      five tables and would take the v4 tree with it. Record what moved.
+- [ ] **V5.3** **`mediaSrc()` returns the archive copy for images.** One `??`
+      in `media/entity.ts:53`. Video keeps its poster. The display variants
+      stay written and stored; this changes what is _served_, and that
+      reversibility is the point.
+- [ ] **V5.4** **Drop `unoptimized` from `next/image`.** Currently set in
+      `products-table.tsx`. This is what makes V5.3 affordable — a 40px
+      thumbnail and a full-screen view stop sharing one 1600px file.
+- [ ] **V5.5** **Record page weight before and after** for `/products` (25
+      rows) and `/gallery` (60 tiles). A regression here means V5.4 is not
+      working, and that is the bug rather than a tradeoff.
+- [ ] **V5.6** ↷ **Show the 153.** Only 153 of 786 origins exceeded the 1600px
+      cap, so they are the only rows where detail was genuinely discarded —
+      the before/after worth looking at. Median quality today is already
+      43.8 dB PSNR, so the honest claim is "strictly better and now free",
+      not "the old ones were broken".
+
+### B · Walking the catalogue
+
+- [ ] **V5.7** **`/categories/[slug]`** — breadcrumb of ancestors, child
+      categories with counts, and the products in this category. Every level
+      linkable, consistent with `/products` keeping filters in the URL.
+- [ ] **V5.8** **Counts stay distinct at every level**, reusing
+      `buildCategoryForest`. Eight fans in nine fan categories are eight; a
+      summed count says eighty and the drill-down would repeat the error at
+      every step.
+- [ ] **V5.9** **An empty branch reads as empty, not broken.** Only 20 of 211
+      categories hold anything and all of CÔNG NGHỆ & PHỤ KIỆN is empty, so
+      this is the common case, not the edge one.
+- [ ] **V5.10** **E2E for the drill-down.** It is a navigation feature; that
+      is what e2e is for.
+
+### C · The UI/UX pass
+
+- [ ] **V5.11** **The no-image placeholder is a broken-image glyph.** 63 of
+      832 products have no photograph and each shows lucide `ImageOff`, which
+      reads as _failed to load_. It is the most common "error" on the list and
+      it is not an error.
+- [ ] **V5.12** **Rows with several categories are twice the height.** Three
+      chips stack and the list loses its rhythm.
+- [ ] **V5.13** **The survey itself** — every route at 1440px and 390px, both
+      themes, and fix what it finds. V5.11 and V5.12 came from fifteen
+      minutes; the task is the walk, not those two.
+- [ ] **V5.14** ~~`N.1`~~ **Focus states and badge contrast** — Lighthouse
+      Performance ≥ 90, Accessibility ≥ 95. The quality bar's last unverified
+      line, done here rather than deferred a third time.
+
+### D · Borderless tables
+
+- [ ] **V5.15** **Drop the row rules** from `components/ui/table.tsx` —
+      `border-b` on `TableRow` and `[&_tr]:border-b` on the header. One
+      component, four consumers.
+- [ ] **V5.16** **Keep it scannable without them.** Row height, hover and
+      header weight have to carry what the lines carried. Watch the 211-row
+      category tree hardest: it is the one table where a row's depth matters,
+      and it may need to keep something the flat lists do not.
+
 ## N — Later, unrelated to v2
 
 - [ ] **N.0** ↷ **Infinite scroll on `/gallery`.** It pages at 60 with a
