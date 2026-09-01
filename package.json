@@ -10,6 +10,7 @@
     "format": "oxfmt .",
     "migrate": "bun run src/db/migrate.ts",
     "seed": "bun run src/db/seed.ts",
+    "sync:sapo": "bun run scripts/sync-sapo.ts",
     "fetch:sapo": "bun run scripts/fetch-sapo.ts",
     "prepare:sapo-media": "bun run scripts/prepare-sapo-media.ts",
     "db:local": "bun run migrate latest && bun run seed",
