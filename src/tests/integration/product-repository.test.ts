@@ -27,7 +27,7 @@ import { dbCategoryRepo } from "@/lib/domain/categories/repository";
 import type { MediaId, NewMediaAsset } from "@/lib/domain/media/entity";
 import { DEFAULT_MEDIA_QUERY } from "@/lib/domain/media/query";
 import { dbMediaRepo } from "@/lib/domain/media/repository";
-import { DEFAULT_QUERY } from "@/lib/domain/products/list-query";
+import { DEFAULT_QUERY, UNCATEGORIZED } from "@/lib/domain/products/list-query";
 import type { ProductListQuery } from "@/lib/domain/products/list-query";
 import { dbProductRepo } from "@/lib/domain/products/repository";
 
@@ -204,6 +204,43 @@ describe("dbProductRepo.list — filters", () => {
       dbProductRepo.list(query({ categoryId: bags })),
     );
     expect(inBags.rows.map((r) => r.name)).toEqual(["Tote"]);
+  });
+
+  it("finds the products in no category at all", async () => {
+    // The 697. `not exists` rather than a left join with a null check —
+    // the total shares this builder, and a join would count a product in two
+    // categories twice.
+    const { make, bags, decor } = await seed();
+    await make("Tote", { categories: [bags, decor] });
+    await make("Vase", { categories: [decor] });
+    await make("Loose One");
+    await make("Loose Two");
+
+    const orphans = await inCtx(() =>
+      dbProductRepo.list(query({ categoryId: UNCATEGORIZED })),
+    );
+    expect(orphans.rows.map((r) => r.name).sort()).toEqual([
+      "Loose One",
+      "Loose Two",
+    ]);
+    expect(orphans.total).toBe(2);
+  });
+
+  it("stops counting a product as uncategorised once it is filed", async () => {
+    const { make, bags } = await seed();
+    const loose = await make("Loose One");
+
+    const before = await inCtx(() =>
+      dbProductRepo.list(query({ categoryId: UNCATEGORIZED })),
+    );
+    expect(before.total).toBe(1);
+
+    await inCtx(() => dbProductRepo.setCategories(loose.id, [bags]));
+
+    const after = await inCtx(() =>
+      dbProductRepo.list(query({ categoryId: UNCATEGORIZED })),
+    );
+    expect(after.total).toBe(0);
   });
 
   it("combines search, status and category", async () => {

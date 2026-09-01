@@ -40,7 +40,7 @@ import {
   type ProductStatus,
   type ProductWithRelations,
 } from "./entity";
-import { PAGE_SIZE, type ProductListQuery } from "./list-query";
+import { PAGE_SIZE, type ProductListQuery, UNCATEGORIZED } from "./list-query";
 
 export type ProductInput = {
   readonly name: string;
@@ -123,7 +123,21 @@ export const dbProductRepo: ProductRepository = {
         );
       }
       if (query.status !== "all") q = q.where("status", "=", query.status);
-      if (query.categoryId) {
+      if (query.categoryId === UNCATEGORIZED) {
+        // The 697. `not exists` rather than a left join with a null check:
+        // a product in two categories would otherwise be counted twice by the
+        // total query, which shares this builder.
+        q = q.where((eb) =>
+          eb.not(
+            eb.exists(
+              eb
+                .selectFrom("product_categories")
+                .select("productId")
+                .whereRef("product_categories.productId", "=", "products.id"),
+            ),
+          ),
+        );
+      } else if (query.categoryId) {
         const categoryId = query.categoryId as string;
         q = q.where((eb) =>
           eb.exists(
@@ -380,7 +394,9 @@ export const createInMemoryProductRepo = (
 
   const matches = (p: Product, query: ProductListQuery): boolean => {
     if (query.status !== "all" && p.status !== query.status) return false;
-    if (query.categoryId) {
+    if (query.categoryId === UNCATEGORIZED) {
+      if ((categories.get(p.id) ?? []).length > 0) return false;
+    } else if (query.categoryId) {
       const links = categories.get(p.id) ?? [];
       if (!links.includes(query.categoryId)) return false;
     }

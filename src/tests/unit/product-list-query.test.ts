@@ -12,7 +12,9 @@ import {
   parseProductListQuery,
   productListHref,
   withQuery,
+  UNCATEGORIZED,
 } from "@/lib/domain/products/list-query";
+import { isId } from "@/lib/id";
 
 describe("parseProductListQuery", () => {
   it("returns the defaults for an empty URL", () => {
@@ -125,5 +127,41 @@ describe("pageCount", () => {
     [51, 3],
   ])("%i rows → %i pages", (total, expected) => {
     expect(pageCount(total)).toBe(expected);
+  });
+});
+
+/**
+ * "Uncategorised" is a third state for one filter, not a fourth filter.
+ *
+ * 697 of the 832 products in this catalogue are in no category at all, which
+ * is the number the taxonomy work exists to move — so it has to be reachable
+ * from the product list and linkable like every other facet. The sentinel is
+ * safe against a real id because ids are UUIDv7.
+ */
+describe("the uncategorised filter", () => {
+  it("parses the sentinel as its own state, not as a category id", () => {
+    const q = parseProductListQuery({ category: UNCATEGORIZED });
+    expect(q.categoryId).toBe(UNCATEGORIZED);
+  });
+
+  it("round-trips through the URL", () => {
+    const q = parseProductListQuery({ category: UNCATEGORIZED });
+    expect(productListHref(q)).toBe(`/products?category=${UNCATEGORIZED}`);
+  });
+
+  it("still parses a real category id", () => {
+    const id = "0199a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b";
+    expect(parseProductListQuery({ category: id }).categoryId).toBe(id);
+  });
+
+  it("cannot be confused with a real id, which is always a UUID", () => {
+    expect(isId(UNCATEGORIZED)).toBe(false);
+  });
+
+  it("clears back to no filter", () => {
+    const q = withQuery(parseProductListQuery({ category: UNCATEGORIZED }), {
+      categoryId: null,
+    });
+    expect(productListHref(q)).toBe("/products");
   });
 });

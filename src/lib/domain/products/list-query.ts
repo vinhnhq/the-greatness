@@ -24,6 +24,20 @@ export const SORTS = [
 ] as const;
 export type ProductSort = (typeof SORTS)[number];
 
+/**
+ * The "in no category at all" filter, as a URL value.
+ *
+ * A third state for the category facet rather than a separate flag: the two
+ * are mutually exclusive, and one control that reads "Any category / …
+ * / Uncategorised" is the honest shape. Safe against a real category id
+ * because ids are UUIDv7 and this is not.
+ *
+ * 697 of 832 products are in this state today, which is the number the
+ * taxonomy work exists to move.
+ */
+export const UNCATEGORIZED = "none";
+export type UncategorizedFilter = typeof UNCATEGORIZED;
+
 export const DEFAULT_SORT: ProductSort = "updated-desc";
 export const PAGE_SIZE = 25;
 export const MAX_SEARCH_LENGTH = 100;
@@ -32,7 +46,8 @@ export type ProductListQuery = {
   /** Trimmed; empty means "no search", never a `LIKE '%%'`. */
   readonly search: string;
   readonly status: ProductStatus | "all";
-  readonly categoryId: CategoryId | null;
+  /** A category, `UNCATEGORIZED` for products in none, or null for any. */
+  readonly categoryId: CategoryId | UncategorizedFilter | null;
   readonly sort: ProductSort;
   /** 1-based. */
   readonly page: number;
@@ -70,7 +85,12 @@ export const parseProductListQuery = (raw: RawParams): ProductListQuery => {
   return {
     search: first(raw.q).trim().slice(0, MAX_SEARCH_LENGTH),
     status: isProductStatus(status) ? status : "all",
-    categoryId: category === "" ? null : (category as CategoryId),
+    categoryId:
+      category === ""
+        ? null
+        : category === UNCATEGORIZED
+          ? UNCATEGORIZED
+          : (category as CategoryId),
     sort: isSort(sort) ? sort : DEFAULT_SORT,
     page: Number.isInteger(page) && page > 0 ? page : 1,
   };

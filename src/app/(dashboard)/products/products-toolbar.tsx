@@ -30,6 +30,7 @@ import {
 import type { Category } from "@/lib/domain/categories/entity";
 import type { CategoryId } from "@/lib/domain/categories/entity";
 import { PRODUCT_STATUSES } from "@/lib/domain/products/entity";
+import { UNCATEGORIZED } from "@/lib/domain/products/list-query";
 import {
   DEFAULT_QUERY,
   productListHref,
@@ -131,7 +132,14 @@ export function ProductsToolbar({
       <Select
         value={query.categoryId ?? "all"}
         onValueChange={(value) =>
-          go({ categoryId: value === "all" ? null : (value as CategoryId) })
+          go({
+            categoryId:
+              value === "all"
+                ? null
+                : value === UNCATEGORIZED
+                  ? UNCATEGORIZED
+                  : (value as CategoryId),
+          })
         }
       >
         <SelectTrigger
@@ -143,6 +151,11 @@ export function ProductsToolbar({
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="all">All categories</SelectItem>
+          {/* Third state of this facet, not a fourth filter: "in none" and
+              "in this one" are mutually exclusive. It sits directly under
+              "All" because it is the largest group in the catalogue — 697 of
+              832 products — and the one the taxonomy work exists to empty. */}
+          <SelectItem value={UNCATEGORIZED}>Uncategorised</SelectItem>
           {categories.map((category) => (
             <SelectItem key={category.id} value={category.id}>
               {category.name}
