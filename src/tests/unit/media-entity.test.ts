@@ -103,11 +103,16 @@ describe("parseMediaAsset", () => {
 });
 
 describe("mediaSrc", () => {
-  it("prefers an image's optimized variant", () => {
-    expect(mediaSrc(asset())).toBe("/uploads/media/m1/optimized.webp");
+  it("renders an image's ORIGIN, not the variant baked at upload", () => {
+    // The variant is a 1600px q82 WebP frozen when the file arrived. Serving
+    // the archive instead and letting next/image derive per-breakpoint sizes
+    // is smaller in a list AND sharper full-screen: measured on a 2362px
+    // source, w=256 is 8.7 KB against the variant's 34.8 KB, and w=2048 keeps
+    // detail the 1600px cap had thrown away.
+    expect(mediaSrc(asset())).toBe("/uploads/media/m1/origin.jpg");
   });
 
-  it("falls back to an image's origin when there is no variant", () => {
+  it("still renders the origin when no variant was ever made", () => {
     expect(mediaSrc(asset({ optimizedUrl: null }))).toBe(
       "/uploads/media/m1/origin.jpg",
     );

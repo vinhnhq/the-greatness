@@ -49,6 +49,7 @@ import {
   useState,
 } from "react";
 
+import { MediaThumb } from "@/components/media-thumb";
 import { UploadZone } from "@/components/media/upload-zone";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -57,7 +58,6 @@ import {
   useMediaUpload,
 } from "@/hooks/use-media-upload";
 import type { MediaAsset } from "@/lib/domain/media/entity";
-import { mediaSrc } from "@/lib/domain/media/entity";
 import { MAX_MEDIA_PER_PRODUCT } from "@/lib/domain/products/entity";
 import { cn } from "@/lib/utils";
 
@@ -98,12 +98,11 @@ function Tile({
       )}
     >
       <div className="relative aspect-square overflow-hidden rounded-md bg-muted">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={mediaSrc(asset)}
-          alt=""
-          className="size-full object-cover"
-          draggable={false}
+        {/* Two per row on a phone, four in the form's sidebar. */}
+        <MediaThumb
+          asset={asset}
+          sizes="(max-width: 640px) 50vw, 200px"
+          className="pointer-events-none"
         />
 
         {asset.kind === "video" && (

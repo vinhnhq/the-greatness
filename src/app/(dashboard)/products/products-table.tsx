@@ -14,9 +14,9 @@
  */
 
 import { ImageOff, Play } from "lucide-react";
-import Image from "next/image";
 import Link from "next/link";
 
+import { MediaThumb } from "@/components/media-thumb";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -27,7 +27,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import type { Category } from "@/lib/domain/categories/entity";
-import { mediaSrc, primaryImageOf } from "@/lib/domain/media/entity";
+import { primaryImageOf } from "@/lib/domain/media/entity";
 import type { ProductStatus } from "@/lib/domain/products/entity";
 import type { ProductListRow } from "@/lib/domain/products/repository";
 import { formatMoney } from "@/lib/money";
@@ -61,19 +61,11 @@ function Thumbnail({ product }: { readonly product: ProductListRow }) {
   // image sizes to the cell while the cell sizes to the image, and the pair
   // settles at a 4px strip. A `div` with an explicit width has no such cycle.
   return (
-    <div className="size-10 overflow-hidden rounded-md border bg-muted">
+    <div className="relative size-10 overflow-hidden rounded-md border bg-muted">
       {image ? (
-        <Image
-          src={mediaSrc(image)}
-          alt=""
-          width={40}
-          height={40}
-          className="size-full object-cover"
-          // Unoptimized keeps the local driver's files serving straight from
-          // disk rather than through the image optimizer, which cannot reach
-          // a relative path during a build.
-          unoptimized
-        />
+        // 40px on every breakpoint, so the optimizer derives ~1 KB rather
+        // than handing the browser the full archive.
+        <MediaThumb asset={image} sizes="40px" />
       ) : (
         <div className="flex size-full items-center justify-center text-muted-foreground">
           {video ? (

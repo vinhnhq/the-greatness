@@ -19,6 +19,7 @@
  */
 
 import { Check, Play } from "lucide-react";
+import Image from "next/image";
 import { useState } from "react";
 
 import { groupByMonth, monthLabel } from "@/lib/domain/media/grouping";
@@ -82,17 +83,16 @@ export function GalleryGrid({
                         isSelected && "ring-2 ring-primary",
                       )}
                     >
-                      {/* A plain <img>: operator uploads served from our own
-                          origin or from Blob, already at the size the media
-                          library produced. */}
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
+                      {/* The grid is the heaviest page in the app — 60 tiles.
+                          Sized per breakpoint so the optimizer serves a tile,
+                          not the archive it was derived from. */}
+                      <Image
                         src={item.src}
                         alt=""
-                        loading="lazy"
-                        decoding="async"
+                        fill
+                        sizes="(max-width: 640px) 33vw, (max-width: 1024px) 20vw, 12vw"
                         className={cn(
-                          "size-full object-cover transition-transform duration-200 ease-out",
+                          "object-cover transition-transform duration-200 ease-out",
                           !selecting && "motion-safe:group-hover:scale-105",
                           isSelected && "scale-90",
                         )}

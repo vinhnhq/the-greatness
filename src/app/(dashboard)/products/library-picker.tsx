@@ -15,6 +15,7 @@
 import { Check, Loader2, Search } from "lucide-react";
 import { useEffect, useState } from "react";
 
+import { MediaThumb } from "@/components/media-thumb";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -31,7 +32,6 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import type { MediaAsset } from "@/lib/domain/media/entity";
-import { mediaSrc } from "@/lib/domain/media/entity";
 import { cn } from "@/lib/utils";
 
 import { listLibraryForPicker } from "./actions";
@@ -164,15 +164,9 @@ export function LibraryPicker({
                         locked && "cursor-not-allowed opacity-40",
                       )}
                     >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={mediaSrc(asset)}
-                        alt=""
-                        loading="lazy"
-                        className={cn(
-                          "size-full object-cover",
-                          isSelected && "scale-90 transition-transform",
-                        )}
+                      <MediaThumb
+                        asset={asset}
+                        sizes="(max-width: 640px) 33vw, 160px"
                       />
                       <span
                         className={cn(

@@ -1,6 +1,6 @@
 # v5 — Sharper pictures, and a catalogue you can walk
 
-**Status:** 📝 Draft, written 2026-09-01. Not started. Follows
+**Status:** 🚧 In progress, 2026-09-01. Open questions answered below. Follows
 [v4](v4-taxonomy-and-sync.md), whose blocks A–C shipped the same day.
 
 > Four requests, grouped because three of them are the same request from
@@ -127,22 +127,38 @@ Found while surveying the app at 1440px and 390px on 2026-09-01:
 - **The e2e suite covers the drill-down**, since it is a navigation feature
   and navigation is what e2e is for.
 
-## Open questions
+## Open questions — answered 2026-09-01, before building
 
-- **Does `next/image` optimize the local `/uploads/[...key]` route?** It is
-  same-origin so it should need no `remotePatterns` entry, but the Blob driver
-  already has one and the two paths must behave the same. **Verify before
-  building on it** — AC-2 is the load-bearing assumption of the whole section.
-- **Is `/categories/[slug]` the right home, or is this a separate `/catalogue`
-  surface?** The CRUD page and the browse page want different affordances —
-  rename/delete buttons are noise while browsing — and merging them may make
-  both worse.
-- **What does the drill-down do about a product in a parent _and_ a child?**
-  Showing it at both levels is honest and repetitive; showing it only at the
-  deepest is tidier and hides the double-filing that the fan data proves is
-  common.
-- **Does removing table rules hurt the 211-row category tree most?** That is
-  the table where a row's depth matters, and rules are doing more work there
-  than on a flat list. It may need to keep something the others do not.
-- **Is 25 MB of upload still the right ceiling** once the archive is what gets
-  served? The cap was set when the display copy absorbed the size.
+- **Does `next/image` optimize the local `/uploads/[...key]` route?**
+  **Yes — verified, no `remotePatterns` entry needed** (it is same-origin).
+  Measured on the largest asset, a 2362×2362 PNG of 1.76 MB whose current
+  display copy is 34.8 KB capped at 1600px: `w=48` → 1.2 KB, `w=256` →
+  8.7 KB, `w=2048` → 133 KB **at full 2362px detail**. Smaller in lists _and_
+  sharper full-screen, so section A proceeds as written.
+
+- **`/categories/[slug]` or a separate `/catalogue` surface?**
+  **`/categories/[slug]`.** One mental model and one nav item beat two, the
+  breadcrumb already establishes where you are, and the CRUD affordances are
+  simply absent from the detail view — a page that browses and a page that
+  edits can share a route without sharing a toolbar. Revisit only if the
+  browse view grows filters of its own.
+
+- **A product filed in a parent _and_ a child — show at both levels?**
+  **Both.** The drill-down exists so someone can _check the system_, and
+  showing a product only at its deepest category would hide exactly the
+  problem worth finding: eight fans are filed in all eleven fan categories.
+  Tidier output would be a worse tool. Each level shows what is actually
+  linked to it, which is also what Sapo stores.
+
+- **Does removing table rules hurt the 211-row category tree most?**
+  **Yes, and it keeps something the others do not.** Rules go everywhere, but
+  the tree gains a light vertical indent rail — depth is information there in
+  a way it is not on a flat list, and the horizontal rules were carrying it by
+  accident. A rail says "these belong to that" better than a line under every
+  row ever did.
+
+- **Is the 25 MB upload ceiling still right?**
+  **Unchanged, deliberately.** The cap governs what an operator may upload,
+  and nothing here changes that; the 4096px archive cap it pairs with still
+  never fires (the largest thing Sapo holds is 2560px). No evidence to move
+  it, so it is not moved.
