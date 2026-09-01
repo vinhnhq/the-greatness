@@ -155,3 +155,48 @@ export const flattenForest = <T extends TreeCategory>(
   forest: readonly CategoryNode<T>[],
 ): readonly CategoryNode<T>[] =>
   forest.flatMap((node) => [node, ...flattenForest(node.children)]);
+
+/**
+ * The forest narrowed to a search, keeping enough of it to stay legible.
+ *
+ * A node survives if it matches **or any descendant does**. Without that,
+ * typing part of a leaf name hides the group it lives under and the results
+ * read as a flat list of near-identical names — which is exactly the problem
+ * a grouped picker exists to fix. A node that matches keeps its whole
+ * subtree, so typing a group name is how you see what is in it.
+ */
+export const filterForest = <T extends TreeCategory>(
+  forest: readonly CategoryNode<T>[],
+  matches: (category: T) => boolean,
+): readonly CategoryNode<T>[] =>
+  forest.flatMap((node) => {
+    if (matches(node.category)) return [node];
+    const children = filterForest(node.children, matches);
+    return children.length > 0 ? [{ ...node, children }] : [];
+  });
+
+/**
+ * The names of a category's ancestors, outermost first.
+ *
+ * Used to caption a search result: "Quạt đứng" alone is ambiguous among nine
+ * near-identical fan categories, and "Thiết bị gia đình › Quạt & Thiết bị làm
+ * mát" is what tells them apart. Guards against a cycle for the same reason
+ * `buildCategoryForest` does.
+ */
+export const ancestorNames = <T extends TreeCategory>(
+  categories: readonly T[],
+  id: string,
+): readonly string[] => {
+  const byId = new Map(categories.map((c) => [c.id, c]));
+  const path: string[] = [];
+  const seen = new Set<string>([id]);
+  let current = byId.get(id)?.parentId ?? null;
+  while (current !== null && !seen.has(current)) {
+    const parent = byId.get(current);
+    if (parent === undefined) break;
+    seen.add(current);
+    path.unshift(parent.name);
+    current = parent.parentId;
+  }
+  return path;
+};

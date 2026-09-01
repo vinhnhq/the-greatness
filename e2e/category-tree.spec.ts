@@ -185,3 +185,45 @@ test("groups nest, leaves stay closed, and the subtree count is distinct", async
   await expect(row(LEAF_A)).toBeVisible();
   await expect(row(LEAF_B)).toBeVisible();
 });
+
+test("the product form's picker groups, searches unaccented, and keeps the selection visible", async ({
+  page,
+}) => {
+  await signIn(page);
+  await page.goto("/products/new");
+
+  const picker = page
+    .getByRole("region", { name: "Categories" })
+    .or(page.locator("form"));
+
+  // --- grouped, not a flat wall ----------------------------------------
+  await expect(page.getByText(GROUP, { exact: true })).toBeVisible();
+  // A closed branch is not rendered, so the leaves are absent entirely.
+  await expect(page.getByText(LEAF_A, { exact: true })).toHaveCount(0);
+
+  // --- unaccented search reaches an accented name ----------------------
+  // `quat dung` must find `Quạt đứng`, the same fold product search uses.
+  await picker
+    .getByRole("textbox", { name: "Search categories" })
+    .fill("quat dung");
+  await expect(page.getByText(LEAF_A, { exact: true })).toBeVisible();
+  // The ancestors survive the filter, or the match loses the context that
+  // tells nine near-identical fan names apart. `.first()` because each name
+  // now appears twice: as its own row, and inside a match's path caption —
+  // which is itself the behaviour under test.
+  await expect(page.getByText(MID, { exact: true }).first()).toBeVisible();
+  await expect(page.getByText(GROUP, { exact: true }).first()).toBeVisible();
+  // The caption spells out the whole path for the leaf.
+  await expect(page.getByText(`${GROUP} › ${MID}`)).toBeVisible();
+  // ...and a branch with no match anywhere in it is gone.
+  await expect(page.getByText(LEAF_B, { exact: true })).toHaveCount(0);
+
+  // --- the selection stays visible while the list is filtered ----------
+  await page.getByRole("checkbox").filter({ hasText: "" }).first().check();
+  await picker
+    .getByRole("textbox", { name: "Search categories" })
+    .fill("zzz-no-such-category");
+  await expect(page.getByText("No category matches")).toBeVisible();
+  // The chip is the only thing left saying what is chosen.
+  await expect(page.getByRole("button", { name: /^Remove / })).toBeVisible();
+});

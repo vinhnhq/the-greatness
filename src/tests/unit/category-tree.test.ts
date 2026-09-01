@@ -10,7 +10,12 @@
 
 import { describe, expect, it } from "vitest";
 
-import { buildCategoryForest } from "@/lib/domain/categories/tree";
+import type { CategoryNode } from "@/lib/domain/categories/tree";
+import {
+  ancestorNames,
+  buildCategoryForest,
+  filterForest,
+} from "@/lib/domain/categories/tree";
 
 type Row = {
   id: string;
@@ -146,5 +151,78 @@ describe("buildCategoryForest", () => {
     };
     walk(buildCategoryForest(rows, []));
     expect(seen.sort()).toEqual(["leaf", "mid", "other", "root"]);
+  });
+});
+
+/**
+ * Searching the picker.
+ *
+ * Two behaviours matter and neither is obvious. A branch whose *child*
+ * matches has to survive, or typing "quạt" hides the group the matches live
+ * under and the result reads as a flat list with no context. And a group that
+ * matches keeps its children, so typing a group name is how you see what is
+ * in it.
+ */
+describe("filterForest", () => {
+  const rows = [
+    { ...cat("home", null), name: "Thiết bị gia đình" },
+    { ...cat("fans", "home"), name: "Quạt & Thiết bị làm mát" },
+    { ...cat("standing", "fans"), name: "Quạt đứng" },
+    { ...cat("air", "home"), name: "Chăm sóc không khí" },
+    { ...cat("kitchen", null), name: "Điện gia dụng nhà bếp" },
+  ];
+  const forest = buildCategoryForest(rows, []);
+  const names = (nodes: readonly CategoryNode<Row>[]): string[] =>
+    nodes.flatMap((n) => [n.category.name, ...names(n.children)]);
+
+  it("keeps a branch whose descendant matches", () => {
+    const found = filterForest(forest, (c) => c.name.includes("Quạt đứng"));
+    // The group and its parent survive so the match has context.
+    expect(names(found)).toEqual([
+      "Thiết bị gia đình",
+      "Quạt & Thiết bị làm mát",
+      "Quạt đứng",
+    ]);
+  });
+
+  it("keeps the whole subtree of a group that matches itself", () => {
+    const found = filterForest(forest, (c) => c.name === "Chăm sóc không khí");
+    expect(names(found)).toEqual(["Thiết bị gia đình", "Chăm sóc không khí"]);
+  });
+
+  it("drops a branch with no match anywhere in it", () => {
+    const found = filterForest(forest, (c) => c.name.includes("Quạt"));
+    expect(names(found)).not.toContain("Điện gia dụng nhà bếp");
+    expect(names(found)).not.toContain("Chăm sóc không khí");
+  });
+
+  it("returns nothing when nothing matches", () => {
+    expect(filterForest(forest, () => false)).toEqual([]);
+  });
+
+  it("returns everything when everything matches", () => {
+    expect(names(filterForest(forest, () => true))).toEqual(names(forest));
+  });
+});
+
+describe("ancestorNames", () => {
+  it("names the path to a nested category, nearest parent last", () => {
+    const rows = [
+      { ...cat("home", null), name: "Thiết bị gia đình" },
+      { ...cat("fans", "home"), name: "Quạt" },
+      { ...cat("standing", "fans"), name: "Quạt đứng" },
+    ];
+    expect(ancestorNames(rows, "standing")).toEqual([
+      "Thiết bị gia đình",
+      "Quạt",
+    ]);
+  });
+
+  it("is empty for a root", () => {
+    expect(ancestorNames([cat("root", null)], "root")).toEqual([]);
+  });
+
+  it("stops on a cycle instead of looping forever", () => {
+    expect(ancestorNames([cat("a", "b"), cat("b", "a")], "a")).toEqual(["b"]);
   });
 });

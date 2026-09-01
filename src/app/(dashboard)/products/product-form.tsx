@@ -44,7 +44,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -72,6 +71,7 @@ import {
 import { slugify } from "@/lib/slug";
 
 import { deleteProduct, saveProduct } from "./actions";
+import { CategoryPicker } from "./category-picker";
 import { ProductMediaField } from "./media-field";
 
 function FieldError({ message }: { readonly message?: string }) {
@@ -318,7 +318,10 @@ export function ProductForm({
           <Card>
             <CardHeader>
               <CardTitle>Categories</CardTitle>
-              <CardDescription>A product can sit in several.</CardDescription>
+              <CardDescription>
+                A product can sit in several. Grouped as the storefront groups
+                them.
+              </CardDescription>
             </CardHeader>
             <CardContent>
               {categories.length === 0 ? (
@@ -326,30 +329,11 @@ export function ProductForm({
                   No categories yet — create one from the Categories page.
                 </p>
               ) : (
-                <fieldset className="flex flex-col gap-2">
-                  <legend className="sr-only">Categories</legend>
-                  {categories.map((category) => {
-                    const checked = categoryIds.includes(category.id);
-                    return (
-                      <Label
-                        key={category.id}
-                        className="flex cursor-pointer items-center gap-2 font-normal"
-                      >
-                        <Checkbox
-                          checked={checked}
-                          onCheckedChange={(value) =>
-                            setCategoryIds((current) =>
-                              value === true
-                                ? [...current, category.id]
-                                : current.filter((id) => id !== category.id),
-                            )
-                          }
-                        />
-                        {category.name}
-                      </Label>
-                    );
-                  })}
-                </fieldset>
+                <CategoryPicker
+                  categories={categories}
+                  selected={categoryIds}
+                  onChange={setCategoryIds}
+                />
               )}
               <FieldError message={errors.categoryIds} />
             </CardContent>
