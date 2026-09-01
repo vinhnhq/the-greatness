@@ -30,6 +30,8 @@ import { existsSync } from "node:fs";
 import { mkdir, stat, writeFile } from "node:fs/promises";
 import { basename, extname, join } from "node:path";
 
+import { assertNoTaxRules, buildCategoryTree } from "@/lib/sapo-tree";
+
 const STORE = "https://the-greatness.mysapo.net";
 const OUT = join(import.meta.dirname, "..", "data", "sapo");
 const PAGE_SIZE = 250;
@@ -115,6 +117,21 @@ const writeJson = async (name: string, value: unknown): Promise<void> => {
   await writeFile(join(OUT, name), body);
   const kb = (Buffer.byteLength(body) / 1024).toFixed(1);
   console.log(`  ${name.padEnd(28)} ${kb.padStart(9)} KB`);
+};
+
+/**
+ * The storefront HTML, for the one thing the JSON API does not expose.
+ *
+ * The category hierarchy lives in the theme's menu, not in the collections
+ * resource — see `lib/sapo-tree.ts`. Any page carries the whole menu, so the
+ * home page is fetched once and read rather than crawled.
+ */
+const getHtml = async (path: string): Promise<string> => {
+  const res = await fetch(`${STORE}${path}`, {
+    headers: { ...HEADERS, Accept: "text/html" },
+  });
+  if (!res.ok) throw new Error(`GET ${path} failed: ${res.status}`);
+  return res.text();
 };
 
 /** Run `task` over `items` with at most `limit` in flight. */
@@ -263,9 +280,26 @@ const main = async (): Promise<void> => {
       })),
     );
 
+  // The hierarchy, reconstructed from the storefront menu plus creation
+  // order. It is written as a reviewable artifact rather than derived at seed
+  // time, because it is the one part of this snapshot that is inferred rather
+  // than fetched, and a diff on it is how a theme change becomes visible.
+  console.log("Deriving the category tree");
+  assertNoTaxRules(categories);
+  const menuHtml = await getHtml("/");
+  const tree = buildCategoryTree(categories, menuHtml, {
+    knownMaxSourceId: Math.max(...categories.map((c) => c.sourceId)),
+  });
+  console.log(
+    `  ${tree.counts.roots} roots · ${tree.counts.mid} mid · ` +
+      `${tree.counts.leaves} leaves · ${tree.counts.unfiled} unfiled` +
+      ` = ${tree.counts.roots + tree.counts.mid + tree.counts.leaves + tree.counts.unfiled} of ${categories.length}`,
+  );
+
   console.log("Writing");
   await writeJson("products.json", products);
   await writeJson("categories.json", categories);
+  await writeJson("category-tree.json", tree);
   await writeJson("product-categories.json", links);
   await writeJson(
     "images.json",

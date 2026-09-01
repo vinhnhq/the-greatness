@@ -158,6 +158,35 @@ export const leavesByCreationOrder = (
   return leaves;
 };
 
+/**
+ * Sapo files VAT rates in the same namespace as categories, and a product
+ * carries them through the same picker: the store's iron is in two
+ * "categories", one of which is `Thuế 8%`. The public storefront API already
+ * filters them out and the admin API does not, so this holds only as long as
+ * nothing starts reading `/admin/*`.
+ *
+ * The guard is deliberately a **failure**, not a filter. A tax rule reaching
+ * the tree would become a root with 800 children, and the point of failing is
+ * that the day someone repoints a reader at the admin surface, they find out
+ * here rather than in the seeded database.
+ */
+const TAX_RULE = /^Thu[êế]\s*\d+\s*%/iu;
+
+export const isTaxRule = (name: string): boolean => TAX_RULE.test(name.trim());
+
+export const assertNoTaxRules = (
+  collections: readonly { readonly name: string; readonly slug: string }[],
+): void => {
+  const found = collections.filter((c) => isTaxRule(c.name));
+  if (found.length > 0) {
+    throw new Error(
+      `assertNoTaxRules: ${found.length} tax rule(s) in the category list — ` +
+        `${found.map((c) => `"${c.name}"`).join(", ")}. ` +
+        `These are VAT rates, not categories; the admin API returns them and the storefront API does not.`,
+    );
+  }
+};
+
 export type CategoryTree = {
   readonly roots: readonly string[];
   /** Every non-root alias → its parent alias. */

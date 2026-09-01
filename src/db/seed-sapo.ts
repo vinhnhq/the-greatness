@@ -78,6 +78,13 @@ type SapoCategory = {
   readonly slug: string;
 };
 
+/** `data/sapo/category-tree.json`, written by `bun run fetch:sapo`. */
+type SapoTree = {
+  readonly roots: readonly string[];
+  readonly parents: Readonly<Record<string, string>>;
+  readonly unfiled: readonly string[];
+};
+
 type SapoLink = {
   readonly categorySourceId: number;
   readonly productSourceId: number;
@@ -155,10 +162,11 @@ export const seedFromSapo = async (
     readonly storageRoot: string | null;
   },
 ): Promise<SapoSeedResult> => {
-  const [products, categories, links] = await Promise.all([
+  const [products, categories, links, tree] = await Promise.all([
     readJson<SapoProduct[]>("products.json"),
     readJson<SapoCategory[]>("categories.json"),
     readJson<SapoLink[]>("product-categories.json"),
+    readJson<SapoTree>("category-tree.json"),
   ]);
 
   const media = await readJson<SapoMedia[]>("media.json").catch(() => []);
@@ -173,15 +181,31 @@ export const seedFromSapo = async (
 
   const now = new Date();
 
-  const categoryRows = categories.map((c) => ({
-    id: newId(),
-    name: clamp(c.name, 60),
-    slug: c.slug,
-    parentId: null,
-    sapoId: String(c.sourceId),
-    createdAt: now,
-    updatedAt: now,
-  }));
+  // Ids are minted first so a child can point at a parent that has not been
+  // inserted yet — the tree is resolved in memory, then written in one pass.
+  const idBySlug = new Map<string, CategoryId>(
+    categories.map((c) => [c.slug, newId() as CategoryId]),
+  );
+  const categoryRows = categories.map((c) => {
+    const parentSlug = tree.parents[c.slug] ?? null;
+    if (parentSlug !== null && !idBySlug.has(parentSlug)) {
+      throw new Error(
+        `seedFromSapo: category-tree.json parents "${c.slug}" under "${parentSlug}", which is not in categories.json`,
+      );
+    }
+    return {
+      id: idBySlug.get(c.slug)!,
+      name: clamp(c.name, 60),
+      slug: c.slug,
+      // Null means root *or* unfiled, deliberately: both render at the top
+      // level, and the tree is ours to edit after this point — the sync never
+      // writes this column. See `lib/sapo-tree.ts`.
+      parentId: parentSlug === null ? null : idBySlug.get(parentSlug)!,
+      sapoId: String(c.sourceId),
+      createdAt: now,
+      updatedAt: now,
+    };
+  });
   for (const rows of chunked(categoryRows)) {
     await db.insertInto("categories").values(rows).execute();
   }

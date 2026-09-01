@@ -11,7 +11,9 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  assertNoTaxRules,
   buildCategoryTree,
+  isTaxRule,
   leavesByCreationOrder,
   parseMenuLevels,
 } from "@/lib/sapo-tree";
@@ -179,5 +181,40 @@ describe("buildCategoryTree", () => {
   it("reports depth so a caller can assert the shape it expected", () => {
     const tree = buildCategoryTree(COLLECTIONS, MENU);
     expect(tree.counts).toEqual({ roots: 2, mid: 3, leaves: 4, unfiled: 1 });
+  });
+});
+
+describe("assertNoTaxRules", () => {
+  it("passes the real catalogue's shape", () => {
+    expect(() =>
+      assertNoTaxRules([
+        { name: "Nồi cơm điện", slug: "noi-com-dien" },
+        { name: "Thuốc & Thực phẩm chức năng", slug: "thuoc" },
+      ]),
+    ).not.toThrow();
+  });
+
+  it("fails on a VAT rate rather than filtering it out", () => {
+    // Filtering would hide the day a reader is repointed at /admin/*, where
+    // these appear; a tax rule reaching the tree becomes a root with 800
+    // children.
+    expect(() =>
+      assertNoTaxRules([
+        { name: "Nồi cơm điện", slug: "noi-com-dien" },
+        { name: "Thuế 8%", slug: "thue-8" },
+      ]),
+    ).toThrow(/Thuế 8%/);
+  });
+
+  it("catches the rates this store actually has, spaced or not", () => {
+    for (const name of ["Thuế 8%", "Thuế 10%", "thuế 10 %", "Thuê 8%"]) {
+      expect(isTaxRule(name)).toBe(true);
+    }
+  });
+
+  it("does not mistake a category that merely starts with the same letters", () => {
+    for (const name of ["Thuốc", "Thùng rác", "Thuyền", "Thiết bị"]) {
+      expect(isTaxRule(name)).toBe(false);
+    }
   });
 });
