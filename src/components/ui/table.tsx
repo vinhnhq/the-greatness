@@ -1,5 +1,23 @@
 "use client";
 
+/**
+ * Borderless tables.
+ *
+ * No rule under every row. A line between each of 25 rows draws the eye to
+ * the grid rather than to the data, and with a 211-row category tree it turns
+ * the page into a ledger. Separation is carried by row height, a hover tint,
+ * and a header that is set apart by weight and letter-spacing rather than by
+ * a line.
+ *
+ * **What the header keeps.** One hairline under the header row only. It is
+ * not decoration: it is the boundary between labels and data, and it is the
+ * one place a rule says something the spacing cannot.
+ *
+ * Rows that need to express structure — the category tree's depth — do it
+ * with an indent rail on the cell, not with horizontal rules, because depth
+ * is vertical information and a line under a row was never carrying it.
+ */
+
 import * as React from "react";
 
 import { cn } from "@/lib/utils";
@@ -23,7 +41,11 @@ function TableHeader({ className, ...props }: React.ComponentProps<"thead">) {
   return (
     <thead
       data-slot="table-header"
-      className={cn("[&_tr]:border-b", className)}
+      className={cn(
+        // The one rule that survives: labels are not data.
+        "[&_tr]:border-b [&_tr]:border-border/60",
+        className,
+      )}
       {...props}
     />
   );
@@ -44,7 +66,7 @@ function TableFooter({ className, ...props }: React.ComponentProps<"tfoot">) {
     <tfoot
       data-slot="table-footer"
       className={cn(
-        "border-t bg-muted/50 font-medium [&>tr]:last:border-b-0",
+        "border-t border-border/60 bg-muted/50 font-medium",
         className,
       )}
       {...props}
@@ -57,7 +79,7 @@ function TableRow({ className, ...props }: React.ComponentProps<"tr">) {
     <tr
       data-slot="table-row"
       className={cn(
-        "border-b transition-colors hover:bg-muted/50 has-aria-expanded:bg-muted/50 data-[state=selected]:bg-muted",
+        "transition-colors hover:bg-muted/50 has-aria-expanded:bg-muted/50 data-[state=selected]:bg-muted",
         className,
       )}
       {...props}
@@ -70,7 +92,9 @@ function TableHead({ className, ...props }: React.ComponentProps<"th">) {
     <th
       data-slot="table-head"
       className={cn(
-        "h-12 px-3 text-left align-middle font-medium whitespace-nowrap text-foreground [&:has([role=checkbox])]:pr-0",
+        // Uppercase and tracked, so the header reads as a label without a
+        // box around it.
+        "h-10 px-3 text-left align-middle text-xs font-medium tracking-wide whitespace-nowrap text-muted-foreground uppercase [&:has([role=checkbox])]:pr-0",
         className,
       )}
       {...props}
@@ -83,7 +107,9 @@ function TableCell({ className, ...props }: React.ComponentProps<"td">) {
     <td
       data-slot="table-cell"
       className={cn(
-        "p-3 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0",
+        // Taller than it was: the row's own height is now what separates it
+        // from the next one.
+        "px-3 py-3.5 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0",
         className,
       )}
       {...props}

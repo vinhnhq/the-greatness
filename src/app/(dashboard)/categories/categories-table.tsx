@@ -98,12 +98,17 @@ function CategoryRow({
   return (
     <TableRow>
       <TableCell>
-        <div
-          className="flex items-center gap-1"
-          // Depth is data, so the indent is inline rather than a class the
-          // bundler would have to enumerate for every possible level.
-          style={{ paddingLeft: `${node.depth * 1.25}rem` }}
-        >
+        <div className="flex items-center gap-1">
+          {/* An indent rail per level. With the row rules gone this is what
+              carries depth — and it does it better, because depth is vertical
+              information and a line *under* a row never expressed it. */}
+          {Array.from({ length: node.depth }, (_, i) => (
+            <span
+              key={i}
+              aria-hidden
+              className="mr-1 h-9 w-px shrink-0 self-stretch bg-border/70"
+            />
+          ))}
           {hasChildren ? (
             <Button
               type="button"
