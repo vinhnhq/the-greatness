@@ -6,19 +6,25 @@ import { CategoriesTable } from "./categories-table";
 export const metadata = { title: "Categories" };
 
 export default async function CategoriesPage() {
-  // One query for the rows and their product counts — see `listWithCounts`.
-  const categories = await dbCategoryRepo.listWithCounts();
+  // Two reads, both small. The counts come back per category; the links come
+  // back whole because a subtree count has to be distinct rather than summed
+  // — a product linked to a group *and* to one of its children is one
+  // product. See `categories/tree.ts`.
+  const [categories, links] = await Promise.all([
+    dbCategoryRepo.listWithCounts(),
+    dbCategoryRepo.listLinks(),
+  ]);
 
   return (
     <PageContainer>
       <div>
         <h1 className="text-xl font-semibold tracking-tight">Categories</h1>
         <p className="text-sm text-muted-foreground">
-          Deleting a category removes it from its products. It never deletes a
-          product.
+          Grouped as the storefront groups them. Deleting a category removes it
+          from its products and never deletes a product.
         </p>
       </div>
-      <CategoriesTable categories={categories} />
+      <CategoriesTable categories={categories} links={links} />
     </PageContainer>
   );
 }

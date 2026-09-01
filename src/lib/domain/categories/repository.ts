@@ -22,12 +22,27 @@ export type CategoryWithCount = Category & {
   readonly productCount: number;
 };
 
+/** One row per link, for the subtree counts the tree view shows. */
+export type CategoryProductLink = {
+  readonly categoryId: string;
+  readonly productId: string;
+};
+
 export type CategoryRepository = {
   list(): Promise<readonly Category[]>;
   /** The categories page's one read: every category with how many products
    * link to it, in a single query rather than N+1 counts. */
   listWithCounts(): Promise<readonly CategoryWithCount[]>;
   getById(id: CategoryId): Promise<Category | null>;
+  /**
+   * Every product↔category link, for the tree view's subtree counts.
+   *
+   * A product can be linked to a parent *and* to its child, so those counts
+   * have to be distinct rather than summed, and that cannot be done from
+   * per-category totals alone. 280 rows today, proportional to
+   * categorisations rather than to the catalogue.
+   */
+  listLinks(): Promise<readonly CategoryProductLink[]>;
   /** Every slug in use — the input `uniqueSlug()` needs. */
   takenSlugs(exceptId?: CategoryId): Promise<ReadonlySet<string>>;
   create(input: NewCategory): Promise<Category>;
@@ -64,6 +79,22 @@ export const dbCategoryRepo: CategoryRepository = {
     return rows.map((row) => ({
       ...parseCategoryStrict(row),
       productCount: Number(row.productCount ?? 0),
+    }));
+  },
+
+  listLinks: async () => {
+    const { db } = await readContext();
+    const rows = await db
+      .selectFrom("product_categories")
+      .select(["categoryId", "productId"])
+      .execute();
+    // Rebuilt as plain objects, not passed through. The driver hands back rows
+    // with a null prototype, and React refuses to serialise those across the
+    // server/client boundary — "Only plain objects … can be passed to Client
+    // Components". It builds fine and fails on the request.
+    return rows.map((r) => ({
+      categoryId: r.categoryId,
+      productId: r.productId,
     }));
   },
 
@@ -146,6 +177,11 @@ export const createInMemoryCategoryRepo = (
       [...rows]
         .sort((a, b) => a.name.localeCompare(b.name))
         .map((c) => ({ ...c, productCount: links.get(c.id)?.size ?? 0 })),
+
+    listLinks: async () =>
+      [...links].flatMap(([categoryId, productIds]) =>
+        [...productIds].map((productId) => ({ categoryId, productId })),
+      ),
 
     getById: async (id) => rows.find((r) => r.id === id) ?? null,
 
