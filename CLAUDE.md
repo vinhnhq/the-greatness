@@ -45,6 +45,11 @@ Kysely, co-located operations, `__project__/` docs).
   about what each system _owns_ — the mirror, the three-way merge, and why
   this is not event-sourced. Append-only; a change of course is an
   `## Amendments` section.
+- **Research** — [`__project__/research/`](__project__/research/). Findings
+  about things outside this repo, each dated because they go stale.
+  [`write-back-and-other-platforms.md`](__project__/research/write-back-and-other-platforms.md)
+  is the one that matters: **Sapo has no menu API**, so the category tree can
+  never be pushed and `categories.parentId` is permanently ours.
 - **Lessons** — [`__project__/retro.md`](__project__/retro.md). Read this
   before a long autonomous run; it is where the traps are recorded.
 - **The reader's view** — [`README.md`](README.md).

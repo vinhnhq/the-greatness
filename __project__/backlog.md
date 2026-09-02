@@ -127,7 +127,12 @@ What is left:
       pages, cannot be dry-run, reports nothing, and runs as the operator's
       own login against a store that also feeds Lazada, Shopee, Tiki, TikTok
       Shop and Google Shopping. **Needs an ADR first** (`0004`; `0003` is the mirror), and the answer may
-      still be no.
+      still be no. **The research is done** —
+      [`research/write-back-and-other-platforms.md`](research/write-back-and-other-platforms.md)
+      establishes what a key can and cannot write: everything except the
+      tree, because Sapo has no menu API and `CustomCollection` has no parent
+      field. It also names a third path (metafields + one Liquid change) that
+      the ADR has to weigh.
 - [ ] **V6.16** ↷ **An append-only change log on our side** — `(entity, id,
 field, from, to, actor, at)`. The part of the event-sourcing idea worth
       keeping; supersedes `L.7`. Additive. Note the asymmetry: only **our**
@@ -205,6 +210,19 @@ What is left:
       generated 450px squares that was instant; with 60 real 1600px WebPs it is
       visibly progressive. A thumbnail variant (`V2.11` is the server-side
       derivation this needs) or lazy loading below the fold would fix it.
+
+- [ ] **N.8** ↷ **Other platforms, and whether any of this is a product.**
+      Parked deliberately, with the research written down in
+      [`research/write-back-and-other-platforms.md`](research/write-back-and-other-platforms.md).
+      Headline: **Shopify has had a writable menu API since 2024-07 and native
+      sub-collections since 2026-07-16**, so the gap this project fills does
+      not exist there and that market is already served. What _is_ seven weeks
+      old and unserved is the split between Shopify's sub-collection graph and
+      its navigation menu — two trees nothing reconciles, which is what this
+      codebase already is. The commercial section argues the sellable shape is
+      **one taxonomy published to every channel's scheme**, not "everything in
+      one place". Nothing to build; revisit when v7 has shipped and `N.3` is
+      answered.
 
 ## L — Later (explicitly deferred, not forgotten)
 
