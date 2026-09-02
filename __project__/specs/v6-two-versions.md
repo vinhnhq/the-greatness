@@ -189,7 +189,7 @@ Sapo's history is unobtainable regardless.
   pages, cannot be dry-run, reports nothing, and runs as the operator's own
   login against a store that pushes to Lazada, Shopee, Tiki, TikTok Shop and
   Google Shopping. Browser automation stays the fallback for a field the API
-  genuinely cannot reach; none has been found. **Needs ADR-0003 first.**
+  genuinely cannot reach; none has been found. **Needs its own ADR first** — `0003` is the mirror, so this is `0004`.
 
 ## Non-functional
 

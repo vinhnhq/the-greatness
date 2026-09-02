@@ -1,12 +1,19 @@
 # The Greatness
 
-A product-catalogue admin dashboard. Sign in, then list · search · filter ·
-sort · create · edit products, each with many categories and an ordered set of
-image and video attachments — plus a **gallery** of every asset in the
-catalogue, laid out like a photo library.
+A product-catalogue admin dashboard over a real store. Sign in, then list ·
+search · filter · sort · create · edit products, each with many categories and
+an ordered set of image and video attachments — plus a **gallery** of every
+asset laid out like a photo library, a **category tree** you can drag things
+around in, and a **reconcile** view showing where this app and the store
+disagree.
+
+**Sapo is the system of record**; this app keeps its own version alongside it.
+A sync takes the store's changes, keeps yours, and asks only where both moved
+— see [ADR-0003](__project__/decisions/0003-mirror-and-reconciliation.md).
 
 Every attachment is stored **twice**: the untouched original, and a
-web-delivery variant produced in the browser before upload.
+web-delivery variant produced in the browser before upload. The original is
+what gets served; `next/image` sizes it per breakpoint at request time.
 
 Built for both ends of the range: a centred column that stops a table
 stretching across a 27" monitor, and a layout that holds at 390px with no
@@ -16,7 +23,7 @@ horizontal scrolling anywhere.
 
 ```bash
 bun install
-bun run db:local     # migrate + seed 30 products across 8 categories
+bun run db:local     # migrate + seed the real catalogue: 832 products, 211 categories
 bun run dev          # http://localhost:3000
 ```
 
@@ -91,6 +98,32 @@ Three properties it holds, each with tests written around it:
 Uploading is deliberately asymmetric (`src/lib/storage/upload.ts`): the origin
 goes first and alone, and a derived file failing afterwards is swallowed to
 null rather than losing an upload the operator already waited for.
+
+## The category tree
+
+Sapo has **no hierarchy at all** — no parent field in its API, no column in
+its admin, no indentation in its product picker. The three levels its
+storefront shows live in theme menu config. So the tree here is reconstructed
+once (`lib/sapo-tree.ts`, from the menu markup plus collection creation order)
+and **owned by this app** from then on; the sync never writes `parentId`.
+
+`/categories` is a split view: the tree on the left, the selected category's
+products on the right, drag to re-parent or to file a product. Counts are
+**distinct, not summed** — eight fans filed in nine fan categories are eight.
+
+## Keeping two versions honest
+
+`sapo_mirror` stores what the store last told us, so a sync merges three ways:
+
+```bash
+bun run sync:sapo --plan   # a real run inside a rolled-back transaction
+bun run sync:sapo          # apply it
+```
+
+Something you changed here and the store did not is **kept**. Something both
+of you changed is **parked** in `/reconcile` for a decision, and nothing is
+overwritten while it waits. Nothing is ever deleted for having vanished
+upstream — it is reported.
 
 ## The gallery
 

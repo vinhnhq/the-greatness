@@ -26,15 +26,24 @@ Kysely, co-located operations, `__project__/` docs).
   adds project-specific context.
 - **Current state** — [`__project__/done.md`](__project__/done.md) (write-once
   ship history) and [`__project__/backlog.md`](__project__/backlog.md) (open
-  work only). Headline as of 2026-08-28: **v1, v1.1, v2 and v2.1 all shipped
-  in one session on `main`**; nothing is deployed yet, and neither the Neon nor
-  the Blob seam has met the real service (backlog N.3).
-- **Intent** — [`__project__/specs/`](__project__/specs/). v1 is **frozen and
-  partly superseded** — it describes media as belonging to a product, which
-  [v2](__project__/specs/v2-media-library.md) inverted. Its header says so.
+  work only). Headline as of **2026-09-02**: v1 → v6 shipped. v1–v2.1 are on
+  `main`; **v3 → v6 are 22 commits on the unmerged branch `feat/v4-taxonomy`**,
+  gates green, no PR opened yet. Two things are still true from day one:
+  **nothing is deployed**, and neither the Neon nor the Blob seam has met the
+  real service (backlog `N.3`) — that remains the largest unmeasured risk.
+- **Intent** — [`__project__/specs/`](__project__/specs/), one per version.
+  v1 is **frozen and partly superseded** — it describes media as belonging to
+  a product, which [v2](__project__/specs/v2-media-library.md) inverted. Its
+  header says so. Each spec's `Status:` line is the truth about what of it
+  shipped; v5 and v6 each name one task that did not. **There is no v3 spec** —
+  the Sapo catalogue import shipped without one; its record is the `done.md`
+  entry and the `fetch:sapo` / `prepare:sapo-media` docblocks.
 - **Decisions** — [`__project__/decisions/`](__project__/decisions/README.md).
-  Two, both about what a row means: media ownership and the 4096px archive cap.
-  Append-only; a change of course is an `## Amendments` section.
+  Three. Two about what a row _means_ (media ownership, the 4096px archive
+  cap) and [`0003`](__project__/decisions/0003-mirror-and-reconciliation.md)
+  about what each system _owns_ — the mirror, the three-way merge, and why
+  this is not event-sourced. Append-only; a change of course is an
+  `## Amendments` section.
 - **Lessons** — [`__project__/retro.md`](__project__/retro.md). Read this
   before a long autonomous run; it is where the traps are recorded.
 - **The reader's view** — [`README.md`](README.md).

@@ -126,7 +126,7 @@ What is left:
       computer-use** — that admin was measured stalling past 30s on detail
       pages, cannot be dry-run, reports nothing, and runs as the operator's
       own login against a store that also feeds Lazada, Shopee, Tiki, TikTok
-      Shop and Google Shopping. **Needs ADR-0003 first**, and the answer may
+      Shop and Google Shopping. **Needs an ADR first** (`0004`; `0003` is the mirror), and the answer may
       still be no.
 - [ ] **V6.16** ↷ **An append-only change log on our side** — `(entity, id,
 field, from, to, actor, at)`. The part of the event-sourcing idea worth

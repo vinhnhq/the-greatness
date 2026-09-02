@@ -7,6 +7,85 @@ Newest session first.
 
 ---
 
+## 2026-09-01 → 09-02 — the catalogue grows a shape (v3 → v6)
+
+Real Sapo data arrived, then a tree, then two versions of the truth. Lessons
+only; what shipped is in [`done.md`](done.md).
+
+### Running the app found what the tests could not — four times
+
+Every one of these passed `lint`, `tsc`, `test:coverage` **and** `build`:
+
+1. **A Kysely row is not a plain object.** Passing one from a server component
+   to a client component throws `Only plain objects can be passed to Client
+Components` **on the request**. Builds clean.
+2. **Dark theme hid a light-theme bug.** Almost every photograph here is shot
+   on white; against a near-white `bg-muted` the gallery tiles had no edge and
+   the grid dissolved into the page. Invisible in the default theme.
+3. **Resolving a conflict wrote the wrong base**, so the very next sync
+   overwrote the decision. Watched a category revert in the browser.
+4. **The mirror advanced past conflicted fields**, so a parked decision
+   silently resolved itself one run later.
+
+The pattern: **the four gates prove a change is well-formed, not that it is
+right.** Three and four in particular were only visible on the _second_ run of
+something — a class of bug no single test invocation reaches.
+
+### A pointer to "what we last saw" must not move past something undecided
+
+The generalisable form of bugs 3 and 4. Any base, cursor, watermark or
+high-water mark that means "reconciled up to here" has to stop at the first
+undecided item, not at the last one fetched. Advancing it past an open
+question answers that question by accident, in whichever direction the
+comparison happens to fall.
+
+### Check a library's transitive dependencies, not its download count
+
+`react-arborist` is actively maintained (published five weeks before we looked)
+and pins `react-dnd ^14.0.3` — **published 2022-01-02, one major behind
+react-dnd's own latest**. It would also have been a second drag engine beside
+the `@dnd-kit` already in the project. The headline version told us nothing;
+the dependency list decided it.
+
+### Measure before believing the trade-off
+
+The image change looked like paying bandwidth for fidelity. Measured, it was
+**73% lighter on the gallery and 98% on the product list** _while_ serving the
+pristine archive — because the old variant was a single 1600px file shared
+between a 40px thumbnail and a lightbox. A comment claiming the optimizer
+"cannot reach a relative path during a build" had been true of nothing, and
+removing one word (`unoptimized`) did all of it.
+
+Corollary: when a spec says "this will cost us X", that is a hypothesis with a
+number attached, and it is cheap to check before designing around it.
+
+### Read the gate before committing — twice, in one session
+
+Both times `coverage=1` was on the screen in the same output block as the
+commit. Both were fixed one commit later, which is not the same as not
+happening: the branch carries two commits that were red when made. Running the
+gate and _reading_ it are different acts.
+
+### The simplification worth looking for is "what does this data not need?"
+
+Siblings in the tree sort by name at every level, so a drag has no position to
+express — which deleted the entire offset-based projection that every
+drag-and-drop tree example is built around. `planMove` is forty lines with a
+cycle guard. The question that found it was not "how do I implement a sortable
+tree" but "what does a drop actually mean here".
+
+Same shape elsewhere: `react-window` was declined because 211 nodes at depth 3
+gain nothing from virtualization, and an unmounted row is not a drop target.
+
+### Build artifacts in a second `distDir` can break `tsc`
+
+`.next-e2e/dev/types/` is in `tsconfig.include` alongside `.next/types/`, so a
+route added since the last `test:e2e` run fails to typecheck with `does not
+satisfy the constraint 'AppRoutes'` while the main build has it right. Deleting
+the stale directory is the fix.
+
+---
+
 ## 2026-08-28 — the whole build (v1 → v2.1, one session)
 
 Five commits, from an empty directory to a product catalogue with a media
