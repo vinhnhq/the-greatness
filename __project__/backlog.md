@@ -113,6 +113,90 @@ Spec: [`specs/v5-pictures-and-walking-the-catalogue.md`](specs/v5-pictures-and-w
       narrower it will be worse. Found during the survey, left alone because
       the fix is a layout decision rather than a bug.
 
+## v6 — Two versions of the truth, reconciled on purpose
+
+Spec: [`specs/v6-two-versions.md`](specs/v6-two-versions.md).
+**Decided: not event-sourced** — Sapo emits no events, so their side can only
+ever be derived by diffing a stored snapshot, which is the mirror either way.
+Full reasoning in the spec; `L.7`'s decision stands.
+
+One migration (`006`). Ordered so **A** makes **C** safe — building the
+drag-and-drop first means building it against a sync that reverts it.
+
+### A · The mirror and the three-way merge
+
+- [ ] **V6.1** **Migration `006`: `sapo_mirror`** — `entity`, `sapoId`,
+      `payload` JSON, `syncedAt`, PK `entity + sapoId`. Backfills from the
+      current snapshot so the first v6 sync is quiet rather than reporting 832
+      conflicts. `products` and `categories` stay the effective rows: no read
+      path changes, which is the whole reason to mirror instead of doubling
+      every column.
+- [ ] **V6.2** **Mirror a product's memberships** as sorted category
+      `sapoId`s. This is the field drag-and-drop writes most, so it is the one
+      that most needs a base.
+- [ ] **V6.3** **`planSync` takes a `base`.** Red: the four outcomes —
+      unchanged, take-theirs, **keep-ours**, conflict. Keep-ours is the branch
+      that does not exist today and the reason for the whole version.
+- [ ] **V6.4** **Absent base means adopt.** A row with no mirror entry takes
+      incoming as authoritative and writes the mirror.
+- [ ] **V6.5** **Set-merge for memberships** — base/ours/theirs as sets, so
+      "we added X, they removed Y" is two independent facts rather than one
+      overwrite.
+- [ ] **V6.6** **The sync updates the mirror after applying**, in the same
+      transaction. A mirror that drifts from what was applied turns every
+      later run into a false conflict.
+
+### B · Seeing what diverged
+
+- [ ] **V6.7** **`sync:sapo --plan`** — dry run, changes nothing, prints the
+      four buckets. A push that cannot be previewed is one nobody runs twice.
+- [ ] **V6.8** **A divergence view**: rows where ours ≠ base, what changed and
+      when. Useful before anything is ever pushed, and it is the selection
+      `V6.15` would send.
+- [ ] **V6.9** **Conflict resolution UI** — base / ours / theirs side by side,
+      take-mine or take-theirs. Resolving must update the **mirror** too, or
+      the same conflict returns next run.
+
+### C · The split view, with drag and drop
+
+- [ ] **V6.10** **Split `/categories`** into tree-left, contents-right.
+      Selecting fills the right pane; it does not navigate. v5's
+      `/categories/[slug]` stays as the linkable deep view.
+- [ ] **V6.11** **Selection in the URL** (`?category=<slug>`), so a branch is
+      still shareable — consistent with `/products`.
+- [ ] **V6.12** **Drag to re-parent, on `@dnd-kit`.** The projection — target
+      depth and parent from the drag offset — is a **pure function of
+      (flattened tree, activeId, offset)** and is unit-tested like
+      `buildCategoryForest`, not by driving a browser. No new dependency: no
+      `react-window` (211 nodes, depth 3 — it buys nothing and breaks drop
+      targets), no `react-arborist` (a second drag engine pinned to
+      `react-dnd ^14` from 2022).
+- [ ] **V6.13** **Drag a product onto a category.** ⚠️ **Depends on A** —
+      without a base the next `sync:sapo` reverts it.
+- [ ] **V6.14** **`useOptimistic`, and honest on failure.** The row moves at
+      once; a failed action returns it and says why. Scoped state lives in the
+      `/categories` segment, not at the root.
+
+### D · Pushing back — blocked on a decision
+
+- [ ] **V6.15** ⏸ **Push a reviewed selection to Sapo** via the admin API
+      (`POST /admin/collects.json`, `PUT /admin/custom_collections/{id}.json`,
+      `PUT /admin/products/{id}.json`) as a private app, dry run first.
+      **Not computer-use** — that admin was measured stalling past 30s on
+      detail pages, cannot be dry-run, reports nothing, and runs as the
+      operator's own login against a store that also feeds Lazada, Shopee,
+      Tiki, TikTok Shop and Google Shopping. **Needs ADR-0003 first**, and the
+      answer may still be no.
+
+### Follow-up, additive
+
+- [ ] **V6.16** ↷ **An append-only change log on our side** — `(entity, id,
+field, from, to, actor, at)`. This is the part of the event-sourcing
+      idea worth keeping and it supersedes `L.7`: attribution, undo, and "what
+      did the agent propose and did we accept it", for maybe a twentieth of
+      the cost. Additive — it lands after the mirror without redesigning
+      anything. Note the asymmetry: only **our** side can have history.
+
 ## N — Later, unrelated to v2
 
 - [ ] **N.0** ↷ **Infinite scroll on `/gallery`.** It pages at 60 with a
@@ -167,6 +251,6 @@ Spec: [`specs/v5-pictures-and-walking-the-catalogue.md`](specs/v5-pictures-and-w
 - [ ] **L.6** ↷ **Bulk actions** — multi-select on the list for status changes
       and category assignment. Wanted the first time someone archives twenty
       products one at a time.
-- [ ] **L.7** ↷ **Audit trail.** v1 is not event-sourced by design, so there is
-      no record of who changed a price. A plain `product_revisions` table would
-      cover the actual need without reopening that decision.
+- [ ] **L.7** ↷ **Audit trail.** v1 is not event-sourced by design and v6
+      re-confirmed that (see `specs/v6-two-versions.md` §Why not events). The
+      concrete form this takes is now **`V6.16`**, an append-only change log.
