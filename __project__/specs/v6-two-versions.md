@@ -191,6 +191,12 @@ Sapo's history is unobtainable regardless.
   Google Shopping. Browser automation stays the fallback for a field the API
   genuinely cannot reach; none has been found. **Needs its own ADR first** — `0003` is the mirror, so this is `0004`.
 
+  > **Corrected 2026-09-02** — a field the API cannot reach _was_ found: the
+  > category tree. Sapo has no menu API at all, so browser automation stops
+  > being the fallback and becomes lane two of
+  > [ADR-0004](../decisions/0004-writing-back.md). The marketplace claim above
+  > is also unverified — see that ADR's amendment.
+
 ## Non-functional
 
 - **One migration** (`006`) adding `sapo_mirror` **and** `sync_conflicts`,

@@ -135,6 +135,53 @@ titles"_ — is this app's Taxonomy tab, shipping today.
 
 ---
 
+## 2b · What a Sapo edit actually reaches
+
+**Verified.** This matters because it is the blast radius of everything in
+[ADR-0004](../decisions/0004-writing-back.md), and the project had been
+assuming it was much wider.
+
+Every Sapo document that names the synchronised fields names the same two:
+_"đồng bộ thông tin **tồn kho** và **giá bán** của các sản phẩm từ Sapo lên
+sàn"_ — **stock and selling price**, Sapo → marketplace, with **orders**
+returning the other way. Products are linked by **SKU match** against listings
+that already exist on Shopee/Lazada/TikTok Shop/Tiki; Sapo attaches to them
+rather than creating them.
+
+| field                     | reaches a marketplace?          |
+| ------------------------- | ------------------------------- |
+| Stock                     | **yes**                         |
+| Price                     | **yes**                         |
+| Name, description, images | not in any marketplace sync doc |
+| **Category / collection** | **no**                          |
+| Menu / navigation         | **no** — storefront only        |
+
+**Categories cannot travel even in principle.** Every marketplace enforces its
+own mandatory taxonomy, unrelated to a Sapo collection. That is the
+multi-channel taxonomy problem from §4 seen from the other side, and it is why
+"one taxonomy, mapped per channel" is a real product rather than a wish.
+
+**Do not confuse ShopeeFood with Shopee.** ShopeeFood is a separate Sapo
+integration and it _does_ sync name, price, images and description. The Shopee
+marketplace channel does not.
+
+### The premise nobody checked
+
+The sentence _"a store that also feeds Lazada, Shopee, Tiki, TikTok Shop and
+Google Shopping"_ has been repeated since the **v4** spec — into v6, the
+backlog twice, and ADR-0004's risk section — and no evidence for it was ever
+recorded. The only marketplace references on the live storefront are theme
+footer social icons pointing at `shopee.vn`, `lazada.vn` and `tiktok.com`:
+generic homepages, not shop URLs, i.e. unconfigured theme placeholders.
+
+It may well be true. It has simply never been verified, and it is visible in
+ten seconds in the Sapo admin under **Kênh bán hàng / Sàn TMĐT**. Check before
+Block C.
+
+A sentence repeated four times is not thereby verified.
+
+---
+
 ## 3 · Does the mirror-and-merge pattern survive a push?
 
 **Opinion, argued from the code.**
@@ -257,7 +304,10 @@ Sapo — [Private Apps](https://help.sapo.vn/ung-dung-rieng-private-apps) ·
 [Collect](https://support.sapo.vn/collect) ·
 [linklist object](https://support.sapo.vn/linklist-object) ·
 [Metafield](https://support.sapo.vn/metafield) ·
-[Menu cấp 2, 3](https://help.sapo.vn/thiet-lap-menu-cap-2-3-tren-website-sapo)
+[Menu cấp 2, 3](https://help.sapo.vn/thiet-lap-menu-cap-2-3-tren-website-sapo) ·
+[Tổng quan sàn TMĐT](https://help.sapo.vn/tong-quan-ve-kenh-san-tmdt-shopee-tiki-tiktokshop-lazada) ·
+[Kết nối gian hàng](https://help.sapo.vn/ket-noi-kenh-va-gian-hang-tren-san-shopee-tiktok-shop-lazada-tiki-voi-sapo) ·
+[Liên kết sản phẩm Sapo–Shopee](https://help.sapo.vn/huong-dan-lien-ket-san-pham-giua-sapo-va-shopee)
 
 Shopify — [Menu API changelog (2024-07)](https://shopify.dev/changelog/graphql-admin-api-new-apis-for-menus-are-now-available-in-2024-07) ·
 [`menuCreate`](https://shopify.dev/docs/api/admin-graphql/latest/mutations/menucreate) ·

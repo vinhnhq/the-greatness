@@ -44,6 +44,13 @@ sync** from Sapo that refreshes the catalogue without destroying the tree.
   pushes to Lazada, Shopee, Tiki, TikTok Shop and Google Shopping — a bad
   category write does not stay in one place. **This needs an ADR before a
   line of code**, and it is not this version.
+
+  > **Corrected 2026-09-02** — left above as written because it is what was
+  > believed. Sapo propagates only **stock and price** to the marketplaces, so
+  > a category write does in fact stay in one place; and the claim that this
+  > store feeds those channels was never verified. See
+  > [ADR-0004's amendment](../decisions/0004-writing-back.md#amendments).
+
 - **An agent applying classifications unattended.** v4 lets an agent
   _propose_; a person accepts. The eight fan products currently filed under
   all eleven fan categories — a rechargeable mini fan under _Quạt trần_

@@ -79,12 +79,12 @@ Sapo into this app. A–C stand on their own without it.
 
 ### ⊘ Blocked on a decision, deliberately
 
-- [ ] **V4.17** ⏸ **Write-back to Sapo.** `POST /admin/collects.json` works
-      and is authenticated as a private app; Collects 422 on smart
-      collections. It also inverts the system-of-record relationship, and this
-      store pushes to Lazada, Shopee, Tiki, TikTok Shop and Google Shopping —
-      a bad write does not stay in one place. **Needs an ADR first, and the
-      answer may be no.**
+- [x] **V4.17** → **decided.** Superseded by
+      [ADR-0004](decisions/0004-writing-back.md) and built as v8 Blocks B–D.
+      Its "a bad write does not stay in one place" was right in spirit and
+      wrong in detail: only **stock and price** reach the marketplaces, so
+      memberships and categories stay on the storefront. See the ADR's
+      amendment.
 
 ## v5 — Sharper pictures, and a catalogue you can walk
 
@@ -227,7 +227,11 @@ identical green pills, while 697 unfiled · 299 no description · 160 no price �
       is the 697, and the reason the whole lane exists.
 - [ ] **V8.13** Apply categories and product fields —
       `custom_collections.json`, `products/{id}.json`. **Never `parentId`**:
-      Sapo has nowhere to put it.
+      Sapo has nowhere to put it. And **not `price` in the first cut** —
+      stock and price are the only two fields Sapo propagates to Shopee,
+      Lazada, TikTok Shop and Tiki, so price is the one write here with reach
+      beyond the storefront. Name, slug, SKU and status only; price behind its
+      own switch, later, or never.
 - [ ] **V8.14** Read back and diff. An item is `verified` only when Sapo
       confirms it. **The publish does not touch the mirror** — the next
       ordinary `sync:sapo` moves it. This is the v6 trap in its worst costume;
@@ -248,9 +252,18 @@ identical green pills, while 697 unfiled · 299 no description · 160 no price �
       least trustworthy "success" there is.
 
 **Before any of Block C or D runs against the real store** — `N.3` is still
-unanswered and this is the first outward-facing write in the project. The
-store also feeds Lazada, Shopee, Tiki, TikTok Shop and Google Shopping, so a
-bad publish is customer-visible immediately.
+unanswered and this is the first outward-facing write in the project.
+
+Two things to check first, neither of which is code:
+
+- **Is anything actually connected?** Sapo admin → **Kênh bán hàng / Sàn
+  TMĐT**. The claim that this store feeds Lazada, Shopee, Tiki, TikTok Shop
+  and Google Shopping has been repeated since v4 with no recorded evidence;
+  the only marketplace references on the storefront are theme footer social
+  icons pointing at generic homepages.
+- **Only stock and price propagate anyway.** Memberships, categories and the
+  menu are storefront-only. Price is the single field with reach, which is
+  why `V8.13` holds it back.
 
 ## N — Later, unrelated to v2
 

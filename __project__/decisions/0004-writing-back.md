@@ -124,12 +124,61 @@ that runs outside the request cycle, and a read-back pass that doubles the
 round trips. The publisher is a job, not a server action, and this is the
 first part of the system that needs somewhere to run.
 
-**Risky, and named.** This is the first outward-facing write in the project.
-The store it writes to also feeds Lazada, Shopee, Tiki, TikTok Shop and
-Google Shopping, so a bad publish is customer-visible immediately. Three
-mitigations, all required: **never delete**, **always dry-run first**, and
-**always verify by reading back**.
+**Risky, and named.** This is the first outward-facing write in the project,
+so a bad publish is customer-visible immediately. Three mitigations, all
+required: **never delete**, **always dry-run first**, and **always verify by
+reading back**. See the amendment below for what the blast radius actually
+is — it is narrower than this ADR first assumed, and concentrated in one
+field.
 
 **Unchanged.** Sapo is still the system of record. This does not make the app
 a co-equal writer; it makes a reviewed, human-approved decision able to
 travel.
+
+## Amendments
+
+### 2026-09-02 — what actually reaches the marketplaces
+
+This ADR was accepted the same day, citing "a store that also feeds Lazada,
+Shopee, Tiki, TikTok Shop and Google Shopping". Two corrections, both from
+reading Sapo's own docs rather than assuming.
+
+**Only two fields propagate.** Every Sapo document that names them names the
+same pair: _"đồng bộ thông tin **tồn kho** và **giá bán** của các sản phẩm từ
+Sapo lên sàn"_ — stock and selling price, Sapo → marketplace, with orders
+coming back the other way. Products are linked by **SKU match** against
+listings that already exist on the marketplace; Sapo attaches to them rather
+than creating them.
+
+Name, description, images and **category** appear in no marketplace sync
+document. Categories certainly do not travel — every marketplace enforces its
+own mandatory taxonomy that has nothing to do with a Sapo collection.
+
+(Not to be confused with **ShopeeFood**, a different Sapo integration, which
+_does_ sync name, price, images and description. Reading one as the other is
+an easy mistake.)
+
+**So the blast radius is one field.** Of everything v8 would write:
+
+|                                   | reaches a marketplace?              |
+| --------------------------------- | ----------------------------------- |
+| `collects` — memberships, the 697 | **no.** Storefront only             |
+| `custom_collections` — categories | **no**                              |
+| The menu tree (lane two)          | **no.** Storefront only             |
+| `products/{id}.json` — **price**  | **yes**, to every connected channel |
+
+Consequence for the build: **price is held out of the first cut** (`V8.13`),
+behind its own explicit switch. That removes the only genuinely dangerous
+field, which is a better mitigation than a warning paragraph.
+
+**And the premise itself is unverified.** The claim that this store feeds
+those channels has been repeated since the v4 spec and no evidence for it has
+ever been recorded. The only marketplace references on the live storefront are
+theme footer social icons pointing at `shopee.vn`, `lazada.vn` and
+`tiktok.com` — generic homepages, not shop URLs, i.e. unconfigured theme
+placeholders. Whether channels are actually connected is visible only in the
+Sapo admin under **Kênh bán hàng / Sàn TMĐT**, which has not been checked.
+
+This does not change the decision. It changes what the risk section is
+entitled to assert, and it is a reminder that a sentence repeated four times
+is not thereby verified.
