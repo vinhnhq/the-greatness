@@ -7,6 +7,68 @@ Newest session first.
 
 ---
 
+## 2026-09-02 — the taxonomy workspace (v7)
+
+Six blocks, six commits, and six bugs that all four gates waved through.
+
+**Start from the number, not the feature.** The request was "put products in
+the tree, add a menu, fix the spacing". Counting first changed all three:
+**697 of 832 products are filed nowhere and 191 of 211 categories are empty.**
+That one query decided that Unfiled had to be a node, that a picker had to
+replace drag rather than supplement it, and that bulk filing was not a stretch
+goal. A feature list read off a request describes what to build; the data
+describes what it is _for_. The count took thirty seconds and was already
+written down in `data/sapo/README.md`.
+
+**Generated components are not verified components.** Two of the six bugs were
+in `src/components/ui/`: `CommandDialog` omitted its own `<Command>` wrapper,
+which makes it throw on first render, and put its `DialogTitle` outside
+`DialogContent`, where Radix cannot find it. Both had been sitting in the repo
+since the day they were added, because nothing had used that component yet.
+Adding a shadcn component is not the same as trying it.
+
+**A query by role and name is an accessibility test you get for free.** Three
+bugs surfaced as Playwright locators that found nothing: a `<Label>` with no
+`htmlFor`, a dialog with no accessible title, a checkbox with no name. Each
+one was invisible to the eye and to `tsc`, and each is a real screen-reader
+defect. Writing the e2e in terms of roles and names, rather than CSS selectors
+or test ids, is what turns the suite into that check.
+
+**A ring is drawn outside the box.** Tailwind's `ring` is an outer box-shadow,
+so on rows with no vertical gap the highlight lands on the neighbours. This
+was reported as "the border is overlapped" and was invisible until someone
+said so. Its quieter twin: `h-7` and `self-stretch` on the same element fight,
+because align-self only stretches an _auto_ height — the indent rails had been
+stopping short of every row since v5.
+
+**A library that mints ids from a module counter cannot be server-rendered.**
+dnd-kit numbered its context from a global, so the server said
+`DndDescribedBy-0` and the client `DndDescribedBy-14`. It had been a hydration
+mismatch on every render of `/categories` since v5, silent unless the console
+is open. The fix is one `id` prop; the lesson is to open the console after a
+render change, not only when something looks wrong.
+
+**Prefer one element that changes behaviour to two that render the same
+content.** The detail pane is a column at `lg` and a drawer below it. Both
+obvious approaches are worse: rendering a pane _and_ a `Sheet` puts the form in
+the DOM twice — two copies of the state, duplicate ids on every label — and
+switching on a media query in JS is a hydration mismatch by construction. One
+node whose positioning changes at the breakpoint has neither problem, and
+`inert` is what keeps the parked copy out of the tab order.
+
+**Seven callbacks threaded four levels deep is a shape, not a nuisance.**
+Collapsing them into one `RowActions` object made the next three menu items
+free. The signal was that every new feature was adding a prop to four
+components at once.
+
+**Run the dry run after the gates.** `sync:sapo --plan` with a real local edit
+is the only check that the thing v7 built still survives the thing v6 built.
+The gates prove a change compiles and its tests pass; they say nothing about
+whether a _second_ run of something else undoes it — and both of v6's real
+bugs were exactly that.
+
+---
+
 ## 2026-09-01 → 09-02 — the catalogue grows a shape (v3 → v6)
 
 Real Sapo data arrived, then a tree, then two versions of the truth. Lessons

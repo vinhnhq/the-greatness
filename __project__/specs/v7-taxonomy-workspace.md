@@ -1,7 +1,8 @@
 # v7 — The taxonomy workspace, and the 697
 
-**Status:** 📝 Planned 2026-09-02. Follows
-[v6](v6-two-versions.md).
+**Status:** ✅ Shipped 2026-09-02, all six blocks. Follows
+[v6](v6-two-versions.md). Ship facts and the six bugs the gates passed are in
+[`done.md`](../done.md); what v7 deliberately left is `V7.24`–`V7.28`.
 
 > Decided before writing: **keep `@dnd-kit`, add a menu beside it.** The
 > alternative reviewed was

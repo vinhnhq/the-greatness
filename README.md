@@ -107,9 +107,28 @@ storefront shows live in theme menu config. So the tree here is reconstructed
 once (`lib/sapo-tree.ts`, from the menu markup plus collection creation order)
 and **owned by this app** from then on; the sync never writes `parentId`.
 
-`/categories` is a split view: the tree on the left, the selected category's
-products on the right, drag to re-parent or to file a product. Counts are
-**distinct, not summed** — eight fans filed in nine fan categories are eight.
+`/categories` has two tabs. **Taxonomy** is the whole catalogue as one tree —
+categories with their products hanging off them, an editor's file tree rather
+than a list — and whatever you pick beside it. **Categories** is the flat CRUD
+list the way Sapo shows it, with a path column so a flat row is still
+identifiable. Counts are **distinct, not summed** — eight fans filed in nine
+fan categories are eight.
+
+The shape of the real data drives the page: **697 of the 832 products are in
+no category, and 191 of the 211 categories are empty.** So _Unfiled_ is a node
+in the tree rather than an omission, and filing — not browsing — is what the
+page is built around:
+
+- **Move to… / File in…** from a row's menu (right-click, or the `⋮`), a
+  searchable list of all 211 categories with their full paths. Drag needs both
+  ends on screen at once; this does not, which is what makes it work on a
+  laptop and on touch.
+- **Drag** for a short hop between two rows you can both see.
+- **Tick several products** and file them together, because 697 one at a time
+  is not a workflow.
+
+Everything here is a local edit, and the mirror below is what makes it
+survive.
 
 ## Keeping two versions honest
 

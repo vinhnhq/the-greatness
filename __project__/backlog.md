@@ -148,94 +148,28 @@ field, from, to, actor, at)`. The part of the event-sourcing idea worth
 ## v7 — The taxonomy workspace, and the 697
 
 Spec: [`specs/v7-taxonomy-workspace.md`](specs/v7-taxonomy-workspace.md).
-**Planned 2026-09-02, nothing built yet.** The number that shapes it: **697 of
-832 products are filed nowhere**, and **191 of 211 categories are empty**.
-Filing is the job; drag is not how you do it 697 times.
+**V7.1–V7.23 shipped 2026-09-02** — ship facts in [`done.md`](done.md).
+What is left:
 
-**Block A — tabs, and Categories goes flat**
-
-- [ ] **V7.1** `?tab=taxonomy|categories` on `/categories`, `Tabs` shell,
-      Taxonomy default. URL state for the same reason `?category=` is —
-      linkable, survives a reload.
-- [ ] **V7.2** Flat Categories tab: `Name · Path · Slug · Products · Sapo · ⋯`.
-      **Path** (`Điện gia dụng › Nhà bếp › Nồi`) comes from the existing
-      `ancestorNames` and is what Sapo's own flat list cannot give you.
-- [ ] **V7.3** Delete the hierarchy from `categories-table.tsx` — the tree
-      lives in Taxonomy now. Net deletion from a 424-line file; check its
-      tests before, not after.
-
-**Block B — spacing, and the overlap**
-
-- [ ] **V7.4** **The overlap is the ring.** `ring-1 ring-primary/40` is an
-      _outer_ box-shadow, so with zero vertical gap one row's highlight paints
-      over its neighbour. `ring-inset`, and indent guides move from
-      `self-stretch` siblings (fighting the row's `h-7`) to one
-      `absolute inset-y-0` layer.
-- [ ] **V7.5** Row rhythm ~28px → ~34px. VS Code's 22px is a mouse-only
-      surface; this one is dragged on and tapped.
-- [ ] **V7.6** Verify in the browser at **1280×800** (the laptop this came
-      from) and 1440, both themes. A light-theme-only bug has been found here
-      before — see `retro.md`.
-
-**Block C — products in the tree**
-
-- [ ] **V7.7** One read for `id, name, sku, status` per product. **No media
-      join** — a prefix icon, not a thumbnail. Measure the RSC payload; ~80 KB
-      expected for 832 names.
-- [ ] **V7.8** Product leaves in `buildCategoryForest`. Keys are
-      `${categoryId}:${productId}` — a product in 11 categories appears 11
-      times and that is correct. It is also why the menu says _Remove from
-      this category_, never _Delete_.
-- [ ] **V7.9** VS Code-style icons: `Folder`/`FolderOpen` for categories,
-      `Package` for products, muted for a draft.
-- [ ] **V7.10** **Unfiled** pseudo-root holding the 697. Computed, not a row:
-      cannot be renamed, deleted, or dropped onto.
-- [ ] **V7.11** Filter-first rendering: Unfiled caps at 100 with its true
-      count; a type-to-filter box scopes the whole tree via the existing
-      `filterForest`. **No virtualization** — an unmounted row is not a drop
-      target, and Unfiled is exactly where dropping happens.
-
-**Block D — the detail drawer**
-
-- [ ] **V7.12** `?product=<id>`, server-rendered into a slot — the pattern
-      `contents` already uses, so the repository stays out of the browser
-      bundle and `router.replace` updates props without remounting the tree
-      (expand state survives).
-- [ ] **V7.13** Persistent right pane at `lg+`, `Sheet` below. One content
-      component, two shells.
-- [ ] **V7.14** Quick edit, not the whole `ProductForm`: name, slug, SKU,
-      price, status, memberships, primary-image preview, _Open full editor →_.
-      The media field wants a full page and a filing session never touches it.
-- [ ] **V7.15** Category selected → the pane shows its path, direct products,
-      rename, Sapo link.
-
-**Block E — the menu (the point of the version)**
-
-- [ ] **V7.16** `ContextMenu` primitive (shadcn, over the installed
-      `radix-ui`).
-- [ ] **V7.17** Right-click **and** a `⋮` button, same menu. Both: right-click
-      is undiscoverable and absent on touch.
-- [ ] **V7.18** Category menu — Move to… · Move to top level · Rename · Add
-      child · Open in Sapo · Delete.
-- [ ] **V7.19** Product menu — Open · File in… · Remove from this category ·
-      Open in Sapo.
-- [ ] **V7.20** **Move to… / File in…**: a `Command` palette over all 211
-      categories with full paths, illegal targets excluded by `planMove` —
-      which takes `(id, targetId)` and no coordinates, so no new validation.
-      This is what replaces drag on a long list.
-- [ ] **V7.21** Keep drag, keep its e2e spec green (`dragOnto` in
-      `e2e/category-tree.spec.ts`).
-
-**Block F — bulk filing** (promotes `L.6`, scoped to filing only)
-
-- [ ] **V7.22** Checkbox multi-select in the tree.
-- [ ] **V7.23** _File N products in…_ through the same picker. Confirmation
-      names the count **and** the target: a mis-aimed bulk file touches N rows
-      and there is still no ⌘Z (`V6.16`/`V6.18` are the real answer).
-
-**After the gates** — run `bun run sync:sapo --plan`. Filing writes
-memberships, and memberships are a merged set; confirm the merge still reports
-them correctly rather than assuming it.
+- [ ] **V7.24** ↷ **A locally-added link to a _Sapo_ category is kept but
+      counted nowhere.** `sync:sapo`'s `keptLocal` counts only links to
+      categories with no `sapoId`, so filing a product into an imported
+      category reports "0 kept" while correctly keeping it. Found by running
+      `--plan` after v7 with a real local edit: the behaviour is right, the
+      summary understates it. A summary nobody trusts is one nobody reads.
+- [ ] **V7.25** ↷ **Undo for a bulk file.** `V7.23` touches N rows and there
+      is still no ⌘Z; the confirmation names the count and the target, which
+      is mitigation, not a fix. `V6.16` is the honest answer.
+- [ ] **V7.26** ↷ **Rename from the row menu.** The flat list renames in
+      place; the tree's menu offers Move, Add, Sapo and Delete but sends a
+      rename to the other tab.
+- [ ] **V7.27** ↷ **Keyboard navigation in the tree.** Arrow keys to move
+      between rows, `→`/`←` to open and close. The rows are buttons, so tab
+      order works and every action is reachable — but 900 tab stops is
+      reachable, not usable.
+- [ ] **V7.28** ↷ **The Unfiled cap is a constant, not a page.** 100 with a
+      count and a filter is right for finding something; it is not a way to
+      work through 697 in order. A "show the next 100" would be.
 
 ## N — Later, unrelated to v2
 

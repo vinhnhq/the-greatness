@@ -3,6 +3,81 @@
 > Newest at top: `YYYY-MM-DD · <sha> · <task id> <description>`.
 > Cut the line out of [`backlog.md`](backlog.md); never keep-and-tick.
 
+## v7 — The taxonomy workspace, and the 697 · ✅ 2026-09-02
+
+Spec: [`specs/v7-taxonomy-workspace.md`](specs/v7-taxonomy-workspace.md).
+
+The version began with a number rather than a feature: **697 of 832 products
+are filed in no category, and 191 of 211 categories are empty.** Everything
+else followed. A tree of only filed products shows a sixth of the shop, so
+Unfiled is a node. Filing is the job, so a searchable picker — not drag — is
+the primary way to do it. And nobody files 697 things one at a time, so the
+selection bar is not a nicety.
+
+- **The catalogue is one tree now.** Products hang off every category they
+  belong to, VS Code style: a prefix icon, not a thumbnail, because the tree
+  carries all 832 at once and a thumbnail would fetch 786 assets to draw a
+  14px glyph. A product in eleven categories appears eleven times, which is
+  correct, and is why its menu says _remove from this category_ and never
+  _delete_.
+- **Unfiled caps at 100 and says how many more**, rather than virtualising: an
+  unmounted row is not a drop target and Unfiled is exactly where dropping
+  happens. The filter is how you reach the rest — categories and products,
+  names and SKUs, folded so `noi com` finds `Nồi cơm`.
+- **"Move to…" / "File in…" is the point of the version.** Drag needs source
+  and target on screen together, which at depth three with 211 categories is
+  often impossible on a 13-inch screen and always impossible on touch. The
+  picker asks `planMove` which targets are legal rather than re-deriving the
+  rule, and omits them rather than disabling them. Drag stays for a short hop.
+- **Two tabs.** The tree left the CRUD list, which went flat the way Sapo
+  shows it and gained the one thing Sapo's own list cannot carry: a path
+  column. `?tab=` moves by `window.history.replaceState`, not `router.replace`
+  — there is no server data behind a tab, so a round-trip for a toggle would
+  be waste. Net deletion from a 424-line file.
+- **Verified with `sync:sapo --plan` after the gates**, which is the check the
+  gates cannot make: a product filed here, then a dry run against the real
+  211/832 — kept, not reverted. The merge sees a member we added and Sapo did
+  not.
+
+**Six bugs the four gates passed and something else caught.** Two by looking
+at the page, four by an e2e query:
+
+- The drop highlight was painted **over its neighbours**: a Tailwind ring is
+  an outer box-shadow and these rows sit flush. `ring-inset`. The indent rails
+  had a quieter version of the same — `h-7` and `self-stretch` fight, because
+  align-self only stretches an auto height, so the rails read as dashes.
+- **dnd-kit mints its context id from a module counter**, so the server said
+  `DndDescribedBy-0` and the client `DndDescribedBy-14` — a hydration mismatch
+  on every render of the page. Both contexts now carry a stable `id`.
+- **`<Label>` with no `htmlFor` is decoration.** Every control in the detail
+  pane had no accessible name until a query by role and name failed.
+- **The generated `CommandDialog` omits its `<Command>` wrapper**, so
+  `CommandInput` threw `Cannot read properties of undefined (reading
+'subscribe')` on first render — nothing in the app had used it before. Its
+  `DialogTitle` also sat outside `DialogContent`, where Radix's
+  `aria-labelledby` cannot find it.
+- **cmdk's matcher does not fold Vietnamese diacritics**, so `quat thap` found
+  nothing in the picker. It now uses the same `foldForSearch` as everything
+  else.
+- **A React key warning at the RSC boundary.** The pane's content crosses into
+  an array of siblings React validates; `ProductQuickEdit` had a key and
+  `CategoryContents` did not.
+
+Ship lines:
+
+- 2026-09-02 · `1e75870` · **V7.1–V7.3** Tabs; the Categories tab goes flat
+  with a path column; the tree leaves `categories-table.tsx`.
+- 2026-09-02 · `793147f` · **V7.4–V7.6** The drop highlight stops overlapping;
+  rows 30px → 36px; verified at 1280×800 in both themes.
+- 2026-09-02 · `4b872f9` · **V7.7–V7.11** Products as tree leaves; the Unfiled
+  node; filter-first over categories and products; `listForTree`.
+- 2026-09-02 · `a15e8c2` · **V7.12–V7.15** `?product=`; a pane at `lg` and a
+  drawer below it, one element rather than two; the quick edit.
+- 2026-09-02 · `f0ff0c9` · **V7.16–V7.21** Right-click and `⋮`, the same menu;
+  the "Move to…" picker; `unassignCategory`; `createCategory` takes a parent.
+- 2026-09-02 · `7936194` · **V7.22–V7.23** Multi-select and bulk filing, with
+  counts in the toast because "done" hides a half-applied selection.
+
 ## v6 — Two versions of the truth, reconciled on purpose · ✅ 2026-09-02
 
 The sync stopped overwriting. `sapo_mirror` stores the payload Sapo gave us

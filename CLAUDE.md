@@ -8,8 +8,9 @@ deliberately short and delegates everything else.**
 ## What this is
 
 A **product-catalogue admin dashboard** built on Next.js 16 + Bun. An operator
-signs in, manages products with many categories, and works from a **media
-library** that products link into. **Sapo is the system of record** — this is
+signs in, manages products with many categories from a **taxonomy tree** that
+holds the whole catalogue, and works from a **media library** that products
+link into. **Sapo is the system of record** — this is
 a companion view over the same catalogue, and every imported row carries a
 `sapoId` that `lib/sapo.ts` turns into a link back to it. Local development runs on embedded SQLite
 with files on disk; deployed it is Neon + Vercel Blob, chosen by two
@@ -26,13 +27,11 @@ Kysely, co-located operations, `__project__/` docs).
   adds project-specific context.
 - **Current state** — [`__project__/done.md`](__project__/done.md) (write-once
   ship history) and [`__project__/backlog.md`](__project__/backlog.md) (open
-  work only). Headline as of **2026-09-02**: v1 → v6 shipped. v1–v2.1 are on
-  `main`; **v3 → v6 are 22 commits on the unmerged branch `feat/v4-taxonomy`**,
+  work only). Headline as of **2026-09-02**: v1 → v7 shipped. v1–v2.1 are on
+  `main`; **v3 → v7 are 30 commits on the unmerged branch `feat/v4-taxonomy`**,
   gates green, no PR opened yet. Two things are still true from day one:
   **nothing is deployed**, and neither the Neon nor the Blob seam has met the
   real service (backlog `N.3`) — that remains the largest unmeasured risk.
-  **v7 is specced and unstarted** — the taxonomy workspace, driven by the fact
-  that **697 of 832 products are filed in no category at all**.
 - **Intent** — [`__project__/specs/`](__project__/specs/), one per version.
   v1 is **frozen and partly superseded** — it describes media as belonging to
   a product, which [v2](__project__/specs/v2-media-library.md) inverted. Its
@@ -149,6 +148,25 @@ Things a session will hit, in rough order of how much time they cost.
 - **A Kysely row is not a plain object.** Passing one from a server component
   to a client component builds fine and throws "Only plain objects can be
   passed to Client Components" on the request. Rebuild the fields you need.
+- **A Tailwind `ring` is drawn _outside_ the box.** On rows with no vertical
+  gap — the category tree — a `ring-1` highlight paints over the neighbour
+  above and below. Use `ring-inset`. Its twin: `h-*` and `self-stretch` on the
+  same element fight, because align-self only stretches an **auto** height, so
+  a fixed-height indent rail stops short of a taller row.
+- **dnd-kit needs an explicit `id` on `DndContext`.** Without one it mints
+  ids from a module-level counter, so the server renders `DndDescribedBy-0`
+  and the client `DndDescribedBy-14` — a hydration mismatch on every render,
+  silent unless the console is open.
+- **A generated `ui/` component may never have been run.** `CommandDialog`
+  shipped without its own `<Command>` wrapper (so `CommandInput` throws
+  `reading 'subscribe'`) and with its `DialogTitle` outside `DialogContent`.
+  Both fixed; the lesson is that `shadcn add` is not a smoke test.
+- **cmdk's default matcher does not fold Vietnamese.** Pass
+  `filter={(v, s) => foldForSearch(v).includes(foldForSearch(s)) ? 1 : 0}`, the
+  same fold as `searchText` and every other search here.
+- **A server-rendered node handed to a client component needs a `key`.** It
+  crosses the RSC boundary into an array React validates, so an unkeyed
+  element warns even though it looks like a lone child.
 - **Tailwind v4 has no config file.** Tokens live in `src/app/globals.css` via
   `@theme`; the preset is shadcn `radix-maia`, base `neutral`.
 
