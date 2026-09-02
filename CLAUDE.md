@@ -31,6 +31,8 @@ Kysely, co-located operations, `__project__/` docs).
   gates green, no PR opened yet. Two things are still true from day one:
   **nothing is deployed**, and neither the Neon nor the Blob seam has met the
   real service (backlog `N.3`) — that remains the largest unmeasured risk.
+  **v7 is specced and unstarted** — the taxonomy workspace, driven by the fact
+  that **697 of 832 products are filed in no category at all**.
 - **Intent** — [`__project__/specs/`](__project__/specs/), one per version.
   v1 is **frozen and partly superseded** — it describes media as belonging to
   a product, which [v2](__project__/specs/v2-media-library.md) inverted. Its

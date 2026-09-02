@@ -145,6 +145,99 @@ field, from, to, actor, at)`. The part of the event-sourcing idea worth
       already a real transaction. Run `fetch:sapo` first for a plan about
       today.
 
+## v7 — The taxonomy workspace, and the 697
+
+Spec: [`specs/v7-taxonomy-workspace.md`](specs/v7-taxonomy-workspace.md).
+**Planned 2026-09-02, nothing built yet.** The number that shapes it: **697 of
+832 products are filed nowhere**, and **191 of 211 categories are empty**.
+Filing is the job; drag is not how you do it 697 times.
+
+**Block A — tabs, and Categories goes flat**
+
+- [ ] **V7.1** `?tab=taxonomy|categories` on `/categories`, `Tabs` shell,
+      Taxonomy default. URL state for the same reason `?category=` is —
+      linkable, survives a reload.
+- [ ] **V7.2** Flat Categories tab: `Name · Path · Slug · Products · Sapo · ⋯`.
+      **Path** (`Điện gia dụng › Nhà bếp › Nồi`) comes from the existing
+      `ancestorNames` and is what Sapo's own flat list cannot give you.
+- [ ] **V7.3** Delete the hierarchy from `categories-table.tsx` — the tree
+      lives in Taxonomy now. Net deletion from a 424-line file; check its
+      tests before, not after.
+
+**Block B — spacing, and the overlap**
+
+- [ ] **V7.4** **The overlap is the ring.** `ring-1 ring-primary/40` is an
+      *outer* box-shadow, so with zero vertical gap one row's highlight paints
+      over its neighbour. `ring-inset`, and indent guides move from
+      `self-stretch` siblings (fighting the row's `h-7`) to one
+      `absolute inset-y-0` layer.
+- [ ] **V7.5** Row rhythm ~28px → ~34px. VS Code's 22px is a mouse-only
+      surface; this one is dragged on and tapped.
+- [ ] **V7.6** Verify in the browser at **1280×800** (the laptop this came
+      from) and 1440, both themes. A light-theme-only bug has been found here
+      before — see `retro.md`.
+
+**Block C — products in the tree**
+
+- [ ] **V7.7** One read for `id, name, sku, status` per product. **No media
+      join** — a prefix icon, not a thumbnail. Measure the RSC payload; ~80 KB
+      expected for 832 names.
+- [ ] **V7.8** Product leaves in `buildCategoryForest`. Keys are
+      `${categoryId}:${productId}` — a product in 11 categories appears 11
+      times and that is correct. It is also why the menu says *Remove from
+      this category*, never *Delete*.
+- [ ] **V7.9** VS Code-style icons: `Folder`/`FolderOpen` for categories,
+      `Package` for products, muted for a draft.
+- [ ] **V7.10** **Unfiled** pseudo-root holding the 697. Computed, not a row:
+      cannot be renamed, deleted, or dropped onto.
+- [ ] **V7.11** Filter-first rendering: Unfiled caps at 100 with its true
+      count; a type-to-filter box scopes the whole tree via the existing
+      `filterForest`. **No virtualization** — an unmounted row is not a drop
+      target, and Unfiled is exactly where dropping happens.
+
+**Block D — the detail drawer**
+
+- [ ] **V7.12** `?product=<id>`, server-rendered into a slot — the pattern
+      `contents` already uses, so the repository stays out of the browser
+      bundle and `router.replace` updates props without remounting the tree
+      (expand state survives).
+- [ ] **V7.13** Persistent right pane at `lg+`, `Sheet` below. One content
+      component, two shells.
+- [ ] **V7.14** Quick edit, not the whole `ProductForm`: name, slug, SKU,
+      price, status, memberships, primary-image preview, *Open full editor →*.
+      The media field wants a full page and a filing session never touches it.
+- [ ] **V7.15** Category selected → the pane shows its path, direct products,
+      rename, Sapo link.
+
+**Block E — the menu (the point of the version)**
+
+- [ ] **V7.16** `ContextMenu` primitive (shadcn, over the installed
+      `radix-ui`).
+- [ ] **V7.17** Right-click **and** a `⋮` button, same menu. Both: right-click
+      is undiscoverable and absent on touch.
+- [ ] **V7.18** Category menu — Move to… · Move to top level · Rename · Add
+      child · Open in Sapo · Delete.
+- [ ] **V7.19** Product menu — Open · File in… · Remove from this category ·
+      Open in Sapo.
+- [ ] **V7.20** **Move to… / File in…**: a `Command` palette over all 211
+      categories with full paths, illegal targets excluded by `planMove` —
+      which takes `(id, targetId)` and no coordinates, so no new validation.
+      This is what replaces drag on a long list.
+- [ ] **V7.21** Keep drag, keep its e2e spec green (`dragOnto` in
+      `e2e/category-tree.spec.ts`).
+
+**Block F — bulk filing** (promotes `L.6`, scoped to filing only)
+
+- [ ] **V7.22** Checkbox multi-select in the tree.
+- [ ] **V7.23** *File N products in…* through the same picker. Confirmation
+      names the count **and** the target: a mis-aimed bulk file touches N rows
+      and there is still no ⌘Z (`V6.16`/`V6.18` are the real answer).
+
+**After the gates** — run `bun run sync:sapo --plan`. Filing writes
+memberships, and memberships are a merged set; confirm the merge still reports
+them correctly rather than assuming it.
+
+
 ## N — Later, unrelated to v2
 
 - [ ] **N.0** ↷ **Infinite scroll on `/gallery`.** It pages at 60 with a
@@ -198,7 +291,8 @@ field, from, to, actor, at)`. The part of the event-sourcing idea worth
       catalogue's operators are Vietnamese-speaking, so this is a _when_.
 - [ ] **L.6** ↷ **Bulk actions** — multi-select on the list for status changes
       and category assignment. Wanted the first time someone archives twenty
-      products one at a time.
+      products one at a time. **The category-assignment half is now `V7.22`/
+      `V7.23`**; what stays here is bulk *status* changes on `/products`.
 - [ ] **L.7** ↷ **Audit trail.** v1 is not event-sourced by design and v6
       re-confirmed that (see `specs/v6-two-versions.md` §Why not events). The
       concrete form this takes is now **`V6.16`**, an append-only change log.
