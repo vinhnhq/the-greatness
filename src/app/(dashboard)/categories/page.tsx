@@ -148,9 +148,15 @@ export default async function CategoriesPage({
             categories={categories}
             links={links}
             products={treeProducts}
+            // Both branches are keyed by what they show. The pane's content
+            // crosses the RSC boundary into an array of siblings that React
+            // validates, so an unkeyed element warns — and the key is the
+            // right answer on its own terms: switching from a category to a
+            // product should remount the pane, not reuse its state.
             contents={
               detail ?? (
                 <CategoryContents
+                  key={contents.title ?? "empty"}
                   title={contents.title}
                   path={contents.path}
                   slug={contents.slug}

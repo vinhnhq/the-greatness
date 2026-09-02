@@ -43,7 +43,9 @@ export type PickerTarget =
       readonly id: string;
       readonly name: string;
       readonly alreadyIn: readonly string[];
-    };
+    }
+  /** File a whole selection. Nothing is ticked — they rarely agree. */
+  | { readonly kind: "fileMany"; readonly count: number };
 
 export function CategoryPickerDialog<T extends TreeCategory>({
   target,
@@ -100,13 +102,15 @@ export function CategoryPickerDialog<T extends TreeCategory>({
       filter={(value, search) =>
         foldForSearch(value).includes(foldForSearch(search)) ? 1 : 0
       }
-      title={target?.kind === "file" ? "File in…" : "Move to…"}
+      title={target?.kind === "move" ? "Move to…" : "File in…"}
       description={
         target === null
           ? ""
-          : target.kind === "file"
-            ? `Choose a category for ${target.name}.`
-            : `Choose a new parent for ${target.name}.`
+          : target.kind === "move"
+            ? `Choose a new parent for ${target.name}.`
+            : target.kind === "file"
+              ? `Choose a category for ${target.name}.`
+              : `Choose a category for ${target.count} products.`
       }
     >
       <CommandInput placeholder="Search categories…" />

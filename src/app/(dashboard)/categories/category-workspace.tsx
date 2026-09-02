@@ -61,6 +61,7 @@ import {
   Search,
   Trash2,
   Unlink,
+  X,
 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useOptimistic, useState, useTransition } from "react";
@@ -68,6 +69,7 @@ import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import type { CategoryWithCount } from "@/lib/domain/categories/repository";
 import type {
@@ -85,6 +87,7 @@ import { cn } from "@/lib/utils";
 
 import {
   assignCategory,
+  assignCategoryMany,
   createCategory,
   deleteCategory,
   moveCategory,
@@ -139,6 +142,9 @@ type RowActions = {
   ) => void;
   readonly addChild: (parentId: string, parentName: string) => void;
   readonly removeCategory: (id: string, name: string, count: number) => void;
+  readonly toggleSelected: (productId: string) => void;
+  /** Product ids ticked for a bulk file. Empty means nothing is selected. */
+  readonly selected: ReadonlySet<string>;
 };
 
 /** The rails that carry depth. */
@@ -229,7 +235,24 @@ function ProductRow({
           )}
         >
           <Rails depth={depth} />
-          <span className="size-6 shrink-0" aria-hidden />
+
+          {/* Occupies the slot a chevron would use on a category. Hidden
+              until the tree is hovered, then pinned once anything is ticked —
+              a checkbox that disappears mid-selection is worse than one that
+              is always there. */}
+          <span
+            className={cn(
+              "flex size-6 shrink-0 items-center justify-center transition-opacity",
+              actions.selected.size === 0 &&
+                "opacity-0 group-hover/tree:opacity-100 focus-within:opacity-100",
+            )}
+          >
+            <Checkbox
+              checked={actions.selected.has(product.id)}
+              onCheckedChange={() => actions.toggleSelected(product.id)}
+              aria-label={`Select ${product.name}`}
+            />
+          </span>
 
           <Package
             className={cn(
@@ -565,6 +588,10 @@ export function CategoryWorkspace({
     name: string;
     count: number;
   } | null>(null);
+  // Product ids, so ticking a product ticks it everywhere it appears — it is
+  // the product being filed, not one of its eleven rows. Named `picked` and
+  // not `selected`: that word already means the selected category's slug.
+  const [picked, setPicked] = useState<ReadonlySet<string>>(new Set());
 
   // The move shows immediately and is reconciled when the action returns; a
   // rejected move simply never lands, because the optimistic value is dropped
@@ -644,6 +671,26 @@ export function CategoryWorkspace({
     setPicker(null);
     if (target === null) return;
 
+    if (target.kind === "fileMany") {
+      if (categoryId === null) return;
+      const ids = [...picked];
+      startTransition(async () => {
+        const result = await assignCategoryMany(ids, categoryId);
+        if (result.status === "error") {
+          toast.error(result.message);
+          return;
+        }
+        setPicked(new Set());
+        const filed = result.filed ?? 0;
+        toast.success(
+          filed === ids.length
+            ? `Filed ${filed} product${filed === 1 ? "" : "s"}.`
+            : `Filed ${filed} of ${ids.length} — the rest were already there.`,
+        );
+      });
+      return;
+    }
+
     if (target.kind === "move") {
       // Optimistic, like the drag: the row moves at once and a refused move
       // simply never lands, because the optimistic value is dropped when the
@@ -680,6 +727,14 @@ export function CategoryWorkspace({
       ),
     addChild: (parentId, parentName) => setNewChild({ parentId, parentName }),
     removeCategory: (id, name, count) => setConfirmDelete({ id, name, count }),
+    selected: picked,
+    toggleSelected: (productId) =>
+      setPicked((current) => {
+        const next = new Set(current);
+        if (next.has(productId)) next.delete(productId);
+        else next.add(productId);
+        return next;
+      }),
   };
 
   const sensors = useSensors(
@@ -782,6 +837,37 @@ export function CategoryWorkspace({
           </div>
         )}
       </DragOverlay>
+
+      {/* The selection bar. Fixed, because the thing being selected is in a
+          pane that scrolls, and a bar that scrolls away mid-selection is a
+          bar you have to hunt for. */}
+      {picked.size > 0 && (
+        <div
+          role="region"
+          aria-label="Selection"
+          className="fixed inset-x-0 bottom-4 z-40 mx-auto flex w-fit items-center gap-3 rounded-full border bg-card py-2 pr-2 pl-4 shadow-lg"
+        >
+          <span className="text-sm tabular-nums">{picked.size} selected</span>
+          <Button
+            type="button"
+            size="sm"
+            onClick={() => setPicker({ kind: "fileMany", count: picked.size })}
+          >
+            <FolderInput className="size-4" aria-hidden />
+            File in…
+          </Button>
+          <Button
+            type="button"
+            size="icon"
+            variant="ghost"
+            className="size-8"
+            onClick={() => setPicked(new Set())}
+            aria-label="Clear selection"
+          >
+            <X className="size-4" aria-hidden />
+          </Button>
+        </div>
+      )}
 
       <CategoryPickerDialog
         target={picker}

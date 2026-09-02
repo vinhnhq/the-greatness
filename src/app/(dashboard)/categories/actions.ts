@@ -221,3 +221,45 @@ export async function unassignCategory(
     return { status: "ok" };
   });
 }
+
+/**
+ * File many products into one category.
+ *
+ * The reason this exists rather than a loop at the call site: **697 of 832
+ * products are in no category**, and filing them one at a time is not a
+ * workflow. It is also why the result reports counts — a bulk action that
+ * says only "done" hides the case where half the selection was already there.
+ *
+ * Products that are already in the category are skipped, not re-written, so
+ * running it twice is not two edits. A product that has vanished is skipped
+ * too: one missing row should not fail the other ninety-nine.
+ */
+export async function assignCategoryMany(
+  productIds: readonly string[],
+  categoryId: string,
+): Promise<CategoryActionState & { readonly filed?: number }> {
+  const user = await requireUser();
+
+  return runWithContext(baseContext(user), async () => {
+    const category = await dbCategoryRepo.getById(categoryId as CategoryId);
+    if (category === null) {
+      return { status: "error", message: "That category is gone." };
+    }
+
+    let filed = 0;
+    for (const productId of productIds) {
+      const product = await dbProductRepo.getById(productId as ProductId);
+      if (product === null) continue;
+      if (product.categoryIds.includes(categoryId as CategoryId)) continue;
+      await dbProductRepo.setCategories(productId as ProductId, [
+        ...product.categoryIds,
+        categoryId as CategoryId,
+      ]);
+      filed += 1;
+    }
+
+    revalidatePath("/categories");
+    revalidatePath("/products");
+    return { status: "ok", filed };
+  });
+}

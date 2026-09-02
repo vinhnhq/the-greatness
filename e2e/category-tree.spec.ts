@@ -588,3 +588,44 @@ test("the row menu files a product, and takes it out again", async ({
 
   await expect(page.getByText(/Removed E2E Không phân loại/)).toBeVisible();
 });
+
+test("many products are filed in one move", async ({ page }) => {
+  await signIn(page);
+  await page.goto("/categories");
+
+  const tree = page.getByRole("list", { name: "Taxonomy" });
+  await tree.getByRole("button", { name: "Expand Unfiled" }).click();
+  await tree.getByRole("button", { name: `Expand ${MID}` }).click();
+
+  // Two products, one already filed elsewhere and one filed nowhere. Filing
+  // 697 one at a time is not a workflow, which is the reason this exists.
+  await tree
+    .getByRole("checkbox", { name: "Select E2E Không phân loại" })
+    .check();
+  await tree
+    .getByRole("checkbox", { name: "Select E2E Quạt tích điện" })
+    .first()
+    .check();
+
+  const bar = page.getByRole("region", { name: "Selection" });
+  await expect(bar).toContainText("2 selected");
+
+  await bar.getByRole("button", { name: "File in…" }).click();
+  const picker = page.getByRole("dialog");
+  await picker.getByRole("combobox").fill("quat thap");
+  await picker.getByRole("option").first().click();
+
+  // Either wording, because these specs run serially and an earlier one may
+  // already have filed one of the two here. Both forms report a count, which
+  // is the point: "done" would hide a half-applied selection.
+  await expect(
+    page.getByText(/Filed 2 products\.|Filed \d+ of 2 — the rest/),
+  ).toBeVisible();
+  // The bar clears, so the next selection starts empty.
+  await expect(bar).toHaveCount(0);
+
+  await page.goto("/categories?category=e2e-quat-thap");
+  const pane = page.getByRole("list", { name: "Products in this category" });
+  await expect(pane.getByText("E2E Không phân loại")).toBeVisible();
+  await expect(pane.getByText("E2E Quạt tích điện")).toBeVisible();
+});
