@@ -13,6 +13,7 @@ import { useDraggable } from "@dnd-kit/core";
 import { FolderTree } from "lucide-react";
 
 import { MediaThumb } from "@/components/media-thumb";
+import { SapoLink } from "@/components/sapo-link";
 import type { MediaAsset } from "@/lib/domain/media/entity";
 import { cn } from "@/lib/utils";
 
@@ -56,9 +57,16 @@ function ProductRow({ row }: { readonly row: ContentRow }) {
 
 export function CategoryContents({
   title,
+  path,
+  slug,
+  sapoUrl,
   rows,
 }: {
   readonly title: string | null;
+  /** Ancestors, outermost first. Empty for a root. */
+  readonly path?: readonly string[];
+  readonly slug?: string;
+  readonly sapoUrl?: string | null;
   readonly rows: readonly ContentRow[];
 }) {
   if (title === null) {
@@ -74,9 +82,25 @@ export function CategoryContents({
 
   return (
     <div className="flex flex-col gap-3">
-      <h2 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-        {title} · {rows.length} product{rows.length === 1 ? "" : "s"}
-      </h2>
+      <div className="flex flex-col gap-1">
+        {/* The path first, quietly: "Quạt đứng" is one of nine near-identical
+            fan names, and its ancestors are what tell them apart. */}
+        {path !== undefined && path.length > 0 && (
+          <p className="truncate text-xs text-muted-foreground">
+            {path.join(" › ")}
+          </p>
+        )}
+        <h2 className="text-sm font-semibold">{title}</h2>
+        <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+          {slug !== undefined && <code>/{slug}</code>}
+          <span>
+            {rows.length} product{rows.length === 1 ? "" : "s"} filed here
+            directly
+          </span>
+          {/* Renders nothing for a category created here. */}
+          <SapoLink url={sapoUrl ?? null} label="Sapo" />
+        </div>
+      </div>
       {rows.length === 0 ? (
         <p className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
           Nothing is filed here directly. Drag a product onto a category to file

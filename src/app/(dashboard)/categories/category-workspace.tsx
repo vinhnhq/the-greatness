@@ -77,6 +77,7 @@ import { buildCategoryForest } from "@/lib/domain/categories/tree";
 import { cn } from "@/lib/utils";
 
 import { assignCategory, moveCategory } from "./actions";
+import { DetailPane } from "./detail-pane";
 
 /**
  * How many unfiled products render before the filter has to do the work.
@@ -490,13 +491,21 @@ export function CategoryWorkspace({
       return next;
     });
 
-  const select = (slug: string) => {
+  /** One writer for both selections, so they cannot both be set at once. */
+  const selectInto = (key: "category" | "product", value: string | null) => {
     const next = new URLSearchParams(params);
-    next.set("category", slug);
-    router.replace(`/categories?${next.toString()}`, { scroll: false });
+    next.delete("category");
+    next.delete("product");
+    if (value !== null) next.set(key, value);
+    const query = next.toString();
+    router.replace(query === "" ? "/categories" : `/categories?${query}`, {
+      scroll: false,
+    });
   };
 
-  const openProduct = (id: string) => router.push(`/products/${id}`);
+  const select = (slug: string) => selectInto("category", slug);
+  const openProduct = (id: string) => selectInto("product", id);
+  const closeDetail = () => selectInto("category", null);
 
   const sensors = useSensors(
     // A little distance, or every click on a row starts a drag.
@@ -586,7 +595,12 @@ export function CategoryWorkspace({
           </div>
         </div>
 
-        <div className="min-w-0">{contents}</div>
+        <DetailPane
+          open={selected !== null || params.get("product") !== null}
+          onClose={closeDetail}
+        >
+          {contents}
+        </DetailPane>
       </div>
 
       <DragOverlay>

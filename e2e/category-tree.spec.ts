@@ -463,3 +463,41 @@ test("products hang off the tree, and the unfiled ones have a home", async ({
   // Unaccented and case-folded, and the categories that do not match are gone.
   await expect(tree.getByText(GROUP)).toHaveCount(0);
 });
+
+test("on a phone the detail is a drawer, off-canvas until something is picked", async ({
+  page,
+}) => {
+  await signIn(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/categories");
+
+  const pane = page.getByRole("complementary", { name: "Detail" });
+
+  // --- closed: parked off the right edge, and not tabbable ---------------
+  // `toBeInViewport` rather than a bounding box, because the drawer
+  // transitions and a box read the instant after a click measures the
+  // animation, not the result.
+  await expect(pane).not.toBeInViewport();
+  // `inert`, not `hidden` — the content is still in the DOM, and without it a
+  // closed drawer's inputs stay in the tab order.
+  await expect(pane).toHaveAttribute("inert", "");
+
+  // --- picking a product slides it in ------------------------------------
+  const tree = page.getByRole("list", { name: "Taxonomy" });
+  await tree.getByRole("button", { name: `Expand ${MID}` }).click();
+  // Exact: the row's drag handle is also a button, named "Move <product>".
+  await tree
+    .getByRole("button", { name: "E2E Quạt tích điện", exact: true })
+    .first()
+    .click();
+
+  await expect(page).toHaveURL(/product=/);
+  await expect(pane).toBeInViewport();
+  // Named, which it only is because the label carries `htmlFor`.
+  await expect(pane.getByRole("textbox", { name: "Name" })).toBeVisible();
+
+  // --- and closing parks it again ----------------------------------------
+  await page.getByRole("button", { name: "Close detail" }).first().click();
+  await expect(page).not.toHaveURL(/product=/);
+  await expect(pane).not.toBeInViewport();
+});
