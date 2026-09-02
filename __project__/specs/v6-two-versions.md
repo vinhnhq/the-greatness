@@ -110,6 +110,10 @@ Sapo's history is unobtainable regardless.
 
 ### A · The mirror and the three-way merge
 
+- **AC-0** _(no backfill, deliberately)_ Seeding the mirror from current local
+  rows would assert "Sapo said this" about every row — false for any row
+  already edited here, which is the exact population this protects. An absent
+  base is honest; AC-6 handles it.
 - **AC-1** _(one table, no read churn)_ Migration `006` adds `sapo_mirror`
   (`entity`, `sapoId`, `payload` JSON, `syncedAt`; PK `entity + sapoId`).
   `products` and `categories` stay the **effective** rows, so no page,
@@ -190,8 +194,7 @@ Sapo's history is unobtainable regardless.
 ## Non-functional
 
 - **One migration** (`006`) adding `sapo_mirror` **and** `sync_conflicts`,
-  append-only, backfilling the mirror from the current snapshot so the first
-  v6 sync is quiet.
+  append-only and with **no backfill** — see AC-0.
 - **The four gates** green per task.
 - **No new runtime dependency.** `@dnd-kit` is already here; nothing else is
   added.

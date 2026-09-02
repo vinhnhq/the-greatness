@@ -137,6 +137,43 @@ export interface ProductMediaTable {
   position: number;
 }
 
+/**
+ * The last payload Sapo gave us for a row — the `base` of the three-way merge.
+ *
+ * JSON on purpose: the shape is Sapo's, nothing queries into it, and giving it
+ * columns would mean a migration every time Sapo adds a mirrored field. See
+ * migration 006.
+ */
+export interface SapoMirrorTable {
+  /** 'product' | 'category' — a product and a category can share a Sapo id. */
+  entity: string;
+  sapoId: string;
+  payload: string;
+  syncedAt: Timestamp;
+}
+
+/**
+ * A field where both sides moved. Parked rather than reported, so the sync
+ * never blocks on a human and stays safe to schedule.
+ */
+export interface SyncConflictsTable {
+  id: string;
+  entity: string;
+  sapoId: string;
+  /** One row per field: a renamed product whose price also moved upstream is
+   * two independent decisions, not one all-or-nothing choice. */
+  field: string;
+  base: string | null;
+  ours: string | null;
+  theirs: string | null;
+  detectedAt: Timestamp;
+  /** Null while open. The row is kept, not deleted — a decision is the one
+   * piece of reconciliation history worth having. */
+  resolvedAt: Timestamp | null;
+  /** 'ours' | 'theirs', null while open. */
+  resolution: string | null;
+}
+
 export interface DB {
   users: UsersTable;
   sessions: SessionsTable;
@@ -147,4 +184,6 @@ export interface DB {
   product_categories: ProductCategoriesTable;
   media_assets: MediaAssetsTable;
   product_media: ProductMediaTable;
+  sapo_mirror: SapoMirrorTable;
+  sync_conflicts: SyncConflictsTable;
 }

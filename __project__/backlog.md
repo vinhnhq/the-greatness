@@ -126,9 +126,10 @@ drag-and-drop first means building it against a sync that reverts it.
 ### A · The mirror and the three-way merge
 
 - [ ] **V6.1** **Migration `006`: `sapo_mirror` + `sync_conflicts`.** Mirror:
-      `entity`, `sapoId`, `payload` JSON, `syncedAt`, PK `entity + sapoId`;
-      backfilled from the current snapshot so the first v6 sync is quiet
-      rather than reporting 832 conflicts. Conflicts: `entity`, `sapoId`,
+      `entity`, `sapoId`, `payload` JSON, `syncedAt`, PK `entity + sapoId`.
+      **No backfill:** seeding the mirror from local rows would assert "Sapo
+      said this" about rows already edited here — the exact population this
+      protects. An absent base is honest, and `V6.4` adopts. Conflicts: `entity`, `sapoId`,
       `field`, `base`, `ours`, `theirs`, `detectedAt`, `resolvedAt`,
       `resolution`. `products` and `categories` stay the effective rows: no
       read path changes, which is the whole reason to mirror instead of
