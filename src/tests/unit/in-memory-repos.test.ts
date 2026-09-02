@@ -499,3 +499,39 @@ describe("createInMemoryMediaRepo", () => {
     expect(page.items.map((i) => i.asset.id)).toEqual(["m1"]);
   });
 });
+
+describe("the twin's listForTree", () => {
+  it("returns every product by name, with no media and no paging", async () => {
+    const repo = createInMemoryProductRepo();
+    repo.seed([
+      product({ id: "p2", name: "Ấm siêu tốc" }),
+      product({ id: "p1", name: "Bếp từ" }),
+    ]);
+
+    const rows = await repo.listForTree();
+
+    // Sorted the way the SQL side sorts, and carrying only the four columns
+    // a tree leaf needs.
+    expect(rows.map((r) => r.name)).toEqual(["Ấm siêu tốc", "Bếp từ"]);
+    expect(Object.keys(rows[0]!).sort()).toEqual([
+      "id",
+      "name",
+      "sku",
+      "status",
+    ]);
+  });
+
+  it("does not page — `list` does, this does not", async () => {
+    const repo = createInMemoryProductRepo();
+    repo.seed(
+      Array.from({ length: 30 }, (_, i) =>
+        product({ id: `p${i}`, name: `Product ${i}` }),
+      ),
+    );
+
+    expect(await repo.listForTree()).toHaveLength(30);
+    // The default page is smaller, which is the whole reason this method
+    // exists: the tree needs all 832 at once.
+    expect((await repo.list(query())).rows.length).toBeLessThan(30);
+  });
+});

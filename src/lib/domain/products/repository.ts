@@ -62,8 +62,25 @@ export type ProductPage = {
   readonly total: number;
 };
 
+/**
+ * The least a product needs to be a leaf in the taxonomy tree.
+ *
+ * Deliberately **no media**. The tree prefixes an icon the way an editor's
+ * file tree does, not a thumbnail, so joining `product_media` here would
+ * fetch 786 assets to render nothing — and the tree carries all 832 rows at
+ * once, where `list()` carries a page.
+ */
+export type ProductTreeRow = {
+  readonly id: ProductId;
+  readonly name: string;
+  readonly sku: string | null;
+  readonly status: ProductStatus;
+};
+
 export type ProductRepository = {
   list(query: ProductListQuery): Promise<ProductPage>;
+  /** Every product, four columns, for the taxonomy tree. */
+  listForTree(): Promise<readonly ProductTreeRow[]>;
   getById(id: ProductId): Promise<ProductWithRelations | null>;
   getBySlug(slug: string): Promise<ProductWithRelations | null>;
   takenSlugs(exceptId?: ProductId): Promise<ReadonlySet<string>>;
@@ -219,6 +236,24 @@ export const dbProductRepo: ProductRepository = {
         categoryIds: categoriesByProduct.get(p.id) ?? [],
       })),
     };
+  },
+
+  listForTree: async () => {
+    const { db } = await readContext();
+    const rows = await db
+      .selectFrom("products")
+      .select(["id", "name", "sku", "status"])
+      .orderBy("name", "asc")
+      .execute();
+    // Rebuilt as plain objects for the same reason `listLinks` is: the driver
+    // hands back null-prototype rows, and React refuses to serialise those to
+    // a client component. It builds fine and throws on the request.
+    return rows.map((r) => ({
+      id: r.id as ProductId,
+      name: r.name,
+      sku: r.sku,
+      status: r.status as ProductStatus,
+    }));
   },
 
   getById: async (id) => loadOne("id", id),
@@ -441,6 +476,11 @@ export const createInMemoryProductRepo = (
         })),
       };
     },
+
+    listForTree: async () =>
+      [...products]
+        .sort((a, b) => a.name.localeCompare(b.name, "vi"))
+        .map((p) => ({ id: p.id, name: p.name, sku: p.sku, status: p.status })),
 
     getById: async (id) => {
       const p = products.find((r) => r.id === id);

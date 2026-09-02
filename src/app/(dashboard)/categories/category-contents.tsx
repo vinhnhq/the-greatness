@@ -83,7 +83,7 @@ export function CategoryContents({
           it.
         </p>
       ) : (
-        <ul className="flex flex-col">
+        <ul aria-label="Products in this category" className="flex flex-col">
           {rows.map((row) => (
             <ProductRow key={row.id} row={row} />
           ))}

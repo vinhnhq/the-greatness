@@ -269,6 +269,7 @@ export function ProductMediaField({
 
       {media.length > 0 && (
         <DndContext
+          id="product-media"
           sensors={sensors}
           collisionDetection={closestCenter}
           onDragEnd={onDragEnd}

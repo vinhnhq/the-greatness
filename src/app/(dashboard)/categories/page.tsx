@@ -36,9 +36,12 @@ export default async function CategoriesPage({
   // Two small reads. The links come back whole because a subtree count has to
   // be distinct rather than summed — a product linked to a group *and* one of
   // its children is one product. See `categories/tree.ts`.
-  const [categories, links, selected] = await Promise.all([
+  const [categories, links, treeProducts, selected] = await Promise.all([
     dbCategoryRepo.listWithCounts(),
     dbCategoryRepo.listLinks(),
+    // All 832, four columns, no media — the tree draws an icon per product
+    // and the pane on the right is what fetches a picture.
+    dbProductRepo.listForTree(),
     selectedSlug === null
       ? Promise.resolve(null)
       : dbCategoryRepo.getBySlug(selectedSlug),
@@ -80,6 +83,7 @@ export default async function CategoriesPage({
           <CategoryWorkspace
             categories={categories}
             links={links}
+            products={treeProducts}
             contents={
               <CategoryContents title={contents.title} rows={contents.rows} />
             }

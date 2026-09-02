@@ -620,3 +620,52 @@ describe("dbMediaRepo — the library", () => {
     ).toBeNull();
   });
 });
+
+describe("dbProductRepo.listForTree", () => {
+  it("returns every product by name, paging nothing", async () => {
+    const { make } = await seed();
+    await make("Zinc pot");
+    await make("Ấm siêu tốc", { sku: "AST-1" });
+    await make("Bếp từ", { status: "draft" });
+
+    const rows = await inCtx(() => dbProductRepo.listForTree());
+
+    // Vietnamese collation is SQLite's, not `localeCompare`'s, so the assertion
+    // is on membership and shape rather than on an exact order the two
+    // drivers need not share.
+    expect(rows).toHaveLength(3);
+    expect(rows.map((r) => r.name).sort()).toEqual(
+      ["Bếp từ", "Zinc pot", "Ấm siêu tốc"].sort(),
+    );
+    expect(rows.find((r) => r.name === "Ấm siêu tốc")?.sku).toBe("AST-1");
+    expect(rows.find((r) => r.name === "Bếp từ")?.status).toBe("draft");
+  });
+
+  it("carries four columns and no media", async () => {
+    const { make } = await seed();
+    await make("Solo");
+
+    const rows = await inCtx(() => dbProductRepo.listForTree());
+
+    // The tree draws an icon, so joining product_media here would fetch
+    // assets to render nothing.
+    expect(Object.keys(rows[0]!).sort()).toEqual([
+      "id",
+      "name",
+      "sku",
+      "status",
+    ]);
+  });
+
+  it("returns plain objects, not the driver's rows", async () => {
+    const { make } = await seed();
+    await make("Solo");
+
+    const rows = await inCtx(() => dbProductRepo.listForTree());
+
+    // A null-prototype row builds fine and throws "Only plain objects can be
+    // passed to Client Components" on the request. `listLinks` shipped that
+    // bug once; this method crosses the same boundary.
+    expect(Object.getPrototypeOf(rows[0])).toBe(Object.prototype);
+  });
+});

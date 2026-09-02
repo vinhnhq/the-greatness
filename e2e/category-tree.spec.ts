@@ -36,6 +36,7 @@ const ids = {
   leafB: newId(),
   leafEmpty: newId(),
   product: newId(),
+  unfiled: newId(),
 };
 
 /**
@@ -43,6 +44,10 @@ const ids = {
  * both leaves. That overlap is the real catalogue's shape — eight fans appear
  * in nine fan categories — and it is what makes a summed subtree count read
  * three where the answer is one.
+ *
+ * Plus **one product linked to nothing**, standing in for the 697 of 832 that
+ * are filed nowhere. Without it the Unfiled node has nothing to render and
+ * the case that dominates the real data goes untested.
  */
 const seedTree = async (): Promise<void> => {
   const db = createDb();
@@ -101,20 +106,38 @@ const seedTree = async (): Promise<void> => {
 
     await db
       .insertInto("products")
-      .values({
-        id: ids.product,
-        name: "E2E Quạt tích điện",
-        slug: "e2e-quat-tich-dien",
-        sku: null,
-        description: null,
-        priceMinor: 0,
-        currency: "VND",
-        status: "active",
-        searchText: "e2e quat tich dien",
-        sapoId: null,
-        createdAt: now,
-        updatedAt: now,
-      })
+      .values([
+        {
+          id: ids.product,
+          name: "E2E Quạt tích điện",
+          slug: "e2e-quat-tich-dien",
+          sku: null,
+          description: null,
+          priceMinor: 0,
+          currency: "VND",
+          status: "active",
+          searchText: "e2e quat tich dien",
+          sapoId: null,
+          createdAt: now,
+          updatedAt: now,
+        },
+        // Linked to nothing. Five sixths of the real catalogue looks like
+        // this, so a tree that cannot show it is showing a sixth of the shop.
+        {
+          id: ids.unfiled,
+          name: "E2E Không phân loại",
+          slug: "e2e-khong-phan-loai",
+          sku: null,
+          description: null,
+          priceMinor: 0,
+          currency: "VND",
+          status: "active",
+          searchText: "e2e khong phan loai",
+          sapoId: null,
+          createdAt: now,
+          updatedAt: now,
+        },
+      ])
       .execute();
 
     await db
@@ -384,30 +407,59 @@ test("the split view selects into the URL without navigating", async ({
   await expect(page.getByText(/E2E Quạt tích điện/).first()).toBeVisible();
 });
 
-test("dragging a product onto a category files it", async ({ page }) => {
+test("dragging a product from the right pane onto a category files it", async ({
+  page,
+}) => {
   await signIn(page);
   await page.goto("/categories?category=e2e-quat");
 
-  await expect(page.getByText(/E2E Quạt tích điện/).first()).toBeVisible();
+  // Scoped to the pane: the same product is now also a leaf in the tree, and
+  // there the whole row is not the drag source — only its handle is.
+  const pane = page.getByRole("list", { name: "Products in this category" });
+  await expect(pane.getByText(/E2E Quạt tích điện/)).toBeVisible();
 
+  const tree = page.getByRole("list", { name: "Taxonomy" });
   // The workspace tree opens on roots only, so the target leaf is not
   // rendered yet — a closed branch is not a drop target.
-  await page
-    .getByRole("button", { name: `Expand ${MID}` })
-    .first()
-    .click();
-  await expect(
-    page.getByRole("button", { name: LEAF_EMPTY, exact: true }),
-  ).toBeVisible();
+  await tree.getByRole("button", { name: `Expand ${MID}` }).click();
+  const target = tree.getByRole("button", { name: LEAF_EMPTY, exact: true });
+  await expect(target).toBeVisible();
 
-  await dragOnto(
-    page,
-    page.getByText(/E2E Quạt tích điện/).first(),
-    page.getByRole("button", { name: LEAF_EMPTY, exact: true }),
-  );
+  await dragOnto(page, pane.getByText(/E2E Quạt tích điện/), target);
 
   // The empty leaf now holds it — and this is only safe because the mirror
   // makes the next sync keep it.
   await page.goto("/categories?category=e2e-quat-thap");
-  await expect(page.getByText(/E2E Quạt tích điện/).first()).toBeVisible();
+  await expect(
+    page
+      .getByRole("list", { name: "Products in this category" })
+      .getByText(/E2E Quạt tích điện/),
+  ).toBeVisible();
+});
+
+test("products hang off the tree, and the unfiled ones have a home", async ({
+  page,
+}) => {
+  await signIn(page);
+  await page.goto("/categories");
+
+  const tree = page.getByRole("list", { name: "Taxonomy" });
+
+  // --- a product is a leaf, reached by opening its category --------------
+  await tree.getByRole("button", { name: `Expand ${MID}` }).click();
+  await expect(tree.getByText(/E2E Quạt tích điện/).first()).toBeVisible();
+
+  // --- Unfiled is a node, not an omission -------------------------------
+  // 697 of the real catalogue's 832 products are in no category; the seeded
+  // one here stands for them.
+  await tree.getByRole("button", { name: "Expand Unfiled" }).click();
+  await expect(tree.getByText(/E2E Không phân loại/)).toBeVisible();
+
+  // --- the filter reaches products, not just categories -----------------
+  await page
+    .getByRole("textbox", { name: "Filter the taxonomy" })
+    .fill("khong phan loai");
+  await expect(tree.getByText(/E2E Không phân loại/)).toBeVisible();
+  // Unaccented and case-folded, and the categories that do not match are gone.
+  await expect(tree.getByText(GROUP)).toHaveCount(0);
 });
