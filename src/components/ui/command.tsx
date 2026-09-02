@@ -36,19 +36,20 @@ function CommandDialog({
   children,
   className,
   showCloseButton = false,
+  filter,
   ...props
 }: React.ComponentProps<typeof Dialog> & {
   title?: string;
   description?: string;
   className?: string;
   showCloseButton?: boolean;
+  /** cmdk's matcher. Forwarded because the default does not fold Vietnamese
+   * diacritics, and every other search in this app does — see
+   * `lib/search-text.ts`. */
+  filter?: React.ComponentProps<typeof CommandPrimitive>["filter"];
 }) {
   return (
     <Dialog {...props}>
-      <DialogHeader className="sr-only">
-        <DialogTitle>{title}</DialogTitle>
-        <DialogDescription>{description}</DialogDescription>
-      </DialogHeader>
       <DialogContent
         className={cn(
           "top-1/3 translate-y-0 overflow-hidden rounded-4xl! p-0",
@@ -56,7 +57,18 @@ function CommandDialog({
         )}
         showCloseButton={showCloseButton}
       >
-        {children}
+        {/* Inside `DialogContent`, not beside it. Radix points the dialog's
+            `aria-labelledby` at this title, and a title rendered outside the
+            content is not found — the dialog ships unnamed. */}
+        <DialogHeader className="sr-only">
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>{description}</DialogDescription>
+        </DialogHeader>
+        {/* The generated version omitted this, which makes the component
+            unusable: `CommandInput` reads cmdk's store from context and threw
+            "Cannot read properties of undefined (reading 'subscribe')" on the
+            first render. Nothing in the app used `CommandDialog` until now. */}
+        <Command filter={filter}>{children}</Command>
       </DialogContent>
     </Dialog>
   );

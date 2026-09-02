@@ -501,3 +501,90 @@ test("on a phone the detail is a drawer, off-canvas until something is picked", 
   await expect(page).not.toHaveURL(/product=/);
   await expect(pane).not.toBeInViewport();
 });
+
+test("the row menu moves a category without dragging", async ({ page }) => {
+  await signIn(page);
+  await page.goto("/categories");
+
+  const tree = page.getByRole("list", { name: "Taxonomy" });
+
+  // The leaf starts under MID. Move it to the top level from the menu —
+  // no drag, and the target never has to be on screen.
+  await tree.getByRole("button", { name: `Expand ${MID}` }).click();
+  await tree.getByRole("button", { name: `Actions for ${LEAF_A}` }).click();
+  await page.getByRole("menuitem", { name: "Move to…" }).click();
+
+  const picker = page.getByRole("dialog");
+  await expect(picker).toBeVisible();
+
+  // Two rows `planMove` refuses are absent rather than disabled: where it
+  // already sits, and itself. Exact names, because every option carries its
+  // full path and a substring match would hit the descendants too.
+  await expect(
+    picker.getByRole("option", { name: `${GROUP} › ${MID}`, exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    picker.getByRole("option", {
+      name: `${GROUP} › ${MID} › ${LEAF_A}`,
+      exact: true,
+    }),
+  ).toHaveCount(0);
+  // A legal one is there.
+  await expect(
+    picker.getByRole("option", { name: GROUP, exact: true }),
+  ).toBeVisible();
+
+  await picker.getByRole("option", { name: "Top level" }).click();
+
+  // A root now, so it sits outside GROUP rather than under it.
+  await expect(page.getByText(`Moved ${LEAF_A}.`)).toBeVisible();
+  await page.goto("/categories?tab=categories");
+  await expect(
+    page
+      .getByRole("row")
+      .filter({ has: page.getByRole("link", { name: LEAF_A, exact: true }) }),
+  ).toContainText("—");
+});
+
+test("the row menu files a product, and takes it out again", async ({
+  page,
+}) => {
+  await signIn(page);
+  await page.goto("/categories");
+
+  const tree = page.getByRole("list", { name: "Taxonomy" });
+  await tree.getByRole("button", { name: "Expand Unfiled" }).click();
+
+  // --- file it from the picker ------------------------------------------
+  await tree
+    .getByRole("button", { name: "Actions for E2E Không phân loại" })
+    .click();
+  await page.getByRole("menuitem", { name: "File in…" }).click();
+
+  const picker = page.getByRole("dialog");
+  await picker.getByRole("combobox").fill("quat thap");
+  await picker.getByRole("option").first().click();
+
+  await expect(page.getByText("Filed E2E Không phân loại.")).toBeVisible();
+  await page.goto("/categories?category=e2e-quat-thap");
+  await expect(
+    page
+      .getByRole("list", { name: "Products in this category" })
+      .getByText("E2E Không phân loại"),
+  ).toBeVisible();
+
+  // --- and out again ----------------------------------------------------
+  // It now hangs off the leaf, so both levels have to be opened: a closed
+  // branch is not rendered at all.
+  const tree2 = page.getByRole("list", { name: "Taxonomy" });
+  await tree2.getByRole("button", { name: `Expand ${MID}` }).click();
+  await tree2.getByRole("button", { name: `Expand ${LEAF_EMPTY}` }).click();
+  await tree2
+    .getByRole("button", { name: "Actions for E2E Không phân loại" })
+    .click();
+  await page
+    .getByRole("menuitem", { name: "Remove from this category" })
+    .click();
+
+  await expect(page.getByText(/Removed E2E Không phân loại/)).toBeVisible();
+});

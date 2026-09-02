@@ -49,12 +49,18 @@ import {
 import {
   ChevronDown,
   ChevronRight,
+  ExternalLink,
   Folder,
   FolderOpen,
+  FolderInput,
+  FolderPlus,
   GripVertical,
   Inbox,
   Package,
+  PanelRightOpen,
   Search,
+  Trash2,
+  Unlink,
 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useOptimistic, useState, useTransition } from "react";
@@ -74,10 +80,22 @@ import {
 } from "@/lib/domain/categories/taxonomy";
 import type { CategoryLink, CategoryNode } from "@/lib/domain/categories/tree";
 import { buildCategoryForest } from "@/lib/domain/categories/tree";
+import { sapoCategoryUrl } from "@/lib/sapo";
 import { cn } from "@/lib/utils";
 
-import { assignCategory, moveCategory } from "./actions";
+import {
+  assignCategory,
+  createCategory,
+  deleteCategory,
+  moveCategory,
+  unassignCategory,
+} from "./actions";
+import type { PickerTarget } from "./category-picker-dialog";
+import { CategoryPickerDialog } from "./category-picker-dialog";
 import { DetailPane } from "./detail-pane";
+import { DeleteCategoryDialog, NewChildDialog } from "./row-dialogs";
+import type { MenuAction } from "./row-menu";
+import { RowMenu, RowMenuButton } from "./row-menu";
 
 /**
  * How many unfiled products render before the filter has to do the work.
@@ -98,6 +116,30 @@ type DragPayload =
       /** Null when dragged out of Unfiled. What "remove from here" needs. */
       readonly fromCategoryId: string | null;
     };
+
+/**
+ * Everything a row can ask the workspace to do, in one object.
+ *
+ * Threaded rather than put in a context: the tree is four components deep and
+ * every one of them already takes the node it renders, so one more prop is
+ * cheaper than a provider — and seven separate callbacks is what this replaces.
+ */
+type RowActions = {
+  readonly toggle: (id: string) => void;
+  readonly selectCategory: (slug: string) => void;
+  readonly openProduct: (id: string) => void;
+  /** Opens the picker for a category's new parent. */
+  readonly moveCategory: (id: string, name: string) => void;
+  /** Opens the picker for a product's next category. */
+  readonly fileProduct: (id: string, name: string) => void;
+  readonly unfileProduct: (
+    productId: string,
+    categoryId: string,
+    name: string,
+  ) => void;
+  readonly addChild: (parentId: string, parentName: string) => void;
+  readonly removeCategory: (id: string, name: string, count: number) => void;
+};
 
 /** The rails that carry depth. */
 function Rails({ depth }: { readonly depth: number }) {
@@ -121,13 +163,13 @@ function ProductRow({
   product,
   depth,
   fromCategoryId,
-  onOpen,
+  actions,
   dragging,
 }: {
   readonly product: TreeProduct;
   readonly depth: number;
   readonly fromCategoryId: string | null;
-  readonly onOpen: (id: string) => void;
+  readonly actions: RowActions;
   readonly dragging: DragPayload | null;
 }) {
   // Scoped by the category it hangs under: the same product appears under as
@@ -151,49 +193,79 @@ function ProductRow({
     dragging.id === product.id &&
     dragging.fromCategoryId === fromCategoryId;
 
+  const menu: readonly MenuAction[] = [
+    {
+      label: "Open",
+      icon: PanelRightOpen,
+      onSelect: () => actions.openProduct(product.id),
+    },
+    {
+      label: "File in\u2026",
+      icon: FolderInput,
+      onSelect: () => actions.fileProduct(product.id, product.name),
+    },
+    // Only where it hangs off a category. In Unfiled there is nothing to
+    // remove it from, and the item would be a dead entry on 697 rows.
+    ...(fromCategoryId === null
+      ? []
+      : [
+          {
+            label: "Remove from this category",
+            icon: Unlink,
+            separated: true,
+            onSelect: () =>
+              actions.unfileProduct(product.id, fromCategoryId, product.name),
+          },
+        ]),
+  ];
+
   return (
     <li>
-      <div
-        className={cn(
-          "flex items-center gap-1 rounded-md pr-2 transition-colors hover:bg-muted/40",
-          isDragging && "opacity-40",
-        )}
-      >
-        <Rails depth={depth} />
-        <span className="size-6 shrink-0" aria-hidden />
-
-        <Package
+      <RowMenu actions={menu}>
+        <div
           className={cn(
-            "size-3.5 shrink-0 text-muted-foreground",
-            product.status === "draft" && "opacity-50",
+            "flex items-center gap-1 rounded-md pr-1 transition-colors hover:bg-muted/40",
+            isDragging && "opacity-40",
           )}
-          aria-hidden
-        />
-
-        <button
-          type="button"
-          onClick={() => onOpen(product.id)}
-          className="min-w-0 flex-1 truncate rounded-sm py-2 text-left text-sm text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ring"
         >
-          {product.name}
-        </button>
+          <Rails depth={depth} />
+          <span className="size-6 shrink-0" aria-hidden />
 
-        {product.sku !== null && (
-          <code className="shrink-0 font-mono text-[11px] text-muted-foreground/70">
-            {product.sku}
-          </code>
-        )}
+          <Package
+            className={cn(
+              "size-3.5 shrink-0 text-muted-foreground",
+              product.status === "draft" && "opacity-50",
+            )}
+            aria-hidden
+          />
 
-        <span
-          ref={dragRef}
-          {...listeners}
-          {...attributes}
-          className="shrink-0 cursor-grab touch-none text-muted-foreground opacity-0 transition-opacity group-hover/tree:opacity-100 hover:text-foreground"
-          aria-label={`Move ${product.name}`}
-        >
-          <GripVertical className="size-4" aria-hidden />
-        </span>
-      </div>
+          <button
+            type="button"
+            onClick={() => actions.openProduct(product.id)}
+            className="min-w-0 flex-1 truncate rounded-sm py-2 text-left text-sm text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ring"
+          >
+            {product.name}
+          </button>
+
+          {product.sku !== null && (
+            <code className="hidden shrink-0 font-mono text-[11px] text-muted-foreground/70 sm:block">
+              {product.sku}
+            </code>
+          )}
+
+          <span
+            ref={dragRef}
+            {...listeners}
+            {...attributes}
+            className="shrink-0 cursor-grab touch-none text-muted-foreground opacity-0 transition-opacity group-hover/tree:opacity-100 hover:text-foreground"
+            aria-label={`Move ${product.name}`}
+          >
+            <GripVertical className="size-4" aria-hidden />
+          </span>
+
+          <RowMenuButton label={product.name} actions={menu} />
+        </div>
+      </RowMenu>
     </li>
   );
 }
@@ -203,18 +275,14 @@ function TreeRow({
   grouped,
   selected,
   expanded,
-  onToggle,
-  onSelect,
-  onOpenProduct,
+  actions,
   dragging,
 }: {
   readonly node: CategoryNode<CategoryWithCount>;
   readonly grouped: GroupedProducts;
   readonly selected: string | null;
   readonly expanded: ReadonlySet<string>;
-  readonly onToggle: (id: string) => void;
-  readonly onSelect: (slug: string) => void;
-  readonly onOpenProduct: (id: string) => void;
+  readonly actions: RowActions;
   readonly dragging: DragPayload | null;
 }) {
   const category = node.category;
@@ -240,83 +308,125 @@ function TreeRow({
   // drop is attempted rather than as an error afterwards.
   const isSelf = dragging?.kind === "category" && dragging.id === category.id;
 
+  const menu: readonly MenuAction[] = [
+    {
+      label: "Move to\u2026",
+      icon: FolderInput,
+      onSelect: () => actions.moveCategory(category.id, category.name),
+    },
+    {
+      label: "Add a subcategory",
+      icon: FolderPlus,
+      onSelect: () => actions.addChild(category.id, category.name),
+    },
+    ...(category.sapoId === null
+      ? []
+      : [
+          {
+            label: "Open in Sapo",
+            icon: ExternalLink,
+            separated: true,
+            onSelect: () => {
+              const url = sapoCategoryUrl(category.sapoId);
+              if (url !== null) window.open(url, "_blank", "noopener");
+            },
+          },
+        ]),
+    {
+      label: "Delete\u2026",
+      icon: Trash2,
+      destructive: true,
+      separated: true,
+      onSelect: () =>
+        actions.removeCategory(
+          category.id,
+          category.name,
+          category.productCount,
+        ),
+    },
+  ];
+
   return (
     <li>
-      <div
-        ref={dropRef}
-        className={cn(
-          "flex items-center gap-1 rounded-md pr-2 transition-colors",
-          // `ring-inset`, not a bare ring. A Tailwind ring is an *outer*
-          // box-shadow, and these rows sit flush against each other — so the
-          // drop highlight on one row was painted over its neighbour above
-          // and below. Inset keeps it inside the row it describes.
-          isOver &&
-            !isSelf &&
-            "bg-primary/10 ring-1 ring-primary/40 ring-inset",
-          isSelf && "opacity-40",
-          selected === category.slug && "bg-muted",
-        )}
-      >
-        <Rails depth={node.depth} />
+      <RowMenu actions={menu}>
+        <div
+          ref={dropRef}
+          className={cn(
+            "flex items-center gap-1 rounded-md pr-1 transition-colors",
+            // `ring-inset`, not a bare ring. A Tailwind ring is an *outer*
+            // box-shadow, and these rows sit flush against each other — so the
+            // drop highlight on one row was painted over its neighbour above
+            // and below. Inset keeps it inside the row it describes.
+            isOver &&
+              !isSelf &&
+              "bg-primary/10 ring-1 ring-primary/40 ring-inset",
+            isSelf && "opacity-40",
+            selected === category.slug && "bg-muted",
+          )}
+        >
+          <Rails depth={node.depth} />
 
-        {hasContents ? (
-          <Button
+          {hasContents ? (
+            <Button
+              type="button"
+              size="icon"
+              variant="ghost"
+              className="size-6 shrink-0"
+              onClick={() => actions.toggle(category.id)}
+              aria-expanded={isOpen}
+              aria-label={`${isOpen ? "Collapse" : "Expand"} ${category.name}`}
+            >
+              {isOpen ? (
+                <ChevronDown className="size-4" aria-hidden />
+              ) : (
+                <ChevronRight className="size-4" aria-hidden />
+              )}
+            </Button>
+          ) : (
+            <span className="size-6 shrink-0" aria-hidden />
+          )}
+
+          {isOpen && hasContents ? (
+            <FolderOpen
+              className="size-3.5 shrink-0 text-muted-foreground"
+              aria-hidden
+            />
+          ) : (
+            <Folder
+              className="size-3.5 shrink-0 text-muted-foreground"
+              aria-hidden
+            />
+          )}
+
+          <button
             type="button"
-            size="icon"
-            variant="ghost"
-            className="size-6 shrink-0"
-            onClick={() => onToggle(category.id)}
-            aria-expanded={isOpen}
-            aria-label={`${isOpen ? "Collapse" : "Expand"} ${category.name}`}
+            onClick={() => actions.selectCategory(category.slug)}
+            className="min-w-0 flex-1 truncate rounded-sm py-2 text-left text-sm focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ring"
           >
-            {isOpen ? (
-              <ChevronDown className="size-4" aria-hidden />
-            ) : (
-              <ChevronRight className="size-4" aria-hidden />
-            )}
-          </Button>
-        ) : (
-          <span className="size-6 shrink-0" aria-hidden />
-        )}
+            <span className={node.children.length > 0 ? "font-medium" : ""}>
+              {category.name}
+            </span>
+          </button>
 
-        {isOpen && hasContents ? (
-          <FolderOpen
-            className="size-3.5 shrink-0 text-muted-foreground"
-            aria-hidden
-          />
-        ) : (
-          <Folder
-            className="size-3.5 shrink-0 text-muted-foreground"
-            aria-hidden
-          />
-        )}
+          {node.subtreeCount > 0 && (
+            <Badge variant="secondary" className="shrink-0">
+              {node.subtreeCount}
+            </Badge>
+          )}
 
-        <button
-          type="button"
-          onClick={() => onSelect(category.slug)}
-          className="min-w-0 flex-1 truncate rounded-sm py-2 text-left text-sm focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ring"
-        >
-          <span className={node.children.length > 0 ? "font-medium" : ""}>
-            {category.name}
+          <span
+            ref={dragRef}
+            {...listeners}
+            {...attributes}
+            className="shrink-0 cursor-grab touch-none text-muted-foreground opacity-0 transition-opacity group-hover/tree:opacity-100 hover:text-foreground"
+            aria-label={`Move ${category.name}`}
+          >
+            <GripVertical className="size-4" aria-hidden />
           </span>
-        </button>
 
-        {node.subtreeCount > 0 && (
-          <Badge variant="secondary" className="shrink-0">
-            {node.subtreeCount}
-          </Badge>
-        )}
-
-        <span
-          ref={dragRef}
-          {...listeners}
-          {...attributes}
-          className="shrink-0 cursor-grab touch-none text-muted-foreground opacity-0 transition-opacity group-hover/tree:opacity-100 hover:text-foreground"
-          aria-label={`Move ${category.name}`}
-        >
-          <GripVertical className="size-4" aria-hidden />
-        </span>
-      </div>
+          <RowMenuButton label={category.name} actions={menu} />
+        </div>
+      </RowMenu>
 
       {hasContents && isOpen && (
         <ul>
@@ -327,9 +437,7 @@ function TreeRow({
               grouped={grouped}
               selected={selected}
               expanded={expanded}
-              onToggle={onToggle}
-              onSelect={onSelect}
-              onOpenProduct={onOpenProduct}
+              actions={actions}
               dragging={dragging}
             />
           ))}
@@ -341,7 +449,7 @@ function TreeRow({
               product={product}
               depth={node.depth + 1}
               fromCategoryId={category.id}
-              onOpen={onOpenProduct}
+              actions={actions}
               dragging={dragging}
             />
           ))}
@@ -360,14 +468,12 @@ function TreeRow({
 function UnfiledNode({
   products,
   expanded,
-  onToggle,
-  onOpenProduct,
+  actions,
   dragging,
 }: {
   readonly products: readonly TreeProduct[];
   readonly expanded: boolean;
-  readonly onToggle: (id: string) => void;
-  readonly onOpenProduct: (id: string) => void;
+  readonly actions: RowActions;
   readonly dragging: DragPayload | null;
 }) {
   if (products.length === 0) return null;
@@ -383,7 +489,7 @@ function UnfiledNode({
           size="icon"
           variant="ghost"
           className="size-6 shrink-0"
-          onClick={() => onToggle(UNFILED)}
+          onClick={() => actions.toggle(UNFILED)}
           aria-expanded={expanded}
           aria-label={`${expanded ? "Collapse" : "Expand"} Unfiled`}
         >
@@ -417,7 +523,7 @@ function UnfiledNode({
               product={product}
               depth={1}
               fromCategoryId={null}
-              onOpen={onOpenProduct}
+              actions={actions}
               dragging={dragging}
             />
           ))}
@@ -449,6 +555,16 @@ export function CategoryWorkspace({
   const [, startTransition] = useTransition();
   const [dragging, setDragging] = useState<DragPayload | null>(null);
   const [term, setTerm] = useState("");
+  const [picker, setPicker] = useState<PickerTarget | null>(null);
+  const [newChild, setNewChild] = useState<{
+    parentId: string;
+    parentName: string;
+  } | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<{
+    id: string;
+    name: string;
+    count: number;
+  } | null>(null);
 
   // The move shows immediately and is reconciled when the action returns; a
   // rejected move simply never lands, because the optimistic value is dropped
@@ -506,6 +622,65 @@ export function CategoryWorkspace({
   const select = (slug: string) => selectInto("category", slug);
   const openProduct = (id: string) => selectInto("product", id);
   const closeDetail = () => selectInto("category", null);
+
+  /** The categories each product is already in — what the picker ticks. */
+  const categoriesOfProduct = (productId: string): readonly string[] =>
+    links.flatMap((l) => (l.productId === productId ? [l.categoryId] : []));
+
+  const run = (
+    work: () => Promise<
+      { status: "ok" } | { status: "error"; message: string }
+    >,
+    success: string,
+  ) =>
+    startTransition(async () => {
+      const result = await work();
+      if (result.status === "error") toast.error(result.message);
+      else toast.success(success);
+    });
+
+  const pick = (categoryId: string | null) => {
+    const target = picker;
+    setPicker(null);
+    if (target === null) return;
+
+    if (target.kind === "move") {
+      // Optimistic, like the drag: the row moves at once and a refused move
+      // simply never lands, because the optimistic value is dropped when the
+      // transition ends.
+      startTransition(async () => {
+        applyOptimistic({ id: target.id, parentId: categoryId });
+        const result = await moveCategory(target.id, categoryId);
+        if (result.status === "error") toast.error(result.message);
+        else toast.success(`Moved ${target.name}.`);
+      });
+      return;
+    }
+
+    if (categoryId === null) return;
+    run(() => assignCategory(target.id, categoryId), `Filed ${target.name}.`);
+  };
+
+  const actions: RowActions = {
+    toggle,
+    selectCategory: select,
+    openProduct,
+    moveCategory: (id, name) => setPicker({ kind: "move", id, name }),
+    fileProduct: (id, name) =>
+      setPicker({
+        kind: "file",
+        id,
+        name,
+        alreadyIn: categoriesOfProduct(id),
+      }),
+    unfileProduct: (productId, categoryId, name) =>
+      run(
+        () => unassignCategory(productId, categoryId),
+        `Removed ${name} from that category.`,
+      ),
+    addChild: (parentId, parentName) => setNewChild({ parentId, parentName }),
+    removeCategory: (id, name, count) => setConfirmDelete({ id, name, count }),
+  };
 
   const sensors = useSensors(
     // A little distance, or every click on a row starts a drag.
@@ -571,9 +746,7 @@ export function CategoryWorkspace({
                   grouped={grouped}
                   selected={selected}
                   expanded={effectiveExpanded}
-                  onToggle={toggle}
-                  onSelect={select}
-                  onOpenProduct={openProduct}
+                  actions={actions}
                   dragging={dragging}
                 />
               ))}
@@ -581,8 +754,7 @@ export function CategoryWorkspace({
               <UnfiledNode
                 products={grouped.unfiled}
                 expanded={effectiveExpanded.has(UNFILED)}
-                onToggle={toggle}
-                onOpenProduct={openProduct}
+                actions={actions}
                 dragging={dragging}
               />
 
@@ -610,6 +782,31 @@ export function CategoryWorkspace({
           </div>
         )}
       </DragOverlay>
+
+      <CategoryPickerDialog
+        target={picker}
+        categories={optimistic}
+        onPick={pick}
+        onOpenChange={(open) => {
+          if (!open) setPicker(null);
+        }}
+      />
+
+      <NewChildDialog
+        target={newChild}
+        onClose={() => setNewChild(null)}
+        onCreate={(parentId, name) =>
+          run(() => createCategory(name, parentId), `Added ${name}.`)
+        }
+      />
+
+      <DeleteCategoryDialog
+        target={confirmDelete}
+        onClose={() => setConfirmDelete(null)}
+        onConfirm={(id, name) =>
+          run(() => deleteCategory(id), `Deleted ${name}.`)
+        }
+      />
     </DndContext>
   );
 }

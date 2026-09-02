@@ -34,6 +34,9 @@ const validateName = (raw: string): string | null => {
 
 export async function createCategory(
   rawName: string,
+  /** Absent means top level. The repository has always accepted a parent;
+   * until the row menu there was no way to say one. */
+  parentId?: string,
 ): Promise<CategoryActionState> {
   const user = await requireUser();
   const name = validateName(rawName);
@@ -47,11 +50,16 @@ export async function createCategory(
       return { status: "error", message: "That category already exists." };
     }
 
+    if (parentId !== undefined && !existing.some((c) => c.id === parentId)) {
+      return { status: "error", message: "That parent is gone." };
+    }
+
     await dbCategoryRepo.create({
       name,
       // Two categories may legitimately slugify the same way ("Áo dài" and
       // "Ao dai"); the name check above is what stops a true duplicate.
       slug: uniqueSlug(name, await dbCategoryRepo.takenSlugs()),
+      parentId: parentId as CategoryId | undefined,
     });
     revalidatePath("/categories");
     revalidatePath("/products");
@@ -172,6 +180,42 @@ export async function assignCategory(
       ...product.categoryIds,
       categoryId as CategoryId,
     ]);
+    revalidatePath("/categories");
+    revalidatePath("/products");
+    return { status: "ok" };
+  });
+}
+
+/**
+ * Take a product out of one category, leaving the rest alone.
+ *
+ * The counterpart to `assignCategory`, and the reason a product row's menu
+ * says "remove from this category" and never "delete": a product here sits in
+ * as many as eleven, so the category it was clicked in is the only unambiguous
+ * thing to remove.
+ *
+ * Same mirror caveat. A removal we made and Sapo did not is a set member we
+ * dropped; the three-way merge keeps it dropped rather than restoring it on
+ * the next run.
+ */
+export async function unassignCategory(
+  productId: string,
+  categoryId: string,
+): Promise<CategoryActionState> {
+  const user = await requireUser();
+
+  return runWithContext(baseContext(user), async () => {
+    const product = await dbProductRepo.getById(productId as ProductId);
+    if (product === null) {
+      return { status: "error", message: "That product is gone." };
+    }
+    if (!product.categoryIds.includes(categoryId as CategoryId)) {
+      return { status: "error", message: "It is not in that category." };
+    }
+    await dbProductRepo.setCategories(
+      productId as ProductId,
+      product.categoryIds.filter((id) => id !== categoryId),
+    );
     revalidatePath("/categories");
     revalidatePath("/products");
     return { status: "ok" };
