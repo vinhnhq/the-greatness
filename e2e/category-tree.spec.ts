@@ -14,7 +14,7 @@
  * `reset-catalogue.ts` does, and clears it again afterwards.
  */
 
-import { expect, type Page, test } from "@playwright/test";
+import { expect, type Locator, type Page, test } from "@playwright/test";
 
 import { createDb } from "@/lib/db";
 import { newId } from "@/lib/id";
@@ -188,12 +188,18 @@ test("groups nest, leaves stay closed, and the subtree count is distinct", async
   await expect(row(GROUP)).toContainText("0 direct");
 
   // --- opening a branch reveals its leaves -----------------------------
-  await page.getByRole("button", { name: `Expand ${MID}` }).click();
+  // Scoped to the table: the workspace tree above it has its own disclosure
+  // buttons with the same accessible names.
+  await row(MID)
+    .getByRole("button", { name: `Expand ${MID}` })
+    .click();
   await expect(row(LEAF_A)).toBeVisible();
   await expect(row(LEAF_B)).toBeVisible();
 
   // --- and closing the group takes the whole branch with it ------------
-  await page.getByRole("button", { name: `Collapse ${GROUP}` }).click();
+  await row(GROUP)
+    .getByRole("button", { name: `Collapse ${GROUP}` })
+    .click();
   await expect(row(MID)).toHaveCount(0);
   await expect(row(LEAF_A)).toHaveCount(0);
   await expect(row(GROUP)).toBeVisible();
@@ -310,4 +316,69 @@ test("an empty branch reads as empty, not as broken", async ({ page }) => {
   await expect(
     page.getByText("No product carries this category yet."),
   ).toBeVisible();
+});
+
+/**
+ * The split view and its drags.
+ *
+ * dnd-kit listens to pointer events with a distance constraint, so a
+ * one-shot `dragTo` does not trip it — the drag has to be stepped, which is
+ * why this is written out longhand rather than using Playwright's helper.
+ */
+const dragOnto = async (page: Page, source: Locator, target: Locator) => {
+  const a = await source.boundingBox();
+  const b = await target.boundingBox();
+  if (a === null || b === null) throw new Error("nothing to drag");
+
+  await page.mouse.move(a.x + a.width / 2, a.y + a.height / 2);
+  await page.mouse.down();
+  // Past the 6px activation distance, then onto the target in steps so the
+  // collision detection sees the moves.
+  await page.mouse.move(a.x + a.width / 2 + 20, a.y + a.height / 2, {
+    steps: 5,
+  });
+  await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2, { steps: 10 });
+  await page.mouse.up();
+};
+
+test("the split view selects into the URL without navigating", async ({
+  page,
+}) => {
+  await signIn(page);
+  await page.goto("/categories");
+
+  await page.getByRole("button", { name: MID, exact: true }).first().click();
+
+  await expect(page).toHaveURL(/category=e2e-quat/);
+  // The right pane filled; we did not leave /categories.
+  await expect(page).toHaveURL(/\/categories\?/);
+  await expect(page.getByText(/E2E Quạt tích điện/).first()).toBeVisible();
+});
+
+test("dragging a product onto a category files it", async ({ page }) => {
+  await signIn(page);
+  await page.goto("/categories?category=e2e-quat");
+
+  await expect(page.getByText(/E2E Quạt tích điện/).first()).toBeVisible();
+
+  // The workspace tree opens on roots only, so the target leaf is not
+  // rendered yet — a closed branch is not a drop target.
+  await page
+    .getByRole("button", { name: `Expand ${MID}` })
+    .first()
+    .click();
+  await expect(
+    page.getByRole("button", { name: LEAF_EMPTY, exact: true }),
+  ).toBeVisible();
+
+  await dragOnto(
+    page,
+    page.getByText(/E2E Quạt tích điện/).first(),
+    page.getByRole("button", { name: LEAF_EMPTY, exact: true }),
+  );
+
+  // The empty leaf now holds it — and this is only safe because the mirror
+  // makes the next sync keep it.
+  await page.goto("/categories?category=e2e-quat-thap");
+  await expect(page.getByText(/E2E Quạt tích điện/).first()).toBeVisible();
 });

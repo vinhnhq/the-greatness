@@ -49,6 +49,11 @@ export type CategoryRepository = {
   takenSlugs(exceptId?: CategoryId): Promise<ReadonlySet<string>>;
   create(input: NewCategory): Promise<Category>;
   rename(id: CategoryId, name: string, slug: string): Promise<Category | null>;
+  /**
+   * Re-parent. The tree is **ours** — Sapo has nowhere to store it and the
+   * sync never writes this column — so this is a purely local edit.
+   */
+  setParent(id: CategoryId, parentId: CategoryId | null): Promise<void>;
   /** Removes the category and every link to it; products are untouched. */
   remove(id: CategoryId): Promise<void>;
 };
@@ -158,6 +163,15 @@ export const dbCategoryRepo: CategoryRepository = {
     return row ? parseCategoryStrict(row) : null;
   },
 
+  setParent: async (id, parentId) => {
+    const { db } = await readContext();
+    await db
+      .updateTable("categories")
+      .set({ parentId, updatedAt: new Date() })
+      .where("id", "=", id)
+      .execute();
+  },
+
   remove: async (id) => {
     const { db } = await readContext();
     // Links first: a category with no row but surviving links would filter to
@@ -224,6 +238,12 @@ export const createInMemoryCategoryRepo = (
       if (index === -1) return null;
       rows[index] = { ...rows[index], name, slug, updatedAt: now() };
       return rows[index];
+    },
+
+    setParent: async (id, parentId) => {
+      const index = rows.findIndex((r) => r.id === id);
+      if (index !== -1)
+        rows[index] = { ...rows[index]!, parentId, updatedAt: now() };
     },
 
     remove: async (id) => {

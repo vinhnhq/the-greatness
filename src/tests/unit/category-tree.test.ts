@@ -17,6 +17,7 @@ import {
   buildCategoryForest,
   filterForest,
   findNode,
+  planMove,
 } from "@/lib/domain/categories/tree";
 
 type Row = {
@@ -283,5 +284,71 @@ describe("findNode and ancestorsOf", () => {
 
   it("stops where a parent is missing rather than throwing", () => {
     expect(ancestorsOf([cat("orphan", "gone")], "orphan")).toEqual([]);
+  });
+});
+
+/**
+ * Moving a category.
+ *
+ * Deliberately re-parenting, not sortable-with-indent. Siblings sort by name
+ * at every level (`buildCategoryForest`), so there is no position for a drag
+ * to express — the offset-based projection the dnd-kit tree example uses
+ * would be machinery for an ordering this app does not have.
+ *
+ * That leaves one rule that actually matters: a category may not be dropped
+ * inside itself, because the result has no root and would vanish from the
+ * page entirely.
+ */
+describe("planMove", () => {
+  const rows = [
+    cat("root", null),
+    cat("mid", "root"),
+    cat("leaf", "mid"),
+    cat("other", null),
+  ];
+
+  it("re-parents onto another category", () => {
+    expect(planMove(rows, "leaf", "other")).toEqual({
+      ok: true,
+      id: "leaf",
+      parentId: "other",
+    });
+  });
+
+  it("promotes to the top level when dropped on nothing", () => {
+    expect(planMove(rows, "leaf", null)).toEqual({
+      ok: true,
+      id: "leaf",
+      parentId: null,
+    });
+  });
+
+  it("refuses to drop a category on itself", () => {
+    expect(planMove(rows, "mid", "mid")).toMatchObject({ ok: false });
+  });
+
+  it("refuses to drop a category inside its own descendant", () => {
+    // The cycle case. `buildCategoryForest` survives one — it promotes the
+    // stranded rows — but a tree that can be corrupted by a drag should not
+    // allow the drag.
+    expect(planMove(rows, "root", "leaf")).toMatchObject({
+      ok: false,
+      reason: expect.stringMatching(/inside itself/i),
+    });
+  });
+
+  it("refuses a drop that changes nothing", () => {
+    // Already this parent. Reporting "moved" would be a lie, and writing
+    // would bump updatedAt for no reason.
+    expect(planMove(rows, "mid", "root")).toMatchObject({ ok: false });
+    expect(planMove(rows, "root", null)).toMatchObject({ ok: false });
+  });
+
+  it("refuses to move a category that is not in the tree", () => {
+    expect(planMove(rows, "ghost", "root")).toMatchObject({ ok: false });
+  });
+
+  it("refuses to move onto a category that is not in the tree", () => {
+    expect(planMove(rows, "leaf", "ghost")).toMatchObject({ ok: false });
   });
 });

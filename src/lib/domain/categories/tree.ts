@@ -221,3 +221,58 @@ export const findNode = <T extends TreeCategory>(
   }
   return null;
 };
+
+export type MovePlan =
+  | { readonly ok: true; readonly id: string; readonly parentId: string | null }
+  | { readonly ok: false; readonly reason: string };
+
+/**
+ * Whether a drag may land, and what it would set.
+ *
+ * **Re-parenting, not reordering.** Siblings sort by name at every level, so a
+ * drop has no position to express and the offset-based projection the dnd-kit
+ * tree example uses would be machinery for an ordering this app does not
+ * have. Dropping A onto B means "A belongs to B"; dropping onto nothing means
+ * "A is top level".
+ *
+ * The rule worth having is the cycle guard. `buildCategoryForest` survives a
+ * cycle — it promotes the stranded rows rather than losing them — but a tree
+ * that a drag can corrupt should refuse the drag, not repair it afterwards.
+ *
+ * A drop that changes nothing is refused rather than applied: it keeps the
+ * caller from reporting a move that did not happen, and from bumping
+ * `updatedAt` for a gesture that landed where it started.
+ */
+export const planMove = <T extends TreeCategory>(
+  categories: readonly T[],
+  id: string,
+  targetId: string | null,
+): MovePlan => {
+  const byId = new Map(categories.map((c) => [c.id, c]));
+  const moving = byId.get(id);
+  if (moving === undefined)
+    return { ok: false, reason: "That category is gone." };
+  if (targetId !== null && !byId.has(targetId)) {
+    return { ok: false, reason: "That category is gone." };
+  }
+  if (targetId === id) {
+    return { ok: false, reason: "A category cannot contain itself." };
+  }
+  if (moving.parentId === targetId) {
+    return { ok: false, reason: "It is already there." };
+  }
+
+  // Walk up from the target: if we meet the dragged category, the drop is
+  // inside its own subtree.
+  const seen = new Set<string>();
+  let cursor = targetId;
+  while (cursor !== null && !seen.has(cursor)) {
+    if (cursor === id) {
+      return { ok: false, reason: "A category cannot go inside itself." };
+    }
+    seen.add(cursor);
+    cursor = byId.get(cursor)?.parentId ?? null;
+  }
+
+  return { ok: true, id, parentId: targetId };
+};

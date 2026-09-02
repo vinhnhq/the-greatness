@@ -15,6 +15,9 @@ import { baseContext, runWithContext } from "@/lib/context";
 import type { CategoryId } from "@/lib/domain/categories/entity";
 import { CATEGORY_NAME_MAX } from "@/lib/domain/categories/entity";
 import { dbCategoryRepo } from "@/lib/domain/categories/repository";
+import { planMove } from "@/lib/domain/categories/tree";
+import type { ProductId } from "@/lib/domain/products/entity";
+import { dbProductRepo } from "@/lib/domain/products/repository";
 import { requireUser } from "@/lib/require-user";
 import { slugify, uniqueSlug } from "@/lib/slug";
 
@@ -102,6 +105,73 @@ export async function deleteCategory(id: string): Promise<CategoryActionState> {
     // `remove` drops the links and leaves the products — deleting a category
     // must never delete stock.
     await dbCategoryRepo.remove(id as CategoryId);
+    revalidatePath("/categories");
+    revalidatePath("/products");
+    return { status: "ok" };
+  });
+}
+
+/**
+ * Re-parent a category by dragging it.
+ *
+ * `parentId` is ours: Sapo has no hierarchy at all, and `sync:sapo` never
+ * writes this column, so nothing here can be undone by the next sync. That is
+ * the difference between this and `assignCategory` below.
+ *
+ * The whole decision lives in `planMove`, which is pure and tested — the cycle
+ * guard in particular, since a category dropped inside itself would leave a
+ * subtree with no root.
+ */
+export async function moveCategory(
+  id: string,
+  targetId: string | null,
+): Promise<CategoryActionState> {
+  const user = await requireUser();
+
+  return runWithContext(baseContext(user), async () => {
+    const all = await dbCategoryRepo.list();
+    const plan = planMove(
+      all.map((c) => ({ ...c, productCount: 0 })),
+      id,
+      targetId,
+    );
+    if (!plan.ok) return { status: "error", message: plan.reason };
+
+    await dbCategoryRepo.setParent(
+      plan.id as CategoryId,
+      plan.parentId as CategoryId | null,
+    );
+    revalidatePath("/categories");
+    return { status: "ok" };
+  });
+}
+
+/**
+ * Put a product in a category by dragging it.
+ *
+ * Unlike `moveCategory`, this writes `product_categories`, which Sapo also
+ * owns — so it is only safe because of the mirror. The three-way merge sees an
+ * addition we made and Sapo did not, and keeps it. Before v6 the next
+ * `sync:sapo` recomputed the link set from Sapo and deleted this.
+ */
+export async function assignCategory(
+  productId: string,
+  categoryId: string,
+): Promise<CategoryActionState> {
+  const user = await requireUser();
+
+  return runWithContext(baseContext(user), async () => {
+    const product = await dbProductRepo.getById(productId as ProductId);
+    if (product === null) {
+      return { status: "error", message: "That product is gone." };
+    }
+    if (product.categoryIds.includes(categoryId as CategoryId)) {
+      return { status: "error", message: "It is already in that category." };
+    }
+    await dbProductRepo.setCategories(productId as ProductId, [
+      ...product.categoryIds,
+      categoryId as CategoryId,
+    ]);
     revalidatePath("/categories");
     revalidatePath("/products");
     return { status: "ok" };
