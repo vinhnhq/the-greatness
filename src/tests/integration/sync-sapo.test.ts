@@ -497,4 +497,76 @@ describe("syncFromSapo", () => {
       .executeTakeFirstOrThrow();
     expect(JSON.parse(mirror.payload)).toEqual({ name: "Quạt", slug: "quat" });
   });
+
+  it("a resolved keep-ours survives the next sync", async () => {
+    // The regression this exists for: resolving used to write the CHOSEN
+    // value into the mirror, so after "keep ours" the base equalled our
+    // value, the next run read Sapo's unchanged value as an upstream change,
+    // and it overwrote the decision. Found in the browser, not here.
+    await syncFromSapo(db, snapshot());
+    await db
+      .updateTable("categories")
+      .set({ name: "Ours" })
+      .where("id", "=", "c2")
+      .execute();
+
+    const theirs = {
+      ...snapshot(),
+      categories: [
+        { sourceId: 1, name: "Thiết bị gia đình", slug: "tbgd" },
+        { sourceId: 2, name: "Theirs", slug: "quat" },
+      ],
+    };
+    await syncFromSapo(db, theirs);
+
+    // Resolve as the action does: the row keeps ours, and the base records
+    // what SAPO said — not what we picked.
+    const conflict = await db
+      .selectFrom("sync_conflicts")
+      .selectAll()
+      .executeTakeFirstOrThrow();
+    const payload = JSON.parse(
+      (
+        await db
+          .selectFrom("sapo_mirror")
+          .select("payload")
+          .where("entity", "=", "category")
+          .where("sapoId", "=", "2")
+          .executeTakeFirstOrThrow()
+      ).payload,
+    ) as Record<string, unknown>;
+    await db
+      .deleteFrom("sapo_mirror")
+      .where("entity", "=", "category")
+      .where("sapoId", "=", "2")
+      .execute();
+    await db
+      .insertInto("sapo_mirror")
+      .values({
+        entity: "category",
+        sapoId: "2",
+        payload: JSON.stringify({
+          ...payload,
+          name: JSON.parse(conflict.theirs!),
+        }),
+        syncedAt: NOW,
+      })
+      .execute();
+    await db
+      .updateTable("sync_conflicts")
+      .set({ resolvedAt: NOW, resolution: "ours" })
+      .where("id", "=", conflict.id)
+      .execute();
+
+    const after = await syncFromSapo(db, theirs);
+
+    const row = await db
+      .selectFrom("categories")
+      .select("name")
+      .where("id", "=", "c2")
+      .executeTakeFirstOrThrow();
+    expect(row.name).toBe("Ours");
+    expect(after.categories.keptOurs).toBe(1);
+    expect(after.conflicts.opened).toBe(0);
+  });
 });

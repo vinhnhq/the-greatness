@@ -13,7 +13,14 @@
  * a header that silently described the previous one.
  */
 
-import { Images, LayoutGrid, LogOut, Package, Tags } from "lucide-react";
+import {
+  Images,
+  LayoutGrid,
+  LogOut,
+  Package,
+  GitCompare,
+  Tags,
+} from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Fragment } from "react";
@@ -61,6 +68,7 @@ const NAV = [
   { href: "/products", label: "Products", icon: Package },
   { href: "/gallery", label: "Gallery", icon: Images },
   { href: "/categories", label: "Categories", icon: Tags },
+  { href: "/reconcile", label: "Reconcile", icon: GitCompare },
 ] as const;
 
 export type ShellUser = {

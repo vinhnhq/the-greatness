@@ -10,6 +10,14 @@
  *
  * The report is the point. A run that changed nothing and a run that rewrote
  * the catalogue must not look alike from the terminal.
+ *
+ * `--plan` is a dry run, and it is a **real** run inside a transaction that is
+ * rolled back rather than a second code path that predicts one. A predictor
+ * drifts from the thing it predicts, and the drift only ever shows up as a
+ * surprise on the day it matters.
+ *
+ * It reads the snapshot, like the real run does, so run `bun run fetch:sapo`
+ * first if you want it to describe today.
  */
 
 import { promises as fs } from "node:fs";
@@ -32,16 +40,44 @@ const list = (label: string, names: readonly string[], limit = 5): void => {
   console.log(`  ${label}: ${names.length} — ${shown}${more}`);
 };
 
+/** Thrown to unwind a `--plan` transaction once the report is in hand. */
+class Rollback extends Error {
+  constructor(readonly report: Awaited<ReturnType<typeof syncFromSapo>>) {
+    super("dry run");
+  }
+}
+
 const main = async (): Promise<void> => {
+  const dryRun = process.argv.includes("--plan");
   const db = createDb();
   try {
-    console.log(`Syncing from data/sapo/ into ${getDatabaseDriver()}`);
+    console.log(
+      dryRun
+        ? `Planning against ${getDatabaseDriver()} — nothing will be written`
+        : `Syncing from data/sapo/ into ${getDatabaseDriver()}`,
+    );
     const [categories, products, links] = await Promise.all([
       readJson<SapoCategory[]>("categories.json"),
       readJson<SapoProduct[]>("products.json"),
       readJson<SapoLink[]>("product-categories.json"),
     ]);
-    const report = await syncFromSapo(db, { categories, products, links });
+    const snapshot = { categories, products, links };
+    let report: Awaited<ReturnType<typeof syncFromSapo>>;
+    if (dryRun) {
+      // The same function, against the same data, undone. Nothing here is a
+      // prediction of what the sync would do; it is what the sync did.
+      report = await db
+        .transaction()
+        .execute(async (trx) => {
+          throw new Rollback(await syncFromSapo(trx, snapshot));
+        })
+        .catch((error: unknown) => {
+          if (error instanceof Rollback) return error.report;
+          throw error;
+        });
+    } else {
+      report = await syncFromSapo(db, snapshot);
+    }
 
     const { categories: c, products: p, links: l, conflicts: x } = report;
     console.log(
@@ -66,9 +102,11 @@ const main = async (): Promise<void> => {
     const touched =
       c.added + c.updated + p.added + p.updated + l.added + l.removed;
     console.log(
-      touched === 0
-        ? "\nNothing changed."
-        : `\nDone. ${touched} row(s) changed. The category tree and the media library were not touched.`,
+      dryRun
+        ? `\nPlan only — nothing was written. ${touched} row(s) would change.`
+        : touched === 0
+          ? "\nNothing changed."
+          : `\nDone. ${touched} row(s) changed. The category tree and the media library were not touched.`,
     );
     if (x.open > 0) {
       // Never blocks: the three automatic buckets are already applied. A
