@@ -3,6 +3,56 @@
 > Newest at top: `YYYY-MM-DD · <sha> · <task id> <description>`.
 > Cut the line out of [`backlog.md`](backlog.md); never keep-and-tick.
 
+## v6 — Two versions of the truth, reconciled on purpose · ✅ 2026-09-02
+
+The sync stopped overwriting. `sapo_mirror` stores the payload Sapo gave us
+last time, so every field is merged base/ours/theirs and the branch that never
+existed — **we changed it and Sapo did not, so keep ours** — now does.
+
+- **Not event-sourced, and the reasoning is written down** because it will be
+  asked again. Sapo emits no events, so their side can only ever be derived by
+  diffing a stored snapshot; the mirror is needed either way, and event
+  sourcing would add a log beside it plus projections while relocating
+  conflict policy into a replay function that is harder to test than a pure
+  function of three values. `L.7` is re-pointed at `V6.16`.
+- **Proven against the real 211/832**: rename a category, rename a product,
+  drag that product into an imported category, run `sync:sapo` — all three
+  survive, reported as "kept ours". Before this, all three were reverted.
+- **A conflict is a row, not a modal.** The run applies the three automatic
+  buckets and parks the fourth, so it never blocks and stays schedulable.
+  Re-running re-evaluates: if Sapo comes back to our value the conflict heals
+  and disappears.
+- **`/reconcile`** shows two lists that mean opposite things — the small one
+  needs a decision, the large one is what the mirror is protecting.
+- **`sync:sapo --plan`** is a real run inside a rolled-back transaction, not a
+  predictor that can drift from the thing it predicts.
+- **A split `/categories`** with `@dnd-kit`: drag to re-parent, drag a product
+  to file it, selection in the URL. No `react-arborist` (a second drag engine
+  pinned to `react-dnd ^14` from 2022), no `react-window` (211 nodes at depth
+  3, and an unmounted row is not a drop target).
+
+Tasks: V6.1–V6.14. Commits `5f4e48b`, `670bba6`, `d301517`, `81a08b9`,
+`98724e1`. Spec: [`specs/v6-two-versions.md`](specs/v6-two-versions.md).
+
+### Four findings from this arc
+
+1. **The mirror must not advance past a conflicted field.** Writing Sapo's new
+   value while the conflict was open made the next run see "ours moved, theirs
+   did not" — keep-ours — so the parked decision silently resolved itself one
+   run later. `holdBase` keeps the previous base for a field still in dispute:
+   the mirror records what has been _reconciled_, not what was last fetched.
+2. **Resolving must record THEIRS, never the chosen value.** After "keep ours"
+   a base equal to our value made the next sync read Sapo's _unchanged_ value
+   as an upstream change and overwrite the decision on the spot. Watched it
+   happen in the browser; the tests had not thought to ask.
+3. **A drop has no position when siblings sort by name.** The offset-based
+   projection every dnd-kit tree example uses would have been machinery for an
+   ordering this app does not have. Re-parenting is the whole operation, and
+   `planMove` fits in forty lines with a cycle guard.
+4. **Committing before reading the gate, twice.** Both times coverage had
+   already failed on screen. The second was a schema test correctly catching
+   two new tables — it did its job; the reading did not.
+
 ## v5 — Sharper pictures, and a catalogue you can walk · ✅ 2026-09-01
 
 Four requests. The image half turned out to be a win on both axes rather than

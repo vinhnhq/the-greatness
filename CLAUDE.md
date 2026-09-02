@@ -49,7 +49,8 @@ bun run lint             # oxlint --type-aware + oxfmt --check
 bun run format           # oxfmt .
 bun run migrate <cmd>    # latest | up | down | status
 bun run seed             # 1 operator + the real Sapo catalogue (data/sapo/)
-bun run sync:sapo        # refresh in place — never deletes, never writes parentId
+bun run sync:sapo        # three-way merge; never deletes, never writes parentId
+bun run sync:sapo --plan # dry run — a real run in a rolled-back transaction
 bun run fetch:sapo       # re-pull the catalogue; --images for the originals
 bun run prepare:sapo-media  # de-logo, resize and rename into data/sapo/media/
 bun run db:local         # migrate + seed
@@ -112,6 +113,12 @@ Things a session will hit, in rough order of how much time they cost.
 - **`seed` wipes, `sync:sapo` reconciles.** The seed is `deleteFrom` on five
   tables — right for seeding, catastrophic as a job. Use `sync:sapo` against a
   database anyone has touched; it never deletes and never writes `parentId`.
+- **The sync is three-way, and the mirror is what makes it safe.**
+  `sapo_mirror` holds what Sapo said last time, so a field we changed and Sapo
+  did not is **kept**. Two traps, both found the hard way: the mirror must not
+  advance past a **conflicted** field (or the conflict silently resolves in our
+  favour next run), and resolving a conflict must record **theirs** as the new
+  base, never the chosen value (or "keep ours" is overwritten on the next run).
 - **The category tree is ours, not Sapo's.** Sapo has no parent field
   anywhere. `lib/sapo-tree.ts` reconstructs it from the storefront menu plus
   collection creation order — **a one-time reconstruction**, not an ongoing

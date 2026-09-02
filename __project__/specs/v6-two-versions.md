@@ -1,6 +1,6 @@
 # v6 — Two versions of the truth, reconciled on purpose
 
-**Status:** 🚧 In progress, 2026-09-02. Follows
+**Status:** ✅ Shipped 2026-09-02 except `V6.15` (push-back, ADR-gated). Follows
 [v5](v5-pictures-and-walking-the-catalogue.md).
 
 > Decided before writing: **not event-sourced.** `L.7` already records that
