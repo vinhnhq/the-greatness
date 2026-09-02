@@ -58,7 +58,9 @@ describe("migrations", () => {
       "product_categories",
       "product_media",
       "products",
+      "sapo_mirror",
       "sessions",
+      "sync_conflicts",
       "users",
       "verifications",
     ]);
@@ -76,7 +78,7 @@ describe("migrations", () => {
 
     const again = await migrator.migrateToLatest();
     expect(again.error).toBeUndefined();
-    expect(await tableNames()).toHaveLength(9);
+    expect(await tableNames()).toHaveLength(11);
   });
 
   it("enforces the unique constraints the save path relies on", async () => {
