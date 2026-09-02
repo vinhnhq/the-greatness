@@ -40,11 +40,14 @@ Kysely, co-located operations, `__project__/` docs).
   the Sapo catalogue import shipped without one; its record is the `done.md`
   entry and the `fetch:sapo` / `prepare:sapo-media` docblocks.
 - **Decisions** — [`__project__/decisions/`](__project__/decisions/README.md).
-  Three. Two about what a row _means_ (media ownership, the 4096px archive
-  cap) and [`0003`](__project__/decisions/0003-mirror-and-reconciliation.md)
-  about what each system _owns_ — the mirror, the three-way merge, and why
-  this is not event-sourced. Append-only; a change of course is an
-  `## Amendments` section.
+  Four. Two about what a row _means_ (media ownership, the 4096px archive cap)
+  and two about what each system _owns_:
+  [`0003`](__project__/decisions/0003-mirror-and-reconciliation.md) is the
+  mirror and the three-way merge, and
+  [`0004`](__project__/decisions/0004-writing-back.md) is publishing in two
+  lanes — the Admin API for what it supports, Playwright for the menu, which
+  has no API — with the rule that **a publish never advances the mirror**.
+  Append-only; a change of course is an `## Amendments` section.
 - **Research** — [`__project__/research/`](__project__/research/). Findings
   about things outside this repo, each dated because they go stale.
   [`write-back-and-other-platforms.md`](__project__/research/write-back-and-other-platforms.md)

@@ -119,20 +119,11 @@ Spec: [`specs/v6-two-versions.md`](specs/v6-two-versions.md).
 **V6.1–V6.14 shipped 2026-09-02** — ship facts in [`done.md`](done.md).
 What is left:
 
-- [ ] **V6.15** ⏸ **Push a reviewed selection to Sapo** via the admin API
-      (`POST /admin/collects.json`, `PUT /admin/custom_collections/{id}.json`,
-      `PUT /admin/products/{id}.json`) as a private app, dry run first.
-      `/reconcile` already shows the selection this would send. **Not
-      computer-use** — that admin was measured stalling past 30s on detail
-      pages, cannot be dry-run, reports nothing, and runs as the operator's
-      own login against a store that also feeds Lazada, Shopee, Tiki, TikTok
-      Shop and Google Shopping. **Needs an ADR first** (`0004`; `0003` is the mirror), and the answer may
-      still be no. **The research is done** —
-      [`research/write-back-and-other-platforms.md`](research/write-back-and-other-platforms.md)
-      establishes what a key can and cannot write: everything except the
-      tree, because Sapo has no menu API and `CustomCollection` has no parent
-      field. It also names a third path (metafields + one Liquid change) that
-      the ADR has to weigh.
+- [x] **V6.15** → **decided.** [ADR-0004](decisions/0004-writing-back.md)
+      accepts writing back in **two lanes**: the Admin API for memberships,
+      categories and product fields, and Playwright for the menu tree, which
+      has no API at all. Computer-use is demoted to the fallback it should
+      always have been. The build is v8, Blocks B–D.
 - [ ] **V6.16** ↷ **An append-only change log on our side** — `(entity, id,
 field, from, to, actor, at)`. The part of the event-sourcing idea worth
       keeping; supersedes `L.7`. Additive. Note the asymmetry: only **our**
@@ -175,6 +166,91 @@ What is left:
 - [ ] **V7.28** ↷ **The Unfiled cap is a constant, not a page.** 100 with a
       count and a filter is right for finding something; it is not a way to
       work through 697 in order. A "show the next 100" would be.
+
+## v8 — Colour that means something, and a way out to Sapo
+
+Spec: [`specs/v8-colour-and-publishing.md`](specs/v8-colour-and-publishing.md).
+Blocks B–D implement
+[ADR-0004](decisions/0004-writing-back.md).
+**Planned 2026-09-02, nothing built.** Block A is independent — it ships
+without the ADR and without any of the rest.
+
+**Block A — colour where the data varies**
+
+The fault is not too little colour, it is colour on the one column with no
+variance: **832 of 832 products are `active`**, so every page shows 25
+identical green pills, while 697 unfiled · 299 no description · 160 no price ·
+63 no image are all rendered in the same grey.
+
+- [ ] **V8.1** `active` goes neutral; `draft` keeps amber, `archived` stays
+      muted. A coloured badge starts meaning "look at this". One file.
+- [ ] **V8.2** Add `--info` (blue) for **Sapo's side** — the only new token.
+      Apply to `SapoLink` and to `/reconcile`'s "changed here" section. The
+      app is a two-version model with nothing distinguishing ours from theirs.
+- [ ] **V8.3** `--warning` on the **minorities**: no price (160), no image
+      (63), and the **Unfiled node's count badge**. Deliberately _not_ a mark
+      per unfiled row — 697 of 832 is a majority, and colouring 84% of rows is
+      the no-variance mistake in reverse. Aggregate the majority, mark the
+      minority.
+- [ ] **V8.4** `/reconcile`'s two sections stop looking identical. "Needs a
+      decision" and "changed here" have **opposite defaults** (ADR-0003) and
+      are both grey today.
+- [ ] **V8.5** Verify at 1280×800 and 1440, both themes, and check every mark
+      still reads with colour removed — each one sits beside a word or a
+      number, and that is the point.
+
+**Block B — the change set** (nothing writes yet)
+
+- [ ] **V8.6** Migration: `publish_queue` — one row per item,
+      `pending → applied → verified → failed`. Per item, not per run: a
+      210-item menu rebuild will fail partway and a re-run must resume.
+      Append-only and backfill-free; nothing to backfill.
+- [ ] **V8.7** `planPublish(local, mirror)` — **pure**, like `planSync` and
+      `planMove`. Typed change set out. This is the reviewable artifact and
+      the single thing both lanes and the summary consume.
+- [ ] **V8.8** `/reconcile` renders it, and a Publish button enqueues it.
+      The page already computes the selection; this gives it somewhere to go.
+- [ ] **V8.9** A human-readable summary **generated from** the change set.
+      Prose is output only — the moment prose drives a write, a step gets
+      invented.
+
+**Block C — lane one, the Admin API** (the bulk of the work)
+
+- [ ] **V8.10** Sapo Admin API client, Basic auth from the environment. Must
+      **not** import `env-server.ts` — it carries `server-only` and throws in
+      any CLI script. `db-url.ts` and `storage/config.ts` are the precedent.
+- [ ] **V8.11** `publish:sapo --plan` prints the change set and writes
+      nothing. Unlike `sync:sapo --plan` this cannot be "a real run in a
+      rolled-back transaction" — a remote write does not roll back, so this
+      half is a **simulation**, and the report has to say so.
+- [ ] **V8.12** Apply memberships — `POST/DELETE /admin/collects.json`. This
+      is the 697, and the reason the whole lane exists.
+- [ ] **V8.13** Apply categories and product fields —
+      `custom_collections.json`, `products/{id}.json`. **Never `parentId`**:
+      Sapo has nowhere to put it.
+- [ ] **V8.14** Read back and diff. An item is `verified` only when Sapo
+      confirms it. **The publish does not touch the mirror** — the next
+      ordinary `sync:sapo` moves it. This is the v6 trap in its worst costume;
+      see ADR-0004.
+- [ ] **V8.15** Never delete, on either lane. Same rule the sync has had since
+      v4, and it matters more when the write is outward.
+
+**Block D — lane two, the menu** (Playwright)
+
+- [ ] **V8.16** ⏸ **Spike, timeboxed to one session: is Sapo's menu editor
+      scriptable?** Generated ids and a drag-and-drop builder may make it not
+      worth fighting. Decide before building; if the answer is no, the LLM
+      agent becomes the fallback ADR-0004 already allows for.
+- [ ] **V8.17** ⏸ The script itself: read the desired tree, drive the editor,
+      report per item. Runs outside the request cycle.
+- [ ] **V8.18** ⏸ Read back the rendered storefront menu and diff against the
+      intended tree — the same rule as `V8.14`, and browser automation is the
+      least trustworthy "success" there is.
+
+**Before any of Block C or D runs against the real store** — `N.3` is still
+unanswered and this is the first outward-facing write in the project. The
+store also feeds Lazada, Shopee, Tiki, TikTok Shop and Google Shopping, so a
+bad publish is customer-visible immediately.
 
 ## N — Later, unrelated to v2
 

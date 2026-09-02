@@ -12,6 +12,7 @@ was decided and why, including where that later turned out to be wrong.
 | [0001](0001-media-ownership.md)           | Media is a library; products link to it             | Accepted 2026-08-28 |
 | [0002](0002-archive-cap.md)               | The stored original is capped at 4096px             | Accepted 2026-08-28 |
 | [0003](0003-mirror-and-reconciliation.md) | Two versions, reconciled three-way through a mirror | Accepted 2026-09-02 |
+| [0004](0004-writing-back.md)              | Writing back: two lanes, and the mirror moves last  | Accepted 2026-09-02 |
 
 ## When something needs an ADR
 
