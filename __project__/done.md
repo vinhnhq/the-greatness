@@ -3,6 +3,47 @@
 > Newest at top: `YYYY-MM-DD · <sha> · <task id> <description>`.
 > Cut the line out of [`backlog.md`](backlog.md); never keep-and-tick.
 
+## v8 Block A — colour where the data varies · ✅ 2026-09-02
+
+Spec: [`specs/v8-colour-and-publishing.md`](specs/v8-colour-and-publishing.md),
+part one. Blocks B–D are not started.
+
+The fault was never too little colour. It was colour on the one column with
+no variance:
+
+```
+status:          832 of 832 products are "active"   ← the only coloured column
+no category:     697                                ← grey
+no description:  299                                ← grey
+no price:        160                                ← grey
+no image:         63                                ← grey
+```
+
+Twenty-five identical green pills per page, teaching the reader to skip the
+column, while everything that varies looked the same as everything else.
+
+- **`active` goes neutral.** It is the default, and colour marks a departure
+  from the default. What is left — amber for a draft, muted for archived —
+  now means "this one is not like the others", which is the only thing a
+  status column is for.
+- **`--info` is the one new token**, and it means **Sapo's side**. The app is
+  a two-version model and nothing distinguished theirs from ours; one hue used
+  only for that does it without a word of explanation. It is on `SapoLink` and
+  on `/reconcile`'s "changed here" rule.
+- **The minorities get marked, the majority gets aggregated.** A price of 0
+  (160 of 832) and a missing photograph (63) are amber. Unfiled gets **one**
+  amber badge saying `697` — not 697 amber rows, because 84% of the catalogue
+  in amber is the no-variance mistake inverted.
+- **`/reconcile`'s two sections stop looking identical.** They mean opposite
+  things — one needs a person, the other needs nobody — and the amber rule
+  only appears when there actually is a conflict. With none, it stays grey.
+
+Colour is never the only signal: every mark sits beside a word or a number,
+so every page still reads with colour removed.
+
+- 2026-09-02 · `42e1ab0` · **V8.1–V8.5** The palette, the four marks, and
+  verification at 1280×800 in both themes.
+
 ## v7 — The taxonomy workspace, and the 697 · ✅ 2026-09-02
 
 Spec: [`specs/v7-taxonomy-workspace.md`](specs/v7-taxonomy-workspace.md).

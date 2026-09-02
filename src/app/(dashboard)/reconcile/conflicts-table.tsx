@@ -18,6 +18,7 @@ import type {
   DivergenceRow,
   OpenConflict,
 } from "@/lib/domain/reconcile/repository";
+import { cn } from "@/lib/utils";
 
 import { resolveConflict } from "./actions";
 
@@ -73,8 +74,19 @@ export function ConflictsTable({
 
   return (
     <div className="flex flex-col gap-10">
+      {/* The two sections mean opposite things — one needs a person, the
+          other needs nobody — and until now they looked identical. The rule
+          in the amber marker: colour a departure from the default, and only
+          when there is one. With no conflicts the section stays grey. */}
       <section className="flex flex-col gap-3">
-        <h2 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+        <h2 className="flex items-center gap-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+          <span
+            aria-hidden
+            className={cn(
+              "h-3.5 w-0.5 rounded-full",
+              conflicts.length > 0 ? "bg-warning" : "bg-border",
+            )}
+          />
           Needs a decision {conflicts.length > 0 && `· ${conflicts.length}`}
         </h2>
 
@@ -135,7 +147,10 @@ export function ConflictsTable({
       </section>
 
       <section className="flex flex-col gap-3">
-        <h2 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+        <h2 className="flex items-center gap-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+          {/* Blue: this list is about Sapo's side, and it is informational —
+              the opposite default to the section above. */}
+          <span aria-hidden className="h-3.5 w-0.5 rounded-full bg-info" />
           Changed here since the last sync{" "}
           {divergences.length > 0 && `· ${divergences.length}`}
         </h2>

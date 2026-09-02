@@ -34,9 +34,12 @@ export function SapoLink({
       href={url}
       target="_blank"
       rel="noopener noreferrer"
+      // `--info` is the app's one colour for **Sapo's side**. This is a
+      // two-version model and nothing else distinguishes theirs from ours;
+      // one hue, used only for that, does it without a word of explanation.
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-md text-xs font-medium text-muted-foreground",
-        "underline-offset-4 transition-colors hover:text-foreground hover:underline",
+        "inline-flex items-center gap-1.5 rounded-md text-xs font-medium text-info/80",
+        "underline-offset-4 transition-colors hover:text-info hover:underline",
         "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
         className,
       )}

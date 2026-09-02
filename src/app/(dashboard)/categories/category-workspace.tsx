@@ -523,16 +523,21 @@ function UnfiledNode({
           )}
         </Button>
 
-        <Inbox
-          className="size-3.5 shrink-0 text-muted-foreground"
-          aria-hidden
-        />
+        <Inbox className="size-3.5 shrink-0 text-warning" aria-hidden />
 
         <span className="min-w-0 flex-1 truncate py-2 text-sm font-medium">
           Unfiled
         </span>
 
-        <Badge variant="secondary" className="shrink-0">
+        {/* The one amber mark in the tree, and deliberately **one**: 697 of
+            832 products are unfiled, so an amber row per product would colour
+            84% of the catalogue and mean nothing. Aggregate the majority,
+            mark the minority. The number is beside it, so the badge still
+            reads with colour removed. */}
+        <Badge
+          variant="secondary"
+          className="shrink-0 border-transparent bg-warning/15 text-warning tabular-nums"
+        >
           {products.length}
         </Badge>
         <span className="size-4 shrink-0" aria-hidden />

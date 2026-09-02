@@ -38,10 +38,20 @@ import { cn } from "@/lib/utils";
  * between draft and active has to survive being printed in greyscale or read
  * by someone who cannot distinguish the two hues.
  */
+/**
+ * **`active` is not coloured**, and that is the point.
+ *
+ * All 832 products in this catalogue are active, so a green pill on every row
+ * of every page told the reader nothing and taught them to skip the column.
+ * Colour marks a departure from the default; `active` *is* the default. What
+ * is left — amber for a draft, muted for an archived row — now means "this
+ * one is not like the others", which is the only thing a status column is
+ * for.
+ */
 const STATUS_CLASS: Record<ProductStatus, string> = {
-  active: "border-transparent bg-success/15 text-success",
+  active: "border-transparent bg-muted text-muted-foreground",
   draft: "border-transparent bg-warning/15 text-warning",
-  archived: "border-transparent bg-muted text-muted-foreground",
+  archived: "border-transparent bg-muted/60 text-muted-foreground/80",
 };
 
 export function StatusBadge({ status }: { readonly status: ProductStatus }) {
@@ -74,7 +84,9 @@ function Thumbnail({ product }: { readonly product: ProductListRow }) {
             // `ImageOff` — a crossed-out image — read as "failed to load".
             // 63 of 832 products simply have no photograph, which is a state,
             // not an error, and it was the most common "error" on the page.
-            <ImageIcon className="size-4 opacity-50" aria-hidden />
+            // Amber, not red: it is 8% of the catalogue and it is a gap
+            // someone should close, which is exactly what `--warning` means.
+            <ImageIcon className="size-4 text-warning/70" aria-hidden />
           )}
         </div>
       )}
@@ -176,7 +188,16 @@ export function ProductsTable({
                 )}
               </TableCell>
 
-              <TableCell className="w-px whitespace-nowrap text-right tabular-nums">
+              {/* A price of 0 is amber because it is a *minority* — 160 of
+                  832 — and because it is almost always an unfinished row
+                  rather than a free product. The number stays beside it, so
+                  the cell still reads with colour removed. */}
+              <TableCell
+                className={cn(
+                  "w-px whitespace-nowrap text-right tabular-nums",
+                  product.priceMinor === 0 && "text-warning",
+                )}
+              >
                 {formatMoney({
                   minor: product.priceMinor,
                   currency: product.currency,

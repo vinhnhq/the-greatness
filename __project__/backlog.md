@@ -175,29 +175,9 @@ Blocks B–D implement
 **Planned 2026-09-02, nothing built.** Block A is independent — it ships
 without the ADR and without any of the rest.
 
-**Block A — colour where the data varies**
+**Block A — colour where the data varies** → ✅ **shipped 2026-09-02**
 
-The fault is not too little colour, it is colour on the one column with no
-variance: **832 of 832 products are `active`**, so every page shows 25
-identical green pills, while 697 unfiled · 299 no description · 160 no price ·
-63 no image are all rendered in the same grey.
-
-- [ ] **V8.1** `active` goes neutral; `draft` keeps amber, `archived` stays
-      muted. A coloured badge starts meaning "look at this". One file.
-- [ ] **V8.2** Add `--info` (blue) for **Sapo's side** — the only new token.
-      Apply to `SapoLink` and to `/reconcile`'s "changed here" section. The
-      app is a two-version model with nothing distinguishing ours from theirs.
-- [ ] **V8.3** `--warning` on the **minorities**: no price (160), no image
-      (63), and the **Unfiled node's count badge**. Deliberately _not_ a mark
-      per unfiled row — 697 of 832 is a majority, and colouring 84% of rows is
-      the no-variance mistake in reverse. Aggregate the majority, mark the
-      minority.
-- [ ] **V8.4** `/reconcile`'s two sections stop looking identical. "Needs a
-      decision" and "changed here" have **opposite defaults** (ADR-0003) and
-      are both grey today.
-- [ ] **V8.5** Verify at 1280×800 and 1440, both themes, and check every mark
-      still reads with colour removed — each one sits beside a word or a
-      number, and that is the point.
+Ship facts in [`done.md`](done.md). V8.1–V8.5 cut.
 
 **Block B — the change set** (nothing writes yet)
 
