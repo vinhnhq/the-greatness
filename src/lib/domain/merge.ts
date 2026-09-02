@@ -124,6 +124,15 @@ export type RowMerge<R> = {
   readonly conflicts: readonly RowConflict<unknown>[];
   /** Whether `merged` differs from `ours` — i.e. whether to write at all. */
   readonly changed: boolean;
+  /**
+   * Whether any field resolved to **keep ours** — we moved it, Sapo did not.
+   *
+   * Separate from `changed`, which is false in that case precisely because
+   * the row already holds our value. Without this the report cannot tell
+   * "nothing happened" from "we protected an edit", and the second is the
+   * whole point of the mirror.
+   */
+  readonly keptOurs: boolean;
 };
 
 /**
@@ -146,6 +155,7 @@ export const mergeRow = <R extends Record<string, unknown>>(
   const merged = { ...ours };
   const conflicts: RowConflict<unknown>[] = [];
   let changed = false;
+  let keptOurs = false;
 
   for (const field of fields) {
     const result = mergeField(
@@ -162,11 +172,12 @@ export const mergeRow = <R extends Record<string, unknown>>(
       });
       continue; // Left at our value, written nowhere.
     }
+    if (result.outcome === "ours") keptOurs = true;
     if (!same(result.value, ours[field])) {
       merged[field] = result.value as R[keyof R & string];
       changed = true;
     }
   }
 
-  return { merged, conflicts, changed };
+  return { merged, conflicts, changed, keptOurs };
 };

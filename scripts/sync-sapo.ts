@@ -43,20 +43,24 @@ const main = async (): Promise<void> => {
     ]);
     const report = await syncFromSapo(db, { categories, products, links });
 
-    const { categories: c, products: p, links: l } = report;
+    const { categories: c, products: p, links: l, conflicts: x } = report;
     console.log(
-      `\ncategories  +${c.added} added · ${c.updated} updated · ${c.unchanged} unchanged`,
+      `\ncategories  +${c.added} added · ${c.updated} updated · ${c.keptOurs} kept ours · ${c.unchanged} unchanged`,
     );
     list("unfiled (place these in the tree)", c.unfiled);
     list("gone from Sapo (not deleted)", c.vanished);
 
     console.log(
-      `products    +${p.added} added · ${p.updated} updated · ${p.unchanged} unchanged`,
+      `products    +${p.added} added · ${p.updated} updated · ${p.keptOurs} kept ours · ${p.unchanged} unchanged`,
     );
     list("gone from Sapo (not deleted)", p.vanished);
 
     console.log(
       `links       +${l.added} added · ${l.removed} removed · ${l.keptLocal} kept (local categories)`,
+    );
+
+    console.log(
+      `conflicts   +${x.opened} new · ${x.healed} healed · ${x.open} awaiting a decision`,
     );
 
     const touched =
@@ -66,6 +70,13 @@ const main = async (): Promise<void> => {
         ? "\nNothing changed."
         : `\nDone. ${touched} row(s) changed. The category tree and the media library were not touched.`,
     );
+    if (x.open > 0) {
+      // Never blocks: the three automatic buckets are already applied. A
+      // conflicted field is simply left at our value until someone decides.
+      console.log(
+        `${x.open} field(s) where both sides moved were left alone. Nothing was overwritten.`,
+      );
+    }
   } finally {
     await db.destroy();
   }

@@ -189,10 +189,16 @@ describe("mergeRow", () => {
     expect(r.changed).toBe(false);
   });
 
-  it("counts a kept-ours row as needing no write", () => {
+  it("counts a kept-ours row as needing no write, but says it kept ours", () => {
     // It already holds our value; rewriting it would bump updatedAt on every
-    // sync and make the report meaningless.
+    // sync and make the report meaningless. But "nothing happened" and "we
+    // protected an edit" are different facts, and the second is the point.
     const r = mergeRow(fields, base, { name: "Mine", price: 100 }, base);
     expect(r.changed).toBe(false);
+    expect(r.keptOurs).toBe(true);
+  });
+
+  it("does not claim to have kept ours when nothing moved", () => {
+    expect(mergeRow(fields, base, base, base).keptOurs).toBe(false);
   });
 });

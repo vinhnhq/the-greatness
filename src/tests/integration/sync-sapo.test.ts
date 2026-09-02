@@ -328,4 +328,173 @@ describe("syncFromSapo", () => {
     expect(second.categories).toMatchObject({ added: 0, updated: 0 });
     expect(second.links).toMatchObject({ added: 0, removed: 0 });
   });
+
+  // ---- three-way, v6 --------------------------------------------------
+  //
+  // Everything above runs with an EMPTY mirror, which is the adopt path: no
+  // base, so incoming wins. These are the branches a base makes possible.
+
+  const syncTwice = async (
+    first: SapoSnapshot,
+    second: SapoSnapshot,
+  ): Promise<Awaited<ReturnType<typeof syncFromSapo>>> => {
+    await syncFromSapo(db, first); // establishes the mirror
+    return syncFromSapo(db, second);
+  };
+
+  it("keeps our edit when Sapo did not touch the row", async () => {
+    // THE branch. Before v6 this was silently overwritten every run.
+    await syncFromSapo(db, snapshot());
+    await db
+      .updateTable("categories")
+      .set({ name: "Quạt — ours" })
+      .where("id", "=", "c2")
+      .execute();
+
+    const report = await syncFromSapo(db, snapshot());
+
+    const row = await db
+      .selectFrom("categories")
+      .select("name")
+      .where("id", "=", "c2")
+      .executeTakeFirstOrThrow();
+    expect(row.name).toBe("Quạt — ours");
+    expect(report.categories.keptOurs).toBe(1);
+    expect(report.conflicts.opened).toBe(0);
+  });
+
+  it("parks a conflict when both sides moved, and writes neither", async () => {
+    await syncFromSapo(db, snapshot());
+    await db
+      .updateTable("categories")
+      .set({ name: "Ours" })
+      .where("id", "=", "c2")
+      .execute();
+
+    const report = await syncFromSapo(db, {
+      ...snapshot(),
+      categories: [
+        { sourceId: 1, name: "Thiết bị gia đình", slug: "tbgd" },
+        { sourceId: 2, name: "Theirs", slug: "quat" },
+      ],
+    });
+
+    expect(report.conflicts.opened).toBe(1);
+    // Ours is left in place: taking theirs would be deciding by default, in
+    // the direction that discards work.
+    const row = await db
+      .selectFrom("categories")
+      .select("name")
+      .where("id", "=", "c2")
+      .executeTakeFirstOrThrow();
+    expect(row.name).toBe("Ours");
+
+    const conflict = await db
+      .selectFrom("sync_conflicts")
+      .selectAll()
+      .executeTakeFirstOrThrow();
+    expect(conflict.field).toBe("name");
+    expect(JSON.parse(conflict.ours!)).toBe("Ours");
+    expect(JSON.parse(conflict.theirs!)).toBe("Theirs");
+    expect(conflict.resolvedAt).toBeNull();
+  });
+
+  it("does not duplicate a conflict that is still open on the next run", async () => {
+    await syncFromSapo(db, snapshot());
+    await db
+      .updateTable("categories")
+      .set({ name: "Ours" })
+      .where("id", "=", "c2")
+      .execute();
+    const theirs = {
+      ...snapshot(),
+      categories: [
+        { sourceId: 1, name: "Thiết bị gia đình", slug: "tbgd" },
+        { sourceId: 2, name: "Theirs", slug: "quat" },
+      ],
+    };
+    await syncFromSapo(db, theirs);
+    const second = await syncFromSapo(db, theirs);
+
+    expect(second.conflicts.opened).toBe(0);
+    expect(second.conflicts.open).toBe(1);
+    const rows = await db.selectFrom("sync_conflicts").selectAll().execute();
+    expect(rows).toHaveLength(1);
+  });
+
+  it("heals a conflict when Sapo comes back to our value", async () => {
+    // Re-evaluated, not trusted. A parked conflict that is no longer a
+    // disagreement should disappear rather than wait for a person.
+    await syncFromSapo(db, snapshot());
+    await db
+      .updateTable("categories")
+      .set({ name: "Ours" })
+      .where("id", "=", "c2")
+      .execute();
+    await syncFromSapo(db, {
+      ...snapshot(),
+      categories: [
+        { sourceId: 1, name: "Thiết bị gia đình", slug: "tbgd" },
+        { sourceId: 2, name: "Theirs", slug: "quat" },
+      ],
+    });
+
+    const healedRun = await syncFromSapo(db, {
+      ...snapshot(),
+      categories: [
+        { sourceId: 1, name: "Thiết bị gia đình", slug: "tbgd" },
+        { sourceId: 2, name: "Ours", slug: "quat" },
+      ],
+    });
+
+    expect(healedRun.conflicts.healed).toBe(1);
+    expect(healedRun.conflicts.open).toBe(0);
+    expect(await db.selectFrom("sync_conflicts").selectAll().execute()).toEqual(
+      [],
+    );
+  });
+
+  it("keeps a product we dragged into an imported category", async () => {
+    // The reason v6 exists. Before the mirror, the next sync recomputed the
+    // link set from Sapo and deleted this.
+    await syncFromSapo(db, snapshot());
+    await db
+      .insertInto("product_categories")
+      .values({ productId: "p1", categoryId: "c1" })
+      .execute();
+
+    await syncFromSapo(db, snapshot());
+
+    const links = await db
+      .selectFrom("product_categories")
+      .select("categoryId")
+      .where("productId", "=", "p1")
+      .execute();
+    expect(links.map((l) => l.categoryId).sort()).toEqual(["c1", "c2"]);
+  });
+
+  it("still applies an upstream membership change we did not touch", async () => {
+    await syncFromSapo(db, snapshot());
+    await syncTwice(snapshot(), {
+      ...snapshot(),
+      links: [{ categorySourceId: 1, productSourceId: 10 }],
+    });
+    const links = await db
+      .selectFrom("product_categories")
+      .select("categoryId")
+      .where("productId", "=", "p1")
+      .execute();
+    expect(links.map((l) => l.categoryId)).toEqual(["c1"]);
+  });
+
+  it("writes the mirror so the next run has a base", async () => {
+    await syncFromSapo(db, snapshot());
+    const mirror = await db
+      .selectFrom("sapo_mirror")
+      .selectAll()
+      .where("entity", "=", "category")
+      .where("sapoId", "=", "2")
+      .executeTakeFirstOrThrow();
+    expect(JSON.parse(mirror.payload)).toEqual({ name: "Quạt", slug: "quat" });
+  });
 });
