@@ -90,16 +90,27 @@ function TreeRow({
         ref={dropRef}
         className={cn(
           "flex items-center gap-1 rounded-md pr-2 transition-colors",
-          isOver && !isSelf && "bg-primary/10 ring-1 ring-primary/40",
+          // `ring-inset`, not a bare ring. A Tailwind ring is an *outer*
+          // box-shadow, and these rows sit flush against each other — so the
+          // drop highlight on one row was painted over its neighbour above
+          // and below. Inset keeps it inside the row it describes.
+          isOver &&
+            !isSelf &&
+            "bg-primary/10 ring-1 ring-primary/40 ring-inset",
           isSelf && "opacity-40",
           selected === category.slug && "bg-muted",
         )}
       >
+        {/* An indent rail per level, deliberately with **no height of its
+            own**. `h-7` and `self-stretch` fight — align-self only stretches
+            an auto height — so the rail stopped short of a taller row and the
+            column of rails read as dashes. Stretched, consecutive rows' rails
+            meet and the line is continuous. */}
         {Array.from({ length: node.depth }, (_, i) => (
           <span
             key={i}
             aria-hidden
-            className="ml-1 h-7 w-px shrink-0 self-stretch bg-border/70"
+            className="ml-1 w-px shrink-0 self-stretch bg-border/70"
           />
         ))}
 
@@ -126,7 +137,7 @@ function TreeRow({
         <button
           type="button"
           onClick={() => onSelect(category.slug)}
-          className="min-w-0 flex-1 truncate py-1.5 text-left text-sm"
+          className="min-w-0 flex-1 truncate rounded-sm py-2 text-left text-sm focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ring"
         >
           <span className={hasChildren ? "font-medium" : ""}>
             {category.name}
