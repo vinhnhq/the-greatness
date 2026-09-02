@@ -1,8 +1,11 @@
 # v8 — Colour that means something, and a way out to Sapo
 
-**Status:** 📝 Planned 2026-09-02. Follows
-[v7](v7-taxonomy-workspace.md). Block A is independent and ships on its own;
-Blocks B–D implement [ADR-0004](../decisions/0004-writing-back.md).
+**Status:** **Block A ✅ shipped 2026-09-02** (part one, colour — ship facts in
+[`done.md`](../done.md)). **Blocks B–D 📝 planned, not started**, and blocked
+on three things that are not code: a Private App key, `N.3`, and the `V8.16`
+spike. Follows [v7](v7-taxonomy-workspace.md); Blocks B–D implement
+[ADR-0004](../decisions/0004-writing-back.md), whose amendment narrows the
+blast radius to a single field.
 
 ## Goal
 

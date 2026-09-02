@@ -7,6 +7,68 @@ Newest session first.
 
 ---
 
+## 2026-09-02 (later) — researching the platform instead of assuming it
+
+A session with almost no feature work in it. What it produced was four
+corrections to things the project had believed for months, and every one was
+one HTTP request away the whole time.
+
+**A sentence repeated four times is not thereby verified.** _"A store that
+also feeds Lazada, Shopee, Tiki, TikTok Shop and Google Shopping"_ entered in
+the **v4** spec, was copied into v6, into the backlog twice, and finally into
+a decision record, where it was the entire risk section. Nobody ever wrote
+down where it came from. When someone finally asked a direct question about
+it, the only evidence findable was theme footer social icons pointing at
+`shopee.vn` and `lazada.vn` — generic homepages, unconfigured placeholders.
+
+It may still be true. The lesson is not that it was wrong; it is that
+**repetition had made it feel checked**. A claim load-bearing enough to
+justify rejecting a design is load-bearing enough to need a source next to it.
+
+**Read the platform's docs before designing around its limits.** Two findings
+in one afternoon that would each have changed earlier work:
+
+- **Level 3 was in the menu markup all along**, as plain `nav-link` anchors
+  inside each mid-level's own panel. `leavesByCreationOrder` guesses it from
+  collection creation order — a heuristic `CLAUDE.md` already flagged as
+  fragile. It agrees with the menu on all 163 leaves, so it has been _lucky_
+  where a direct read was available.
+- **There is no menu API at all.** That turns ADR-0003's "the sync never
+  writes `parentId`" from a design choice into a property of the platform,
+  and it splits the write-back into two lanes with completely different risk.
+
+Neither required cleverness. Both required fetching a page.
+
+**Check whether you caused the anomaly before reporting it.** Two categories
+in the dev database disagreed with the live menu — a projector filed under
+kitchen appliances, which looked exactly like a reconstruction bug and was
+half-written up as one. `updatedAt` settled it in one query: 208 of 211 rows
+share the seed timestamp and those two were edited yesterday, by me, during
+v6/v7 browser testing. **A local database that the app is designed to let you
+edit is not evidence about the importer.**
+
+**The risk you mitigate should be the risk you have.** The project had spent
+three versions guarding against "a bad write reaches five marketplaces". Sapo
+propagates exactly two fields — stock and price — so memberships, categories
+and the menu never leave the storefront, and the one genuinely dangerous
+write, price, had never been named. The mitigation that followed was one line
+of scope (hold price back) rather than another paragraph of warning.
+
+**Count before you design, including for colour.** The app's only coloured
+column was `status`, and **832 of 832 products are `active`** — colour with
+zero variance, which the eye learns to skip. The inverse is just as bad: 697
+of 832 unfiled is 84%, so marking those rows would have been the same mistake
+turned over. _Do not colour a constant, and do not colour a majority._ Both
+halves came from a `GROUP BY`, not from taste.
+
+**Check whether the problem still exists elsewhere before assuming a market.**
+Shopify has had a writable menu API since 2024-07 and native sub-collections
+since 2026-07-16, and five apps already ship this. The gap this project fills
+is real _because Sapo lacks what a competitor shipped two years ago_ — which
+is worth knowing both as a moat and as a warning, since Sapo may follow.
+
+---
+
 ## 2026-09-02 — the taxonomy workspace (v7)
 
 Six blocks, six commits, and six bugs that all four gates waved through.

@@ -27,9 +27,11 @@ Kysely, co-located operations, `__project__/` docs).
   adds project-specific context.
 - **Current state** — [`__project__/done.md`](__project__/done.md) (write-once
   ship history) and [`__project__/backlog.md`](__project__/backlog.md) (open
-  work only). Headline as of **2026-09-02**: v1 → v7 shipped. v1–v2.1 are on
-  `main`; **v3 → v7 are 30 commits on the unmerged branch `feat/v4-taxonomy`**,
-  gates green, no PR opened yet. Two things are still true from day one:
+  work only). Headline as of **2026-09-02**: v1 → v7 shipped, plus **v8 Block
+  A** (colour). v1–v2.1 are on `main`; **v3 → v8A are 35 commits on the
+  unmerged branch `feat/v4-taxonomy`**, gates green, no PR opened yet. v8
+  Blocks B–D (publishing) are planned and blocked on three things that are not
+  code: a Sapo Private App key, `N.3`, and the `V8.16` spike. Two things are still true from day one:
   **nothing is deployed**, and neither the Neon nor the Blob seam has met the
   real service (backlog `N.3`) — that remains the largest unmeasured risk.
 - **Intent** — [`__project__/specs/`](__project__/specs/), one per version.
@@ -177,6 +179,19 @@ Things a session will hit, in rough order of how much time they cost.
   element warns even though it looks like a lone child.
 - **Tailwind v4 has no config file.** Tokens live in `src/app/globals.css` via
   `@theme`; the preset is shadcn `radix-maia`, base `neutral`.
+- **Colour marks state or ownership, never decoration — and never a constant
+  or a majority.** The palette is deliberately achromatic (the content is 786
+  photographs) plus four semantic tokens: `--destructive` destroys,
+  `--warning` means "incomplete, your move", `--info` means **Sapo's side**,
+  `--success` means resolved. `active` is _not_ coloured, because all 832
+  products are active; Unfiled gets **one** badge reading 697, not 697 amber
+  rows. Every mark sits beside a word or a number.
+- **The tree can never be pushed to Sapo.** There is no menu API — a menu is a
+  `linklist`, a read-only Liquid object — and `CustomCollection` has no parent
+  field. And of everything else, **only stock and price reach the
+  marketplaces**, so `products/{id}.json` is the one write with reach beyond
+  the storefront. See
+  [`__project__/research/`](__project__/research/write-back-and-other-platforms.md).
 
 ## Conventions
 

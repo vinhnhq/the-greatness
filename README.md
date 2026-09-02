@@ -128,7 +128,14 @@ page is built around:
   is not a workflow.
 
 Everything here is a local edit, and the mirror below is what makes it
-survive.
+survive. It stays local, too: Sapo has no menu API, so the tree this app owns
+is the only place it exists.
+
+The interface is deliberately near-colourless — the content is 786 product
+photographs and the chrome should not compete with them. The colour that is
+there means something: **amber** is "incomplete, your move" (the 697 unfiled,
+a price of zero, a missing photograph), **blue** is Sapo's side, red destroys.
+A product being `active` is not coloured, because all 832 of them are.
 
 ## Keeping two versions honest
 
