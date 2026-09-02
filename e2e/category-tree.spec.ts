@@ -1,7 +1,8 @@
 /**
- * The categories page renders a tree, and the counts in it are distinct.
+ * The categories page: a tree in one tab, a flat list in the other, and
+ * counts that are distinct in both.
  *
- * Both halves need a browser to be worth anything. The nesting is state the
+ * All of it needs a browser to be worth anything. The nesting is state the
  * unit tests already cover as a pure function — what they cannot cover is
  * that the rows actually collapse, that a leaf is absent from the DOM until
  * its parent is opened, and that the payload survives the server/client
@@ -166,48 +167,74 @@ test.afterAll(async () => {
   await clearTree();
 });
 
-test("groups nest, leaves stay closed, and the subtree count is distinct", async ({
+test("the taxonomy tree nests, and a closed branch is not rendered", async ({
   page,
 }) => {
   await signIn(page);
   await page.goto("/categories");
 
-  const row = (name: string) => page.getByRole("row").filter({ hasText: name });
+  // Taxonomy is the default tab, so the tree is what loads.
+  const tree = page.getByRole("tabpanel", { name: "Taxonomy" });
+  const node = (name: string) =>
+    tree.getByRole("button", { name, exact: true });
 
   // --- roots open, everything below closed -----------------------------
+  await expect(node(GROUP)).toBeVisible();
+  await expect(node(MID)).toBeVisible();
+  // The leaves are not merely hidden — a closed branch is not rendered.
+  await expect(node(LEAF_A)).toHaveCount(0);
+
+  // --- opening a branch reveals its leaves -----------------------------
+  await tree.getByRole("button", { name: `Expand ${MID}` }).click();
+  await expect(node(LEAF_A)).toBeVisible();
+  await expect(node(LEAF_B)).toBeVisible();
+
+  // --- and closing the group takes the whole branch with it ------------
+  await tree.getByRole("button", { name: `Collapse ${GROUP}` }).click();
+  await expect(node(MID)).toHaveCount(0);
+  await expect(node(LEAF_A)).toHaveCount(0);
+  await expect(node(GROUP)).toBeVisible();
+});
+
+test("the flat list carries the path, and the subtree count is distinct", async ({
+  page,
+}) => {
+  await signIn(page);
+  await page.goto("/categories?tab=categories");
+
+  // Anchored on the row's own link, not its text: now that every descendant
+  // row carries its ancestors' names in the path column, `hasText: GROUP`
+  // matches five rows. That ambiguity is the column doing its job.
+  const row = (name: string) =>
+    page
+      .getByRole("row")
+      .filter({ has: page.getByRole("link", { name, exact: true }) });
+
+  // --- flat: every category is present at once, no expanding ----------
   await expect(row(GROUP)).toBeVisible();
   await expect(row(MID)).toBeVisible();
-  // The leaves are not merely hidden — a closed branch is not rendered.
-  await expect(row(LEAF_A)).toHaveCount(0);
+  await expect(row(LEAF_A)).toBeVisible();
+  await expect(row(LEAF_B)).toBeVisible();
 
-  // --- the count that a naive sum gets wrong ---------------------------
+  // --- the path is what replaces the indentation ----------------------
+  // Without it, "E2E Quạt đứng" is one of several near-identical fan names
+  // with nothing to tell them apart.
+  await expect(row(LEAF_A)).toContainText(`${GROUP} › ${MID}`);
+
+  // --- the count that a naive sum gets wrong --------------------------
   // One product, linked to the mid and to both leaves. Summing says 3.
   await expect(row(MID)).toContainText("1");
   // The group holds nothing directly, which is true of every real top-level
   // group here, and must not read as an empty category.
   await expect(row(GROUP)).toContainText("0 direct");
 
-  // --- opening a branch reveals its leaves -----------------------------
-  // Scoped to the table: the workspace tree above it has its own disclosure
-  // buttons with the same accessible names.
-  await row(MID)
-    .getByRole("button", { name: `Expand ${MID}` })
-    .click();
+  // --- filtering narrows the flat list --------------------------------
+  // Unaccented, the way search folds everywhere else: `quat` finds `Quạt`.
+  await page
+    .getByRole("textbox", { name: "Filter categories" })
+    .fill("quat dung");
   await expect(row(LEAF_A)).toBeVisible();
-  await expect(row(LEAF_B)).toBeVisible();
-
-  // --- and closing the group takes the whole branch with it ------------
-  await row(GROUP)
-    .getByRole("button", { name: `Collapse ${GROUP}` })
-    .click();
-  await expect(row(MID)).toHaveCount(0);
-  await expect(row(LEAF_A)).toHaveCount(0);
-  await expect(row(GROUP)).toBeVisible();
-
-  // --- expand all reaches the leaves in one move -----------------------
-  await page.getByRole("button", { name: "Expand all" }).click();
-  await expect(row(LEAF_A)).toBeVisible();
-  await expect(row(LEAF_B)).toBeVisible();
+  await expect(row(GROUP)).toHaveCount(0);
 });
 
 test("the product form's picker groups, searches unaccented, and keeps the selection visible", async ({
@@ -256,10 +283,12 @@ test("walks root to product, counting distinctly at every step", async ({
   page,
 }) => {
   await signIn(page);
-  await page.goto("/categories");
+  // The drill-down starts from the flat list: the tree selects into the right
+  // pane, the list is what links out to `/categories/[slug]`.
+  await page.goto("/categories?tab=categories");
 
-  // --- into the group from the tree ------------------------------------
-  await page.getByRole("link", { name: GROUP }).click();
+  // --- into the group ---------------------------------------------------
+  await page.getByRole("link", { name: GROUP, exact: true }).click();
   await expect(page).toHaveURL(/\/categories\/e2e-tbgd$/);
 
   // A grouping holds nothing itself; the summary has to say that in words

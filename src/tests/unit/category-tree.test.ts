@@ -15,6 +15,7 @@ import {
   ancestorNames,
   ancestorsOf,
   buildCategoryForest,
+  categoryPaths,
   filterForest,
   findNode,
   planMove,
@@ -350,5 +351,58 @@ describe("planMove", () => {
 
   it("refuses to move onto a category that is not in the tree", () => {
     expect(planMove(rows, "leaf", "ghost")).toMatchObject({ ok: false });
+  });
+});
+
+describe("categoryPaths", () => {
+  const named = (id: string, name: string, parentId: string | null): Row => ({
+    id,
+    name,
+    slug: id,
+    parentId,
+    productCount: 0,
+  });
+
+  it("agrees with ancestorNames for every row", () => {
+    const rows = [
+      named("a", "Thiết bị gia đình", null),
+      named("b", "Quạt & Thiết bị làm mát", "a"),
+      named("c", "Quạt đứng", "b"),
+      named("d", "Nhà bếp", null),
+    ];
+
+    const paths = categoryPaths(rows);
+
+    for (const row of rows) {
+      expect(paths.get(row.id)).toEqual(ancestorNames(rows, row.id));
+    }
+  });
+
+  it("gives a root the empty path and a leaf its whole ancestry", () => {
+    const rows = [
+      named("a", "Root", null),
+      named("b", "Mid", "a"),
+      named("c", "Leaf", "b"),
+    ];
+
+    const paths = categoryPaths(rows);
+
+    expect(paths.get("a")).toEqual([]);
+    expect(paths.get("b")).toEqual(["Root"]);
+    expect(paths.get("c")).toEqual(["Root", "Mid"]);
+  });
+
+  it("treats a dangling parent as a root, the way buildCategoryForest does", () => {
+    const paths = categoryPaths([named("orphan", "Orphan", "gone")]);
+
+    expect(paths.get("orphan")).toEqual([]);
+  });
+
+  it("terminates on a cycle instead of hanging", () => {
+    const paths = categoryPaths([named("a", "A", "b"), named("b", "B", "a")]);
+
+    // Whatever it reports, it reports something — and never itself.
+    expect(paths.get("a")).not.toContain("A");
+    expect(paths.get("b")).not.toContain("B");
   });
 });

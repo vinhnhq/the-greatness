@@ -1,18 +1,20 @@
 "use client";
 
 /**
- * Categories: create, rename in place, delete — rendered as the tree Sapo
- * cannot store.
+ * Categories: create, rename in place, delete — **flat**, the way Sapo shows
+ * them.
  *
- * The hierarchy comes from `categories.parentId`, seeded from a
- * reconstruction of the storefront menu (`lib/sapo-tree.ts`). Sapo's own
- * admin renders these 211 rows dead flat, with a child four rows above its
- * parent and no indentation, so the tree here is the point of the page rather
- * than decoration.
+ * The tree used to be here and is now in the Taxonomy tab, where products hang
+ * off it. Rendering it twice on one page made the hierarchy look like the
+ * point of this list, and it is not: this is the CRUD surface, reached
+ * occasionally, and a 211-row flat table is the shape Sapo's own admin
+ * presents.
  *
- * **Roots start open and leaves start closed.** All-collapsed shows six rows
- * and hides the catalogue; all-expanded is the 211-row wall this replaces.
- * One level down is 47 rows — the shape of the taxonomy, at a glance.
+ * **The path column is what a flat list needs and Sapo's lacks.** "Quạt đứng"
+ * alone is ambiguous among nine near-identical fan categories; "Thiết bị gia
+ * đình › Quạt & Thiết bị làm mát" tells them apart. `categoryPaths` computes
+ * all 211 at once — the per-row `ancestorNames` rebuilds its index every call,
+ * which is a quadratic walk over a list that already fits in memory.
  *
  * The count column reads two numbers because they differ and the difference
  * matters: every top-level group in this catalogue holds **zero** products of
@@ -29,16 +31,7 @@
  * second one is the one being made.
  */
 
-import {
-  Check,
-  ChevronDown,
-  ChevronRight,
-  Loader2,
-  Pencil,
-  Plus,
-  Trash2,
-  X,
-} from "lucide-react";
+import { Check, Loader2, Pencil, Plus, Trash2, X } from "lucide-react";
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -67,30 +60,39 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import type { CategoryWithCount } from "@/lib/domain/categories/repository";
-import type { CategoryLink, CategoryNode } from "@/lib/domain/categories/tree";
-import { buildCategoryForest } from "@/lib/domain/categories/tree";
+import type { CategoryLink } from "@/lib/domain/categories/tree";
+import {
+  buildCategoryForest,
+  categoryPaths,
+  flattenForest,
+} from "@/lib/domain/categories/tree";
 import { sapoCategoryUrl } from "@/lib/sapo";
+import { foldForSearch } from "@/lib/search-text";
 import { cn } from "@/lib/utils";
 
 import { createCategory, deleteCategory, renameCategory } from "./actions";
 
+/** One table row: the category, plus what only the forest knows about it. */
+type FlatCategory = {
+  readonly category: CategoryWithCount;
+  readonly path: readonly string[];
+  readonly hasChildren: boolean;
+  readonly ownCount: number;
+  readonly subtreeCount: number;
+};
+
 function CategoryRow({
-  node,
-  expanded,
-  onToggle,
+  row,
   busyId,
   onRename,
   onDelete,
 }: {
-  readonly node: CategoryNode<CategoryWithCount>;
-  readonly expanded: boolean;
-  readonly onToggle: (id: string) => void;
+  readonly row: FlatCategory;
   readonly busyId: string | null;
   readonly onRename: (id: string, name: string) => void;
   readonly onDelete: (id: string) => void;
 }) {
-  const category = node.category;
-  const hasChildren = node.children.length > 0;
+  const { category, path, hasChildren, ownCount, subtreeCount } = row;
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(category.name);
   // Per row and per action, so renaming one category does not freeze the
@@ -101,35 +103,6 @@ function CategoryRow({
     <TableRow>
       <TableCell>
         <div className="flex items-center gap-1">
-          {/* An indent rail per level. With the row rules gone this is what
-              carries depth — and it does it better, because depth is vertical
-              information and a line *under* a row never expressed it. */}
-          {Array.from({ length: node.depth }, (_, i) => (
-            <span
-              key={i}
-              aria-hidden
-              className="mr-1 h-9 w-px shrink-0 self-stretch bg-border/70"
-            />
-          ))}
-          {hasChildren ? (
-            <Button
-              type="button"
-              size="icon"
-              variant="ghost"
-              className="size-6 shrink-0"
-              onClick={() => onToggle(category.id)}
-              aria-expanded={expanded}
-              aria-label={`${expanded ? "Collapse" : "Expand"} ${category.name}`}
-            >
-              {expanded ? (
-                <ChevronDown className="size-4" aria-hidden />
-              ) : (
-                <ChevronRight className="size-4" aria-hidden />
-              )}
-            </Button>
-          ) : (
-            <span className="size-6 shrink-0" aria-hidden />
-          )}
           {editing ? (
             <form
               className="flex items-center gap-1"
@@ -185,6 +158,16 @@ function CategoryRow({
         </div>
       </TableCell>
 
+      <TableCell className="hidden text-muted-foreground md:table-cell">
+        {path.length === 0 ? (
+          // A root has no path, and an em dash reads better than a blank cell
+          // in a column where most rows have one.
+          <span aria-label="Top level">—</span>
+        ) : (
+          <span className="text-xs">{path.join(" › ")}</span>
+        )}
+      </TableCell>
+
       <TableCell className="hidden text-muted-foreground sm:table-cell">
         <div className="flex items-center gap-3">
           <code className="text-xs">{category.slug}</code>
@@ -196,7 +179,7 @@ function CategoryRow({
       <TableCell>
         <div className="flex items-center gap-2">
           <Badge variant="secondary">
-            {hasChildren ? node.subtreeCount : node.ownCount}
+            {hasChildren ? subtreeCount : ownCount}
             <span className="sr-only">
               {hasChildren
                 ? ` products in ${category.name} and everything under it`
@@ -205,9 +188,9 @@ function CategoryRow({
           </Badge>
           {/* Every top-level group here holds nothing directly, so the two
               numbers are shown apart rather than one standing for both. */}
-          {hasChildren && node.ownCount !== node.subtreeCount && (
+          {hasChildren && ownCount !== subtreeCount && (
             <span className="text-xs text-muted-foreground">
-              {node.ownCount} direct
+              {ownCount} direct
             </span>
           )}
         </div>
@@ -282,37 +265,35 @@ export function CategoriesTable({
   const [busyId, setBusyId] = useState<string | null>(null);
   const [newName, setNewName] = useState("");
 
+  const [filter, setFilter] = useState("");
+
   // React Compiler memoises this; a hand-written useMemo would be redundant.
-  const forest = buildCategoryForest(categories, links);
+  // The forest is built only to be flattened: it is what knows a category's
+  // depth-first position, its distinct subtree count and whether it has
+  // children, none of which the raw list carries.
+  const paths = categoryPaths(categories);
+  const all: readonly FlatCategory[] = flattenForest(
+    buildCategoryForest(categories, links),
+  ).map((node) => ({
+    category: node.category,
+    path: paths.get(node.category.id) ?? [],
+    hasChildren: node.children.length > 0,
+    ownCount: node.ownCount,
+    subtreeCount: node.subtreeCount,
+  }));
 
-  // Roots open, everything below closed — see the note at the top of the file.
-  // Seeded once from the first render's roots; a category added later is a
-  // leaf, which has nothing to expand.
-  const [expanded, setExpanded] = useState<ReadonlySet<string>>(
-    () => new Set(forest.map((n) => n.category.id)),
-  );
-
-  const toggle = (id: string) => {
-    setExpanded((current) => {
-      const next = new Set(current);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
-
-  /** Depth-first, stopping wherever a node is closed. */
-  const visible = (
-    nodes: readonly CategoryNode<CategoryWithCount>[],
-  ): readonly CategoryNode<CategoryWithCount>[] =>
-    nodes.flatMap((node) =>
-      expanded.has(node.category.id)
-        ? [node, ...visible(node.children)]
-        : [node],
-    );
-
-  const rows = visible(forest);
-  const allOpen = rows.length === categories.length;
+  // Folded the way search folds everywhere else in this app, so `quat` finds
+  // `Quạt` — `LOWER()` is ASCII-only and this comparison is the same one
+  // `lib/search-text.ts` makes on the server.
+  const term = foldForSearch(filter);
+  const rows =
+    term === ""
+      ? all
+      : all.filter(
+          (row) =>
+            foldForSearch(row.category.name).includes(term) ||
+            foldForSearch(row.path.join(" ")).includes(term),
+        );
 
   const run = (
     id: string | null,
@@ -360,28 +341,24 @@ export function CategoriesTable({
           )}
           Add
         </Button>
-
-        <Button
-          type="button"
-          variant="outline"
-          className="ms-auto"
-          onClick={() =>
-            setExpanded(
-              allOpen
-                ? new Set(forest.map((n) => n.category.id))
-                : new Set(categories.map((c) => c.id)),
-            )
-          }
-        >
-          {allOpen ? "Collapse to groups" : "Expand all"}
-        </Button>
       </form>
+
+      {/* Replaces "Expand all" — with no tree to open, 211 flat rows need a
+          way to narrow rather than a way to unfold. */}
+      <Input
+        value={filter}
+        onChange={(e) => setFilter(e.target.value)}
+        placeholder="Filter categories"
+        aria-label="Filter categories"
+        className="max-w-xs"
+      />
 
       <div className="overflow-x-auto rounded-lg border">
         <Table>
           <TableHeader>
             <TableRow>
               <TableHead>Name</TableHead>
+              <TableHead className="hidden md:table-cell">In</TableHead>
               <TableHead className="hidden sm:table-cell">Slug</TableHead>
               <TableHead>Products</TableHead>
               <TableHead className="text-right">
@@ -390,22 +367,22 @@ export function CategoriesTable({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {categories.length === 0 ? (
+            {rows.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={4}
+                  colSpan={5}
                   className="text-center text-sm text-muted-foreground"
                 >
-                  No categories yet. Add one above.
+                  {categories.length === 0
+                    ? "No categories yet. Add one above."
+                    : `Nothing matches “${filter}”.`}
                 </TableCell>
               </TableRow>
             ) : (
-              rows.map((node) => (
+              rows.map((row) => (
                 <CategoryRow
-                  key={node.category.id}
-                  node={node}
-                  expanded={expanded.has(node.category.id)}
-                  onToggle={toggle}
+                  key={row.category.id}
+                  row={row}
                   busyId={busyId}
                   onRename={(id, name) =>
                     run(id, () => renameCategory(id, name), "Category renamed.")

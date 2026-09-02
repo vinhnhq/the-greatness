@@ -207,6 +207,44 @@ export const ancestorNames = <T extends TreeCategory>(
 ): readonly string[] => ancestorsOf(categories, id).map((c) => c.name);
 
 /**
+ * Every category's ancestor names, computed once for the whole list.
+ *
+ * `ancestorNames` rebuilds its index on each call, which is right for one
+ * lookup and wrong for 211 of them — the flat list and the move picker both
+ * caption every row with its path, and doing that a row at a time is a
+ * quadratic walk over a list that already fits in memory.
+ *
+ * Memoised down the tree, so a deep path costs its parent's path plus one.
+ * The cycle guard matches `ancestorsOf`: a row that reaches itself gets the
+ * path found so far rather than hanging.
+ */
+export const categoryPaths = <T extends TreeCategory>(
+  categories: readonly T[],
+): ReadonlyMap<string, readonly string[]> => {
+  const byId = new Map(categories.map((c) => [c.id, c]));
+  const paths = new Map<string, readonly string[]>();
+
+  const pathOf = (id: string, seen: ReadonlySet<string>): readonly string[] => {
+    const cached = paths.get(id);
+    if (cached !== undefined) return cached;
+
+    const parentId = byId.get(id)?.parentId ?? null;
+    const parent = parentId === null ? undefined : byId.get(parentId);
+    const path =
+      parent === undefined || seen.has(parent.id)
+        ? []
+        : [...pathOf(parent.id, new Set([...seen, parent.id])), parent.name];
+
+    paths.set(id, path);
+    return path;
+  };
+
+  for (const category of categories)
+    pathOf(category.id, new Set([category.id]));
+  return paths;
+};
+
+/**
  * One node by id, wherever it sits — with its children and counts intact, so
  * the drill-down does not rebuild what the forest already computed.
  */

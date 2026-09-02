@@ -51,10 +51,10 @@ Three consequences run through every task below:
 `?category=` is there — linkable, survives a reload, and a colleague can be
 sent the exact view.
 
-| Tab            | What it is                                                          |
-| -------------- | ------------------------------------------------------------------- |
-| **Taxonomy**   | The tree: categories, their products, Unfiled. Default.             |
-| **Categories** | The flat list, as Sapo shows it. The CRUD surface.                  |
+| Tab            | What it is                                              |
+| -------------- | ------------------------------------------------------- |
+| **Taxonomy**   | The tree: categories, their products, Unfiled. Default. |
+| **Categories** | The flat list, as Sapo shows it. The CRUD surface.      |
 
 The tree moves _out_ of the Categories tab, which is a net deletion —
 `categories-table.tsx` is 424 lines today and renders its own hierarchy. What
@@ -118,11 +118,11 @@ never touches them.
 Right-click on a row **and** a `⋮` button, opening the same menu. Both,
 because right-click is undiscoverable and does not exist on touch.
 
-| On a category                    | On a product                |
-| -------------------------------- | --------------------------- |
-| Move to… · Move to top level     | Open · File in…             |
-| Rename · Add child               | Remove from this category   |
-| Open in Sapo · Delete            | Open in Sapo                |
+| On a category                | On a product              |
+| ---------------------------- | ------------------------- |
+| Move to… · Move to top level | Open · File in…           |
+| Rename · Add child           | Remove from this category |
+| Open in Sapo · Delete        | Open in Sapo              |
 
 **Move to… / File in…** opens a `Command` palette over all 211 categories,
 each shown with its full path, with illegal targets already excluded by

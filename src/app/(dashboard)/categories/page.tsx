@@ -1,14 +1,17 @@
 /**
- * `/categories` — the workspace, and the list.
+ * `/categories` — two tabs over the same 211 rows.
  *
- * Two things on one page, deliberately in this order. The **workspace** is the
- * split view: the tree on the left, the selected category's products on the
- * right, and drag to re-parent or to file a product. That is where the time
- * goes. The **list** below it is the CRUD surface — add, rename, delete —
- * which is occasional and does not want to compete for the top of the page.
+ * **Taxonomy** is the split view: the tree on the left, the selected
+ * category's products on the right, and drag to re-parent or to file a
+ * product. It is first and it is the default, because filing is the job —
+ * 697 of 832 products are in no category at all.
  *
- * Selection is `?category=<slug>`, so a branch stays linkable.
- * `/categories/[slug]` remains the deep, shareable view of one category.
+ * **Categories** is the flat CRUD list, as Sapo itself shows it. The tree
+ * deliberately does not appear there as well.
+ *
+ * Selection is `?category=<slug>` and the tab is `?tab=`, so a view is
+ * linkable. `/categories/[slug]` remains the deep, shareable view of one
+ * category.
  */
 
 import { PageContainer } from "@/components/app-shell/page-container";
@@ -18,6 +21,7 @@ import { DEFAULT_QUERY } from "@/lib/domain/products/list-query";
 import { dbProductRepo } from "@/lib/domain/products/repository";
 
 import { CategoriesTable } from "./categories-table";
+import { CategoriesTabs } from "./categories-tabs";
 import { CategoryContents } from "./category-contents";
 import { CategoryWorkspace } from "./category-workspace";
 
@@ -70,20 +74,19 @@ export default async function CategoriesPage({
         </p>
       </div>
 
-      <CategoryWorkspace
-        categories={categories}
-        links={links}
-        contents={
-          <CategoryContents title={contents.title} rows={contents.rows} />
+      <CategoriesTabs
+        listCount={categories.length}
+        taxonomy={
+          <CategoryWorkspace
+            categories={categories}
+            links={links}
+            contents={
+              <CategoryContents title={contents.title} rows={contents.rows} />
+            }
+          />
         }
+        list={<CategoriesTable categories={categories} links={links} />}
       />
-
-      <div className="pt-2">
-        <h2 className="mb-3 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-          All categories
-        </h2>
-        <CategoriesTable categories={categories} links={links} />
-      </div>
     </PageContainer>
   );
 }

@@ -167,7 +167,7 @@ Filing is the job; drag is not how you do it 697 times.
 **Block B — spacing, and the overlap**
 
 - [ ] **V7.4** **The overlap is the ring.** `ring-1 ring-primary/40` is an
-      *outer* box-shadow, so with zero vertical gap one row's highlight paints
+      _outer_ box-shadow, so with zero vertical gap one row's highlight paints
       over its neighbour. `ring-inset`, and indent guides move from
       `self-stretch` siblings (fighting the row's `h-7`) to one
       `absolute inset-y-0` layer.
@@ -184,8 +184,8 @@ Filing is the job; drag is not how you do it 697 times.
       expected for 832 names.
 - [ ] **V7.8** Product leaves in `buildCategoryForest`. Keys are
       `${categoryId}:${productId}` — a product in 11 categories appears 11
-      times and that is correct. It is also why the menu says *Remove from
-      this category*, never *Delete*.
+      times and that is correct. It is also why the menu says _Remove from
+      this category_, never _Delete_.
 - [ ] **V7.9** VS Code-style icons: `Folder`/`FolderOpen` for categories,
       `Package` for products, muted for a draft.
 - [ ] **V7.10** **Unfiled** pseudo-root holding the 697. Computed, not a row:
@@ -204,7 +204,7 @@ Filing is the job; drag is not how you do it 697 times.
 - [ ] **V7.13** Persistent right pane at `lg+`, `Sheet` below. One content
       component, two shells.
 - [ ] **V7.14** Quick edit, not the whole `ProductForm`: name, slug, SKU,
-      price, status, memberships, primary-image preview, *Open full editor →*.
+      price, status, memberships, primary-image preview, _Open full editor →_.
       The media field wants a full page and a filing session never touches it.
 - [ ] **V7.15** Category selected → the pane shows its path, direct products,
       rename, Sapo link.
@@ -229,14 +229,13 @@ Filing is the job; drag is not how you do it 697 times.
 **Block F — bulk filing** (promotes `L.6`, scoped to filing only)
 
 - [ ] **V7.22** Checkbox multi-select in the tree.
-- [ ] **V7.23** *File N products in…* through the same picker. Confirmation
+- [ ] **V7.23** _File N products in…_ through the same picker. Confirmation
       names the count **and** the target: a mis-aimed bulk file touches N rows
       and there is still no ⌘Z (`V6.16`/`V6.18` are the real answer).
 
 **After the gates** — run `bun run sync:sapo --plan`. Filing writes
 memberships, and memberships are a merged set; confirm the merge still reports
 them correctly rather than assuming it.
-
 
 ## N — Later, unrelated to v2
 
@@ -292,7 +291,7 @@ them correctly rather than assuming it.
 - [ ] **L.6** ↷ **Bulk actions** — multi-select on the list for status changes
       and category assignment. Wanted the first time someone archives twenty
       products one at a time. **The category-assignment half is now `V7.22`/
-      `V7.23`**; what stays here is bulk *status* changes on `/products`.
+      `V7.23`**; what stays here is bulk _status_ changes on `/products`.
 - [ ] **L.7** ↷ **Audit trail.** v1 is not event-sourced by design and v6
       re-confirmed that (see `specs/v6-two-versions.md` §Why not events). The
       concrete form this takes is now **`V6.16`**, an append-only change log.
