@@ -1,6 +1,6 @@
 # v6 — Two versions of the truth, reconciled on purpose
 
-**Status:** 📝 Draft, written 2026-09-02. Not started. Follows
+**Status:** 🚧 In progress, 2026-09-02. Follows
 [v5](v5-pictures-and-walking-the-catalogue.md).
 
 > Decided before writing: **not event-sourced.** `L.7` already records that
@@ -34,6 +34,34 @@ ours   = the live row   what the operator edited
 
 The third row is the one that does not exist today, and it is why a category
 dragged into a new place currently survives only until the next `sync:sapo`.
+
+**Only the fourth row asks a person anything.** A review that presents all 832
+rows for approval is rubber-stamped by the third run and stops being a review.
+The run reports all four counts so it is legible; it _asks_ about conflicts.
+
+### The two diffs have opposite defaults
+
+They are easy to conflate and must not share a UX:
+
+|            | **Inbound** (Sapo → us) | **Outbound** (us → Sapo)               |
+| ---------- | ----------------------- | -------------------------------------- |
+| Frequency  | often, schedulable      | rare, deliberate                       |
+| Asks?      | only on conflict        | **always**, every time                 |
+| Reversible | re-fetch                | **no** — fans out to five marketplaces |
+| Task       | A and B                 | `V6.15`, ADR-gated                     |
+
+### A conflict is a record, not a modal
+
+A plan is a snapshot of a moment. "Fetch → show the diff → decide now →
+apply" means whatever time review takes is time Sapo can move, and applying a
+plan computed against a state that no longer exists is how something gets
+overwritten that nobody saw.
+
+So the sync applies the three automatic buckets and **parks** conflicts as
+rows carrying base, ours and theirs. The sync never blocks on a human, so it
+stays safe to schedule; conflicts accumulate and are resolved whenever; and
+re-running re-checks a parked conflict against fresh data rather than trusting
+an old plan.
 
 ## Out of scope
 
@@ -97,24 +125,33 @@ Sapo's history is unobtainable regardless.
 - **AC-4** _(keep ours, automatically)_ A row the operator changed and Sapo
   did not is **left alone**, and the report says so. Today it is silently
   overwritten.
-- **AC-5** _(conflicts are never resolved silently)_ Both sides changed means
-  neither wins by default. The sync applies everything else and reports the
-  conflicts; nothing about the run is "mostly applied" without saying which
-  part was not.
+- **AC-5** _(a conflict is recorded, not just reported)_ Both sides changed
+  means neither wins by default. The sync applies the other three buckets and
+  **writes a conflict row** carrying base, ours and theirs. Recording rather
+  than reporting is what keeps the sync non-blocking — and therefore
+  schedulable — while leaving the decision genuinely open.
+- **AC-5b** _(re-running re-checks)_ A parked conflict is re-evaluated against
+  fresh data on the next run, not trusted. If Sapo has since moved back to
+  our value, the conflict resolves itself and disappears.
 - **AC-6** _(first run adopts)_ With no mirror row, `base` is absent — treat
   incoming as authoritative and write the mirror. A catalogue that has never
   synced under v6 must not report 832 conflicts.
 
 ### B · Seeing what diverged
 
-- **AC-7** _(dry run)_ `sync:sapo --plan` prints what it would do and changes
-  nothing. A push that cannot be previewed is a push nobody will run twice.
+- **AC-7** _(dry run, against fresh data)_ `sync:sapo --plan` prints what it
+  would do and changes nothing — and **fetches rather than reading
+  `data/sapo/`**, because a plan computed from yesterday's snapshot describes
+  yesterday. For preview and debugging; inbound safety comes from the mirror
+  and parked conflicts, not from someone reading this.
 - **AC-8** _(a divergence view)_ A page lists rows where ours ≠ base: what
   changed, when, and from what. This is the selection `V6.15` would push, and
   it is useful on its own before anything is pushed.
 - **AC-9** _(conflicts are actionable)_ A conflict shows base, ours and theirs
-  side by side, with take-mine / take-theirs. Resolving writes the chosen
-  value **and** updates the mirror, or the conflict returns on the next run.
+  side by side, with take-mine / take-theirs. Resolving is an ordinary action
+  with its own validation — not a step inside a session that can go stale —
+  and it writes the chosen value **and** updates the mirror, or the conflict
+  returns on the next run.
 
 ### C · The split view, with drag and drop
 
@@ -152,8 +189,9 @@ Sapo's history is unobtainable regardless.
 
 ## Non-functional
 
-- **One migration** (`006`), append-only, backfilling the mirror from the
-  current snapshot so the first v6 sync is quiet.
+- **One migration** (`006`) adding `sapo_mirror` **and** `sync_conflicts`,
+  append-only, backfilling the mirror from the current snapshot so the first
+  v6 sync is quiet.
 - **The four gates** green per task.
 - **No new runtime dependency.** `@dnd-kit` is already here; nothing else is
   added.
@@ -170,8 +208,10 @@ Sapo's history is unobtainable regardless.
   UI than it is worth on a first pass.
 - **Does a resolved conflict need a record?** `V6.16` would answer it; without
   it, "we chose ours in March" is unrecoverable.
-- **Should `sync:sapo` refuse to run with unresolved conflicts?** Blocking is
-  safer and annoying; proceeding-and-reporting is what AC-5 currently says.
+- ~~Should `sync:sapo` refuse to run with unresolved conflicts?~~
+  **Answered 2026-09-02: no.** Conflicts are records (AC-5), so the run never
+  blocks — which is what makes it safe to schedule. A conflict left unresolved
+  costs nothing but stays visible.
 - **Where does the divergence view live** — its own route, or a tab on
   `/categories`? It is about products as much as categories, which argues for
   its own.

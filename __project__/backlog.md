@@ -125,12 +125,14 @@ drag-and-drop first means building it against a sync that reverts it.
 
 ### A · The mirror and the three-way merge
 
-- [ ] **V6.1** **Migration `006`: `sapo_mirror`** — `entity`, `sapoId`,
-      `payload` JSON, `syncedAt`, PK `entity + sapoId`. Backfills from the
-      current snapshot so the first v6 sync is quiet rather than reporting 832
-      conflicts. `products` and `categories` stay the effective rows: no read
-      path changes, which is the whole reason to mirror instead of doubling
-      every column.
+- [ ] **V6.1** **Migration `006`: `sapo_mirror` + `sync_conflicts`.** Mirror:
+      `entity`, `sapoId`, `payload` JSON, `syncedAt`, PK `entity + sapoId`;
+      backfilled from the current snapshot so the first v6 sync is quiet
+      rather than reporting 832 conflicts. Conflicts: `entity`, `sapoId`,
+      `field`, `base`, `ours`, `theirs`, `detectedAt`, `resolvedAt`,
+      `resolution`. `products` and `categories` stay the effective rows: no
+      read path changes, which is the whole reason to mirror instead of
+      doubling every column.
 - [ ] **V6.2** **Mirror a product's memberships** as sorted category
       `sapoId`s. This is the field drag-and-drop writes most, so it is the one
       that most needs a base.
@@ -148,8 +150,18 @@ drag-and-drop first means building it against a sync that reverts it.
 
 ### B · Seeing what diverged
 
+- [ ] **V6.6b** **Park conflicts as rows**, carrying base/ours/theirs. The
+      sync applies the three automatic buckets and never blocks on a human —
+      that is what keeps it schedulable. Only the fourth bucket asks anything;
+      a run that asked about all 832 rows would be rubber-stamped by the third
+      time.
+- [ ] **V6.6c** **Re-running re-checks a parked conflict** against fresh data
+      rather than trusting it. If Sapo moved back to our value, the conflict
+      resolves itself and disappears.
+
 - [ ] **V6.7** **`sync:sapo --plan`** — dry run, changes nothing, prints the
-      four buckets. A push that cannot be previewed is one nobody runs twice.
+      four buckets, and **fetches fresh** rather than reading `data/sapo/`: a
+      plan from yesterday's snapshot describes yesterday.
 - [ ] **V6.8** **A divergence view**: rows where ours ≠ base, what changed and
       when. Useful before anything is ever pushed, and it is the selection
       `V6.15` would send.
