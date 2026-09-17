@@ -19,3 +19,16 @@ export async function listFramed(): Promise<readonly string[]> {
   const names = await fs.readdir(FRAMED_DIR).catch(() => [] as string[]);
   return names.filter((n) => n.toLowerCase().endsWith(".png")).sort();
 }
+
+/**
+ * A version tag for an image URL under `public/` or the framed folder, so a
+ * re-exported file with the same name is a new URL to `next/image` — the
+ * optimizer caches by URL and served a replaced logo as its old self for an
+ * hour. Content-derived (size + mtime), cheap, and stable across renders.
+ */
+export const versionOf = async (absPath: string): Promise<string> => {
+  const st = await fs.stat(absPath).catch(() => null);
+  return st
+    ? `${st.size.toString(36)}${Math.floor(st.mtimeMs).toString(36)}`
+    : "0";
+};

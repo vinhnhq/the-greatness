@@ -24,14 +24,18 @@ import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 
-const hrefFor = (file: string) =>
-  `/brand/thumbnails/${encodeURIComponent(file)}`;
-const skuOf = (file: string) => file.replace(/\.png$/i, "");
+type Framed = { readonly file: string; readonly v: string };
+
+// `v` is the file's version (see framed.ts): a regenerated batch under the
+// same names must be new URLs, or next/image serves the old frames.
+const hrefFor = (f: Framed) =>
+  `/brand/thumbnails/${encodeURIComponent(f.file)}?v=${f.v}`;
+const skuOf = (f: Framed) => f.file.replace(/\.png$/i, "");
 
 export function ThumbnailGrid({
   files,
 }: {
-  readonly files: readonly string[];
+  readonly files: readonly Framed[];
 }) {
   const [open, setOpen] = useState<number | null>(null);
 
@@ -41,7 +45,7 @@ export function ThumbnailGrid({
         {files.map((file, index) => {
           const sku = skuOf(file);
           return (
-            <li key={file} className="group flex flex-col gap-2">
+            <li key={file.file} className="group flex flex-col gap-2">
               <div className="relative overflow-hidden rounded-md bg-white">
                 <Image
                   src={hrefFor(file)}
@@ -66,7 +70,7 @@ export function ThumbnailGrid({
                   <Button variant="secondary" size="icon-sm" asChild>
                     <a
                       href={hrefFor(file)}
-                      download={file}
+                      download={file.file}
                       aria-label={`Download ${sku}`}
                     >
                       <Download />
@@ -102,12 +106,12 @@ function Viewer({
   onStep,
   onClose,
 }: {
-  readonly files: readonly string[];
+  readonly files: readonly Framed[];
   readonly index: number;
   readonly onStep: (index: number) => void;
   readonly onClose: () => void;
 }) {
-  const file = files[index] ?? "";
+  const file = files[index] ?? { file: "", v: "0" };
   const sku = skuOf(file);
   const hasPrevious = index > 0;
   const hasNext = index < files.length - 1;
@@ -155,7 +159,7 @@ function Viewer({
               >
                 <a
                   href={hrefFor(file)}
-                  download={file}
+                  download={file.file}
                   aria-label={`Download ${sku}`}
                 >
                   <Download className="size-5" />
@@ -178,7 +182,7 @@ function Viewer({
             {/* Unoptimized on purpose: this is where the 800 px PNG is
                 checked pixel for pixel, so it is served as written. */}
             <Image
-              key={file}
+              key={file.file}
               src={hrefFor(file)}
               alt={sku}
               width={800}

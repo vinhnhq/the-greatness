@@ -36,7 +36,7 @@ import {
 } from "./assets";
 
 import "./brand.css";
-import { listFramed } from "./framed";
+import { FRAMED_DIR, listFramed, versionOf } from "./framed";
 import { ThumbnailGrid } from "./thumbnail-grid";
 
 export const metadata = { title: "Brand" };
@@ -138,7 +138,19 @@ const snapshotCategories = async (): Promise<
   return JSON.parse(raw) as { slug: string; name: string }[];
 };
 
+/** `/brand/x.png` → `/brand/x.png?v=…` from the file under `public/`. */
+const publicSrc = async (src: string): Promise<string> =>
+  `${src}?v=${await versionOf(path.join(process.cwd(), "public", src))}`;
+
 export default async function BrandPage() {
+  const [marks, logos] = await Promise.all([
+    Promise.all(
+      OWN_MARKS.map(async (m) => ({ ...m, src: await publicSrc(m.src) })),
+    ),
+    Promise.all(
+      PARTNER_LOGOS.map(async (l) => ({ ...l, src: await publicSrc(l.src) })),
+    ),
+  ]);
   const [categories, framed, sprite] = await Promise.all([
     // Showcase mode has no database; the committed Sapo snapshot carries the
     // same slugs and names, which is all this page needs from a category.
@@ -173,7 +185,7 @@ export default async function BrandPage() {
         lead="The storefront still carries the orange export; a new one is out of scope until it exists."
       >
         <ul className="grid gap-3 sm:grid-cols-3">
-          {OWN_MARKS.map((mark) => (
+          {marks.map((mark) => (
             <li
               key={mark.src}
               className="flex flex-col gap-2 rounded-md bg-muted/40 p-3"
@@ -202,7 +214,7 @@ export default async function BrandPage() {
         lead="Composed into the product thumbnails top-left. Two are placeholders until the distributor sends a vector."
       >
         <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {PARTNER_LOGOS.map((logo) => (
+          {logos.map((logo) => (
             <li
               key={logo.key}
               className="flex flex-col gap-2 rounded-md bg-muted/40 p-3"
@@ -287,7 +299,14 @@ export default async function BrandPage() {
         title="Product thumbnails"
         lead={`Variant G of the frame: brand top-left, our name top-right, no border, because the storefront card draws its own and floats buttons over the bottom fifth. The whole batch, ${framed.length} photos, from data/thumbnails/framed/.`}
       >
-        <ThumbnailGrid files={framed} />
+        <ThumbnailGrid
+          files={await Promise.all(
+            framed.map(async (file) => ({
+              file,
+              v: await versionOf(path.join(FRAMED_DIR, file)),
+            })),
+          )}
+        />
       </Section>
     </PageContainer>
   );

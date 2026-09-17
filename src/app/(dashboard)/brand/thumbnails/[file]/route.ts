@@ -35,7 +35,9 @@ export async function GET(
     headers: {
       "content-type": "image/png",
       "content-length": String(bytes.byteLength),
-      "cache-control": "public, max-age=3600",
+      // Short: the URL carries a version, so a long TTL buys nothing and a
+      // regenerated file would otherwise be pinned for an hour.
+      "cache-control": "public, max-age=60",
       "x-content-type-options": "nosniff",
     },
   });

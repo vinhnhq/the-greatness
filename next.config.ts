@@ -79,6 +79,15 @@ const nextConfig: NextConfig = {
     "/brand/thumbnails/[file]": ["./data/thumbnails/framed/**"],
   },
   images: {
+    // Next 16 refuses a local image URL with a query string unless the path
+    // is listed here. `/brand/**` carries `?v=<file version>` so a replaced
+    // logo or a regenerated thumbnail is a new URL to the optimizer, which
+    // otherwise serves the old bytes for its cache TTL. Listing anything
+    // restricts every local image, so `/uploads/**` is named too.
+    localPatterns: [
+      { pathname: "/brand/**" },
+      { pathname: "/uploads/**", search: "" },
+    ],
     remotePatterns: [
       { protocol: "https", hostname: "*.public.blob.vercel-storage.com" },
       { protocol: "https", hostname: "lh3.googleusercontent.com" },
