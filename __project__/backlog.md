@@ -245,6 +245,44 @@ Two things to check first, neither of which is code:
   menu are storefront-only. Price is the single field with reach, which is
   why `V8.13` holds it back.
 
+## S — The storefront (Sapo theme), and bringing it home
+
+Context and every finding: [`research/storefront-redesign-2026-09.md`](research/storefront-redesign-2026-09.md);
+decision: [`0005`](decisions/0005-brand-palette-and-storefront-language.md).
+Everything below is live on theme copy `vinhn-beta` (`1158033`) and **not**
+on the live theme.
+
+- [ ] **S.1** **Publish the redesign to the live theme** (`1151628`). Copy the
+      seven files in order — `snippets/wolf-cat-icons.bwt`, the
+      `layouts/theme.bwt` include, `wolf_section_category`,
+      `wolf-subcategories`, `wolf_section_product_2`, `section_services`,
+      `section_coupons`, then `header_style.bwt` — and type the eleven
+      palette values into Tùy chỉnh giao diện → Màu sắc so customizer and CSS
+      agree. Do **not** "use" vinhn-beta wholesale: that copy dates from
+      2026-08-27 and was never diffed against live.
+- [ ] **S.2** **Desktop screenshot pass under the new palette** before S.1:
+      the sale block (`Dao khuyến mãi` on `#F1DDE0`), a product page (price,
+      sale tag `#B3261E`), the cart, the footer on `#F3EDE8`. The session's
+      last browser window was 430 px wide, so these were only checked by
+      measurement, not by eye.
+- [ ] **S.3** **The logo is orange.** An image asset in the theme; needs a
+      burgundy export from the designer. Skipped by decision.
+- [ ] **S.4** ↷ **A fifth service promise**, so the services row shares the
+      category grid's five columns (5-vs-4 column seams do not align; the
+      outer edges do). Or accept it. Copy for the fourth (`ser_4_sum`) wants
+      shortening to one line either way — but see the k-studio note on
+      middle dots before writing `QR Code · Tiền mặt · …`.
+- [ ] **S.5** **Bring the brand layer into this app** — `--brand` light/dark
+      pair, Inter, `tabular-nums` — on brand surfaces only; the four
+      semantic tokens stay as v8 Block A left them.
+- [ ] **S.6** ↷ Dark-theme wine ramp on the storefront, only if the shop ever
+      follows the OS theme (`prefers-color-scheme` on the same tokens).
+- [ ] **S.7** ↷ The category strips on collection pages show a `space-between`
+      row; with four children (`NHÀ THÔNG MINH`) they spread very wide.
+      Gather left, or accept.
+- [ ] **S.8** ↷ The level-2 icons were drawn in one sitting and reviewed at
+      64 px; a second look at 24 px on a real phone is cheap and worth it.
+
 ## N — Later, unrelated to v2
 
 - [ ] **N.0** ↷ **Infinite scroll on `/gallery`.** It pages at 60 with a
@@ -292,6 +330,16 @@ Two things to check first, neither of which is code:
       **one taxonomy published to every channel's scheme**, not "everything in
       one place". Nothing to build; revisit when v7 has shipped and `N.3` is
       answered.
+
+- [ ] **N.9** **`sync:sapo` after the reconciliation.** Sapo now differs from
+      the mirror by 2,229 collects (766 products re-filed to the customer's
+      sheet on 2026-09-16), one collection created (`Máy ép ly tâm`,
+      `4356667`) and one deleted (`Máy ép nhanh`, `4347552`). Run
+      `bun run sync:sapo --plan`, read it, then run it; the new collection
+      arrives **unfiled** and belongs under `Máy ép & Đồ uống dinh dưỡng`.
+      Also worth checking that the sync treats a _deleted_ upstream
+      collection the way ADR-0003 intends (it never deletes — so the local
+      row stays, and should be archived by hand).
 
 ## L — Later (explicitly deferred, not forgotten)
 

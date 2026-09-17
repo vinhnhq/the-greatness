@@ -7,6 +7,75 @@ Newest session first.
 
 ---
 
+## 2026-09-16 / 17 — two days on the system of record, with the app closed
+
+Nothing in `src/` changed. The lessons are about working _outside_ the repo
+against a platform, and most of them are the same lesson in different
+clothes: **test the platform's behaviour, don't infer it from its status
+code.**
+
+### A 200 is not a write
+
+`PUT custom_collections/{id}` with an image attachment returned `200` and
+changed nothing — for SVG and for PNG. `PUT assets/wolf-main.scss.bwt`
+returned `200`, stored the file, and the compiled CSS kept serving the old
+build. Both would have gone unnoticed by a script that trusted the response.
+Every write in these sessions was followed by a read-back, and the two
+silent failures were caught only because of it. The habit ADR-0003 built for
+the sync — verify by reading, never by status — turned out to be the habit
+that mattered for everything else too.
+
+### The screenshot lies at the exact moment it is taken
+
+A "missing outline" bug in the icon sprite was a frame captured mid-animation;
+a pause rule with `!important` did not reach the `<use>` clones, so the frames
+stayed inconsistent and the bug looked real. Only removing the animation
+class settled it. Three lessons in one: a looping animation makes every
+screenshot a sample; `!important` does not cross into `<use>` shadow content
+even though ordinary rules and custom properties do (verified by experiment
+before relying on it); and the fix for "the strips look broken half the
+time" was a design tune (4 s, drawn in 1.4 s), not code.
+
+### Safari does what the rule says, which is not what Chrome does
+
+`::first-letter` for sentence case worked in Chrome and produced
+all-lowercase labels on the owner's iPhone: the theme's phone rule turns the
+label into a `-webkit-box` line clamp, and Safari does not apply
+`::first-letter` to one. The durable fix moved the transform out of CSS into
+Liquid (`downcase | capitalize`), where there is no rendering engine to
+disagree. k-studio's landmine list has the same species (iOS synthesising
+`mousemove`). **If a rule depends on the layer below behaving, move the rule
+up a layer.**
+
+### The customer's file was better than the theory
+
+The plan was to reconcile a spreadsheet against a "tree that must not be
+trusted". The sheet's 94 paths agreed with the reconstructed menu tree on
+every one of 129 shared names, and the one missing collection was an
+existing one under another name. Twenty minutes of comparison before writing
+anything replaced a day of careful merging. Compare first; the disagreement
+you are bracing for may not exist.
+
+### A border on the column is not a border on the card
+
+Two rounds of "the fourth card is cut off" were the same mistake: the
+services card _is_ the Bootstrap column, so removing the column's padding to
+make four columns sum to 100 % removed the card's inner padding as well.
+When a theme puts layout and surface on one element, every rule touches
+both; say which one you mean in the selector, or wrap.
+
+### Measure the layout, then look at it
+
+The layout-grid work was done by numbers — edges 52 → 1348, gaps 12, hero =
+2 × 96 + 12 — in an iframe, because the browser window had shrunk to 430 px
+and stayed there. The numbers found the services row 12 px outside the grid
+and the 16 px vertical gap; the owner's eye found the baseline problem and
+the tight right padding that the numbers called "14 px, fine". Both were
+needed. `S.2` exists because the second half never happened at desktop
+width.
+
+---
+
 ## 2026-09-02 (later) — researching the platform instead of assuming it
 
 A session with almost no feature work in it. What it produced was four

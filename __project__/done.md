@@ -3,6 +3,34 @@
 > Newest at top: `YYYY-MM-DD · <sha> · <task id> <description>`.
 > Cut the line out of [`backlog.md`](backlog.md); never keep-and-tick.
 
+## Sapo reconciled to the customer's sheet, and the storefront redesigned on a theme copy · ✅ 2026-09-17
+
+Not app code — the record is
+[`research/storefront-redesign-2026-09.md`](research/storefront-redesign-2026-09.md)
+and the decision [`0005`](decisions/0005-brand-palette-and-storefront-language.md).
+Facts only here:
+
+- **766 products** re-filed in Sapo to the customer's spreadsheet (all three
+  levels, additive; 41 conflicts reported to the customer in a review tab,
+  then resolved on his instruction with the sheet as the source of truth).
+  2,124 collects added, 105 removed, every product read back. 0 SKUs
+  unresolved. Collection `Máy ép ly tâm` created; `Máy ép nhanh` (empty, the
+  same category under the old name) relinked in the menu and deleted.
+- **The category tree did not move**: the sheet and the reconstructed menu
+  tree agreed on every one of 129 shared names.
+- **9 collection images** uploaded (black line icons, PNG) — the only path
+  Sapo accepts; the theme copy renders an SVG sprite instead and uses these
+  as fallback.
+- **Theme copy `vinhn-beta`**: homepage category grid (layout B), voucher
+  marquee, services row, sub-category strips, 47-icon sprite with draw-on
+  loop, burgundy palette with roles, Inter, cream ground with hairlines, one
+  layout grid. Seven files. Live theme untouched.
+- Three review pages for the owner, private: icon catalogue, tile layouts,
+  palette (links in the research note).
+
+- 2026-09-17 · `—` · **S.0** No commit for the storefront work itself; the
+  docs commit carries the record.
+
 ## v8 Block A — colour where the data varies · ✅ 2026-09-02
 
 Spec: [`specs/v8-colour-and-publishing.md`](specs/v8-colour-and-publishing.md),
