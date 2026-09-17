@@ -27,7 +27,7 @@ export const PARTNER_LOGOS: readonly PartnerLogo[] = [
     key: "kdk",
     name: "KDK",
     src: "/brand/logos/kdk.png",
-    source: "Wikimedia Commons, KDK_logo.svg",
+    source: "Wikimedia Commons, KDK_logo.svg, the red square only",
     quality: "vector",
   },
   {
@@ -41,7 +41,7 @@ export const PARTNER_LOGOS: readonly PartnerLogo[] = [
     key: "bear",
     name: "Bear",
     src: "/brand/logos/bear.png",
-    source: "bearappliance.com site logo",
+    source: "Bear Vietnam Facebook export, 2000 px",
     quality: "good",
   },
   {
@@ -64,7 +64,7 @@ export const PARTNER_LOGOS: readonly PartnerLogo[] = [
     key: "joyoung",
     name: "Joyoung",
     src: "/brand/logos/joyoung.png",
-    source: "seeklogo, 320 px PNG",
+    source: "seeklogo badge, glyphs lifted to orange on transparent",
     quality: "replace",
     note: "Ask the distributor for a vector.",
   },

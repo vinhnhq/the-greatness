@@ -59,9 +59,10 @@ VARIANTS = {
     # so the frame's chrome stays at the top and the text block is centred
     # on itself rather than ragged-right
     # `gap` is the breathing room between the header row and the product's
-    # top edge; without it a tall product butts up against the tagline.
-    "g": dict(layout="header", border=0, header_h=140, pad=34, gap=44, logo_box=(200, 80), name_size=34, tag_size=25,
-              text_align="center"),
+    # top edge; without it a tall product butts up against the tagline. Both
+    # lines sit on the right edge (the centred block was reviewed and
+    # rejected 2026-09-17).
+    "g": dict(layout="header", border=0, header_h=140, pad=34, gap=44, logo_box=(200, 80), name_size=34, tag_size=25),
 }
 NAME = "GREATNESS VIETNAM"
 TAGLINE = "Phân phối chính hãng"
