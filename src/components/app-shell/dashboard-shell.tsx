@@ -133,15 +133,22 @@ function Shell({
     <SidebarProvider>
       <Sidebar collapsible="icon">
         <SidebarHeader>
-          <div className="flex items-center gap-2 px-2 py-1.5">
-            {/* The one brand surface in the chrome (ADR-0005). */}
-            <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-brand text-brand-foreground">
-              <LayoutGrid className="size-4" />
-            </div>
-            <span className="truncate font-semibold group-data-[collapsible=icon]:hidden">
-              The Greatness
-            </span>
-          </div>
+          {/* A menu button, not a bare flex row: it is the one primitive
+              that knows how to collapse to the icon rail — the row kept its
+              padding and squeezed the mark to 31×44 beside 32×32 items. */}
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton size="lg" asChild>
+                <Link href="/products" aria-label="The Greatness">
+                  {/* The one brand surface in the chrome (ADR-0005). */}
+                  <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-brand text-brand-foreground">
+                    <LayoutGrid className="size-4" />
+                  </div>
+                  <span className="truncate font-semibold">The Greatness</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
         </SidebarHeader>
         <SidebarContent>
           <SidebarGroup>

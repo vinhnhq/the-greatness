@@ -48,6 +48,10 @@
   --brand-foreground: #ffffff;
   --brand-surface: #fbf1f2;
   --brand-border: #eac7cb;
+  /* Every other table row. One step under the ground, ≥ 0.035 L in both
+     themes — the floor a phone in daylight still shows (k-studio's
+     measurement); `muted/40` on white was 0.012 and vanished. */
+  --zebra: oklch(0.965 0 0);
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
   --ring: oklch(0.708 0 0);
@@ -90,6 +94,7 @@
   --brand-foreground: #ffffff;
   --brand-surface: oklch(0.35 0.06 15 / 40%);
   --brand-border: oklch(0.5 0.1 15 / 50%);
+  --zebra: oklch(0.195 0 0);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.556 0 0);
@@ -132,6 +137,7 @@
   --color-brand-foreground: var(--brand-foreground);
   --color-brand-surface: var(--brand-surface);
   --color-brand-border: var(--brand-border);
+  --color-zebra: var(--zebra);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);

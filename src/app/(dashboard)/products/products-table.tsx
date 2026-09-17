@@ -104,7 +104,7 @@ export function ProductsTable({
   const categoryName = new Map(categories.map((c) => [c.id as string, c.name]));
 
   return (
-    <div className="overflow-x-auto rounded-lg border">
+    <div className="overflow-x-auto">
       <Table>
         <TableHeader>
           <TableRow>

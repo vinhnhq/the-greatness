@@ -22,12 +22,9 @@ export default function Loading() {
         <Skeleton className="h-8 w-44" />
         <Skeleton className="h-8 w-52" />
       </div>
-      <div className="rounded-lg border">
+      <div>
         {Array.from({ length: 8 }, (_, i) => (
-          <div
-            key={i}
-            className="flex items-center gap-4 border-b p-3 last:border-0"
-          >
+          <div key={i} className="flex items-center gap-4 p-3 even:bg-zebra">
             <Skeleton className="size-10 rounded-md" />
             <Skeleton className="h-4 flex-1 max-w-64" />
             <Skeleton className="h-5 w-16" />

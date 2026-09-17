@@ -353,7 +353,7 @@ export function CategoriesTable({
         className="max-w-xs"
       />
 
-      <div className="overflow-x-auto rounded-lg border">
+      <div className="overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>

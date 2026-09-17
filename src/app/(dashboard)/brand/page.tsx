@@ -108,7 +108,7 @@ function IconGrid({
         return (
           <li
             key={slug}
-            className="flex flex-col items-center gap-2 rounded-md border p-3 text-center"
+            className="flex flex-col items-center gap-2 rounded-md bg-muted/40 p-3 text-center"
           >
             <SpriteIcon id={`cat-${slug}`} size={size} order={index} />
             {name ? (
@@ -163,7 +163,7 @@ export default async function BrandPage() {
           {OWN_MARKS.map((mark) => (
             <li
               key={mark.src}
-              className="flex flex-col gap-2 rounded-md border p-3"
+              className="flex flex-col gap-2 rounded-md bg-muted/40 p-3"
             >
               <div className="flex h-24 items-center justify-center rounded bg-white p-3">
                 <Image
@@ -192,7 +192,7 @@ export default async function BrandPage() {
           {PARTNER_LOGOS.map((logo) => (
             <li
               key={logo.key}
-              className="flex flex-col gap-2 rounded-md border p-3"
+              className="flex flex-col gap-2 rounded-md bg-muted/40 p-3"
             >
               <div className="flex h-20 items-center justify-center rounded bg-white p-3">
                 <Image
@@ -228,7 +228,7 @@ export default async function BrandPage() {
         <IconGrid slugs={CHILD_ICON_SLUGS} names={names} size={64} />
         <h3 className="text-sm font-medium">Fallback and services, 40 px</h3>
         <ul className="grid grid-cols-3 gap-2 sm:grid-cols-5">
-          <li className="flex flex-col items-center gap-2 rounded-md border p-3 text-center">
+          <li className="flex flex-col items-center gap-2 rounded-md bg-muted/40 p-3 text-center">
             <SpriteIcon id="cat-default" size={40} />
             <span className="text-xs">
               cat-default
@@ -241,7 +241,7 @@ export default async function BrandPage() {
           {SERVICE_ICONS.map((icon, index) => (
             <li
               key={icon.id}
-              className="flex flex-col items-center gap-2 rounded-md border p-3 text-center"
+              className="flex flex-col items-center gap-2 rounded-md bg-muted/40 p-3 text-center"
             >
               <SpriteIcon id={icon.id} size={40} order={index + 1} />
               <span className="text-xs">{icon.label}</span>
@@ -256,7 +256,7 @@ export default async function BrandPage() {
       >
         <ul className="grid grid-cols-4 gap-2 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-12">
           {[...ROOT_ICON_SLUGS, ...CHILD_ICON_SLUGS].map((slug) => (
-            <li key={slug} className="rounded-md border bg-white p-2">
+            <li key={slug} className="rounded-md bg-white p-2">
               <Image
                 src={`/brand/category-images/${slug}.png`}
                 alt={names.get(slug) ?? slug}

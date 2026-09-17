@@ -41,11 +41,9 @@ function TableHeader({ className, ...props }: React.ComponentProps<"thead">) {
   return (
     <thead
       data-slot="table-header"
-      className={cn(
-        // The one rule that survives: labels are not data.
-        "[&_tr]:border-b [&_tr]:border-border/60",
-        className,
-      )}
+      // No rule under the header either: the uppercase tracked label is
+      // already not data, and the first zebra stripe starts the body.
+      className={cn("[&_tr]:hover:bg-transparent", className)}
       {...props}
     />
   );
@@ -55,7 +53,10 @@ function TableBody({ className, ...props }: React.ComponentProps<"tbody">) {
   return (
     <tbody
       data-slot="table-body"
-      className={cn("[&_tr:last-child]:border-0", className)}
+      // Zebra instead of rules (k-studio's table rule, adopted here):
+      // every other row tinted, so a wide table still scans without a line
+      // under each row fragmenting it. Hover and selection sit on top.
+      className={cn("[&_tr:nth-child(even)]:bg-zebra", className)}
       {...props}
     />
   );

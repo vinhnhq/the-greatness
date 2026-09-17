@@ -42,7 +42,7 @@ export function ThumbnailGrid({
           const sku = skuOf(file);
           return (
             <li key={file} className="group flex flex-col gap-2">
-              <div className="relative overflow-hidden rounded-md border bg-white">
+              <div className="relative overflow-hidden rounded-md bg-white">
                 <Image
                   src={hrefFor(file)}
                   alt={sku}
