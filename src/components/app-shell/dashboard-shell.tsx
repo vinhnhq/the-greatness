@@ -49,7 +49,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Separator } from "@/components/ui/separator";
 import {
   Sidebar,
   SidebarContent,
@@ -185,8 +184,9 @@ function Shell({
           {/* `min-w-0` lets the breadcrumb truncate instead of pushing the
               theme and account controls off a narrow screen. */}
           <div className="mx-auto flex w-full min-w-0 max-w-[120rem] items-center gap-2">
-            <SidebarTrigger />
-            <Separator orientation="vertical" className="mr-1 h-4" />
+            {/* No rule between the trigger and the crumbs: it was a 16 px
+                stub that read as a broken line, and a gap does the job. */}
+            <SidebarTrigger className="mr-1" />
             <Breadcrumb className="min-w-0">
               <BreadcrumbList className="flex-nowrap">
                 {crumbs.map((crumb, index) => (
