@@ -38,6 +38,16 @@
   --success: oklch(0.596 0.145 163.225);
   --warning: oklch(0.666 0.179 58.318);
   --info: oklch(0.546 0.163 248.5);
+  /* The brand layer (ADR-0005, backlog S.5): burgundy #7A1F2B, with the
+     tint pair for a tinted surface. Brand surfaces only — the app's mark,
+     the wordmark, a link that means "the shop" — never a button and never
+     state; the four tokens above keep those jobs. Light = deep, dark =
+     lifted (#B5404D fill, #E07A85 text): on charcoal the deep shade is
+     2.3 : 1. */
+  --brand: #7a1f2b;
+  --brand-foreground: #ffffff;
+  --brand-surface: #fbf1f2;
+  --brand-border: #eac7cb;
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
   --ring: oklch(0.708 0 0);
@@ -76,6 +86,10 @@
   --success: oklch(0.765 0.177 163.223);
   --warning: oklch(0.828 0.189 84.429);
   --info: oklch(0.735 0.135 248.5);
+  --brand: #b5404d;
+  --brand-foreground: #ffffff;
+  --brand-surface: oklch(0.35 0.06 15 / 40%);
+  --brand-border: oklch(0.5 0.1 15 / 50%);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.556 0 0);
@@ -86,8 +100,9 @@
   --chart-5: oklch(0.269 0 0);
   --sidebar: oklch(0.205 0 0);
   --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
+  /* The preset ships a blue here; nothing in this app is blue. */
+  --sidebar-primary: oklch(0.922 0 0);
+  --sidebar-primary-foreground: oklch(0.205 0 0);
   --sidebar-accent: oklch(0.269 0 0);
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
@@ -113,6 +128,10 @@
   --color-success: var(--success);
   --color-warning: var(--warning);
   --color-info: var(--info);
+  --color-brand: var(--brand);
+  --color-brand-foreground: var(--brand-foreground);
+  --color-brand-surface: var(--brand-surface);
+  --color-brand-border: var(--brand-border);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);

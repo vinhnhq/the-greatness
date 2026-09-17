@@ -61,7 +61,7 @@ export default async function SignInPage() {
     <div className="flex min-h-svh items-center justify-center p-6">
       <Card className="w-full max-w-sm">
         <CardHeader className="items-center text-center">
-          <div className="mx-auto mb-2 flex size-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+          <div className="mx-auto mb-2 flex size-10 items-center justify-center rounded-lg bg-brand text-brand-foreground">
             <Package className="size-5" />
           </div>
           <CardTitle>The Greatness</CardTitle>

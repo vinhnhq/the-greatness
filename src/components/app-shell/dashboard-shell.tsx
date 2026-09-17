@@ -134,7 +134,8 @@ function Shell({
       <Sidebar collapsible="icon">
         <SidebarHeader>
           <div className="flex items-center gap-2 px-2 py-1.5">
-            <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground">
+            {/* The one brand surface in the chrome (ADR-0005). */}
+            <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-brand text-brand-foreground">
               <LayoutGrid className="size-4" />
             </div>
             <span className="truncate font-semibold group-data-[collapsible=icon]:hidden">
@@ -169,7 +170,11 @@ function Shell({
       </Sidebar>
 
       <SidebarInset>
-        <header className="sticky top-0 z-10 flex h-14 shrink-0 items-center border-b bg-background/95 px-3 backdrop-blur supports-[backdrop-filter]:bg-background/60 sm:px-4">
+        {/* Solid, not blurred: a translucent header over a scrolling photo
+            grid shows the photos through it as a smear that reads as a
+            rendering fault, and `prefers-reduced-transparency` wants solid
+            anyway. */}
+        <header className="sticky top-0 z-10 flex h-14 shrink-0 items-center border-b bg-background px-3 sm:px-4">
           {/* `min-w-0` lets the breadcrumb truncate instead of pushing the
               theme and account controls off a narrow screen. */}
           <div className="mx-auto flex w-full min-w-0 max-w-[120rem] items-center gap-2">

@@ -272,9 +272,13 @@ on the live theme.
       outer edges do). Or accept it. Copy for the fourth (`ser_4_sum`) wants
       shortening to one line either way — but see the k-studio note on
       middle dots before writing `QR Code · Tiền mặt · …`.
-- [ ] **S.5** **Bring the brand layer into this app** — `--brand` light/dark
+- [x] **S.5** **Bring the brand layer into this app** — `--brand` light/dark
       pair, Inter, `tabular-nums` — on brand surfaces only; the four
-      semantic tokens stay as v8 Block A left them.
+      semantic tokens stay as v8 Block A left them. _Done 2026-09-17_: the
+      tokens (`--brand`, `-foreground`, `-surface`, `-border`) are in
+      `globals.css`; the app mark in the sidebar and on sign-in is the only
+      brand surface so far. **Open:** whether primary buttons go burgundy as
+      the storefront's do, or stay ink because the app is achromatic.
 - [ ] **S.6** ↷ Dark-theme wine ramp on the storefront, only if the shop ever
       follows the OS theme (`prefers-color-scheme` on the same tokens).
 - [ ] **S.7** ↷ The category strips on collection pages show a `space-between`

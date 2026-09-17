@@ -59,9 +59,9 @@ export function Pager({
               <ChevronLeft className="size-4" /> Previous
             </Link>
           ) : (
-            <span>
+            <>
               <ChevronLeft className="size-4" /> Previous
-            </span>
+            </>
           )}
         </Button>
 
@@ -79,9 +79,9 @@ export function Pager({
               Next <ChevronRight className="size-4" />
             </Link>
           ) : (
-            <span>
+            <>
               Next <ChevronRight className="size-4" />
-            </span>
+            </>
           )}
         </Button>
       </div>

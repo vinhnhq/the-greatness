@@ -175,8 +175,9 @@ export default async function BrandPage() {
                 />
               </div>
               <div className="text-sm font-medium">{mark.name}</div>
-              <div className="text-xs text-muted-foreground">
-                {mark.where} · {mark.size}
+              <div className="flex flex-wrap gap-x-3 text-xs text-muted-foreground">
+                <span>{mark.where}</span>
+                <span className="tabular-nums">{mark.size}</span>
               </div>
             </li>
           ))}
@@ -221,11 +222,11 @@ export default async function BrandPage() {
         title="Category icons"
         lead={`One 24 px stroke sprite, ${ROOT_ICON_SLUGS.length} roots at 40 px on the homepage and ${CHILD_ICON_SLUGS.length} level-2 at 64 px on collection strips. Level 3 never gets one.${orphaned ? ` ${orphaned} icon${orphaned === 1 ? "" : "s"} no longer match a category.` : ""}`}
       >
-        <h3 className="text-sm font-medium">Roots · 40 px</h3>
+        <h3 className="text-sm font-medium">Roots, 40 px</h3>
         <IconGrid slugs={ROOT_ICON_SLUGS} names={names} size={40} />
-        <h3 className="text-sm font-medium">Level 2 · 64 px</h3>
+        <h3 className="text-sm font-medium">Level 2, 64 px</h3>
         <IconGrid slugs={CHILD_ICON_SLUGS} names={names} size={64} />
-        <h3 className="text-sm font-medium">Fallback and services · 40 px</h3>
+        <h3 className="text-sm font-medium">Fallback and services, 40 px</h3>
         <ul className="grid grid-cols-3 gap-2 sm:grid-cols-5">
           <li className="flex flex-col items-center gap-2 rounded-md border p-3 text-center">
             <SpriteIcon id="cat-default" size={40} />

@@ -140,8 +140,11 @@ function Viewer({
           </DialogPrimitive.Description>
 
           <div className="flex items-center justify-between gap-2 p-3 text-white/90">
-            <span className="text-sm tabular-nums" aria-live="polite">
-              {index + 1} / {files.length} · {sku}
+            <span className="flex gap-3 text-sm" aria-live="polite">
+              <span className="tabular-nums">
+                {index + 1} / {files.length}
+              </span>
+              <span>{sku}</span>
             </span>
             <div className="flex gap-1">
               <Button
