@@ -1,0 +1,19 @@
+{
+  "brands": {
+    "fujihome": { "name": "Fujihome", "logo": "logos/fujihome.png", "source": "https://fujihomevn.com/image/catalog/logo/logo.jpg (JPEG, 5 KB — ask the distributor for a vector)" },
+    "kdk": { "name": "KDK", "logo": "logos/kdk.png", "source": "https://commons.wikimedia.org/wiki/File:KDK_logo.svg" },
+    "bear": { "name": "Bear", "logo": "logos/bear.png", "source": "https://www.bearappliance.com/wp-content/uploads/2026/08/Bear-Logo.png" },
+    "joyoung": { "name": "Joyoung", "logo": "logos/joyoung.png", "source": "https://seeklogo.com/vector-logo/391421/joyoung (320px PNG — ask the distributor for a vector)" },
+    "sharp": { "name": "Sharp", "logo": "logos/sharp.png", "source": "https://commons.wikimedia.org/wiki/File:Logo_of_the_Sharp_Corporation.svg" },
+    "lumias": { "name": "Lumias", "logo": "logos/lumias.png", "source": "https://lumias.vn/wp-content/uploads/2024/05/logo-lumias-1.png" }
+  },
+  "rules": [
+    { "match": "^J[A-Z]+-", "brand": "joyoung", "note": "Joyoung model codes: JAF, JBM, JSC, JSJ …" },
+    { "match": "^JSCB", "brand": "joyoung" },
+    { "match": "^(DDG|DDZ|DFB|DHG|DRG|DYD|QSJ|FXDZWK|SH-E|AF-4H)", "brand": "bear", "note": "Bear (小熊) codes; SH-E15M and AF-4H15K carry the Bear logo" },
+    { "match": "^(A10|AC|AF|AP5|BF|CF|HM|IC|RC|SJ|SM)", "brand": "fujihome", "note": "Fujihome: air fryers, purifiers, fans, hobs, rice cookers, juicers, soy-milk makers" },
+    { "match": "^[a-z]{1,2}\\d+[a-z]", "brand": "kdk", "note": "KDK model codes are one or two lowercase letters + digits + letter, e.g. m40c(gy), t60aw, hl19v" },
+    { "match": "^(3|25|40)$", "brand": "kdk", "note": "unnamed exports that are KDK fans" },
+    { "match": "^2$", "brand": "lumias", "note": "unnamed export of the Lumias handheld fan trio" }
+  ]
+}
