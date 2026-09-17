@@ -1,0 +1,2 @@
+<symbol id="cat-cham-soc-quan-ao" viewBox="0 0 24 24"><path d="M2.5 16.5H21.5V13.5A2 2 0 0 0 19.5 11.5H9Z" pathLength="1"/><path d="M9 11.5V8.5A1.5 1.5 0 0 1 10.5 7H15.5A1.5 1.5 0 0 1 17 8.5V11.5" pathLength="1" style="--d:0.12s"/><path d="M12 14H18" pathLength="1" style="--d:0.24s"/></symbol>
+<symbol id="cat-dao-dung-cu-cat" viewBox="0 0 24 24"><path d="M3 3L14.5 10.5L10 15C6.5 12.5 4 8 3 3Z" pathLength="1"/><path d="M14.5 10.5L20.5 16.5A1.6 1.6 0 0 1 16 21L10 15" pathLength="1" style="--d:0.12s"/></symbol>

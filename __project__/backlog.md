@@ -287,6 +287,17 @@ on the live theme.
 - [ ] **S.8** ↷ The level-2 icons were drawn in one sitting and reviewed at
       64 px; a second look at 24 px on a real phone is cheap and worth it.
 
+- [ ] **S.13** **Two icons redrawn, one rename asked for** (teammate review,
+      2026-09-17 evening). The iron (`cat-cham-soc-quan-ao`) is now angular
+      — the rounded one read as a dish cover — and the knife
+      (`cat-dao-dung-cu-cat`) is a chef's knife like 🔪. Both are in
+      `public/brand/category-icons.svg` and the 640 px exports; **the theme
+      copy `vinhn-beta` still has the old drawings** — paste the two
+      `<symbol>`s from `research/icon-changes-2026-09-17.svg.txt` into
+      `snippets/wolf-cat-icons.bwt` (part of S.1 either way). The rename
+      "Chăm sóc không khí" → "Thanh lọc không khí" is a Sapo category
+      rename, not an icon: do it in the admin, then `sync:sapo`; the slug
+      (and so the sprite id `cat-cham-soc-khong-khi`) changes with it.
 - [ ] **S.9** **Download the infographic photos and upload them to Sapo.**
       `data/thumbnails/infographic-sheet.json` has 109 SKUs with a cover and
       up to eight photos on `cf.shopee.vn` (the CDN serves them directly).
