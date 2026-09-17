@@ -291,7 +291,7 @@ on the live theme.
       `data/thumbnails/infographic-sheet.json` has 109 SKUs with a cover and
       up to eight photos on `cf.shopee.vn` (the CDN serves them directly).
       Before anything is uploaded: refresh the snapshot (`bun run
-    fetch:sapo`) — 33 SKUs, 26 of them Joyoung, are not in the 30 Aug
+fetch:sapo`) — 33 SKUs, 26 of them Joyoung, are not in the 30 Aug
       snapshot and are probably just newer — and **pick one SKU spelling**;
       the sheet and the photo batch disagree on ~10 (`JSCBK7PRO` vs
       `JSCB - K7 PRO`, colour suffixes on one side only). Sapo's is the
