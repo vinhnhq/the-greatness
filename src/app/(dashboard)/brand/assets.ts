@@ -98,8 +98,8 @@ export const OWN_MARKS: readonly OwnMark[] = [
   },
 ];
 
-/** The sprite: `<use href="/brand/category-icons.svg#cat-{slug}">`. */
-export const ICON_SPRITE = "/brand/category-icons.svg";
+/** The sprite, under `public/`; the page inlines it and draws `<use href="#cat-{slug}">`. */
+export const ICON_SPRITE = "brand/category-icons.svg";
 
 /** Level-1 categories, in the order the homepage shows them. */
 export const ROOT_ICON_SLUGS: readonly string[] = [

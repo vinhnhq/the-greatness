@@ -1,0 +1,44 @@
+/*
+ * The theme's icon rules (`snippets/wolf-cat-icons.bwt`), verbatim, so the
+ * page shows the icons the way the storefront draws them: a 4 s loop in
+ * which each stroke draws itself on during the first ~0.8 s, staggered per
+ * stroke (`--d`) and per tile (`--t`), and off under reduced motion.
+ *
+ * The selectors reach into `<symbol>`, which only works because the page
+ * inlines the sprite — a `<use>` pointing at an external file clones into a
+ * shadow tree the page's CSS cannot style.
+ */
+.wolf-ic {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.15;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  display: block;
+}
+symbol [pathLength] {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 0;
+  animation: var(--wolf-draw, none);
+  animation-delay: calc(var(--t, 0s) + var(--d, 0s));
+}
+.wolf-draw {
+  --wolf-draw: wolf-draw 4s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+}
+@keyframes wolf-draw {
+  0% {
+    stroke-dashoffset: 1;
+  }
+  20% {
+    stroke-dashoffset: 0;
+  }
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  symbol [pathLength] {
+    animation: none !important;
+    stroke-dashoffset: 0;
+  }
+}

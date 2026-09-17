@@ -14,11 +14,15 @@
  * carrying a stale label.
  */
 
+import { readFile } from "node:fs/promises";
+import path from "node:path";
+
 import Image from "next/image";
 
 import { PageContainer } from "@/components/app-shell/page-container";
 import { Badge } from "@/components/ui/badge";
 import { dbCategoryRepo } from "@/lib/domain/categories/repository";
+import { cn } from "@/lib/utils";
 
 import {
   CHILD_ICON_SLUGS,
@@ -30,6 +34,8 @@ import {
   SERVICE_ICONS,
   THUMBNAIL_SAMPLES,
 } from "./assets";
+
+import "./brand.css";
 
 export const metadata = { title: "Brand" };
 
@@ -62,10 +68,13 @@ function Section({
 function SpriteIcon({
   id,
   size,
+  order = 0,
   className,
 }: {
   readonly id: string;
   readonly size: number;
+  /** Position in its row; the theme staggers tiles by 80 ms each. */
+  readonly order?: number;
   readonly className?: string;
 }) {
   return (
@@ -73,18 +82,11 @@ function SpriteIcon({
       width={size}
       height={size}
       viewBox="0 0 24 24"
-      // The theme's `.wolf-ic` host rule, inlined: the symbols are bare paths
-      // that rely on the host for stroke, so without this they render as
-      // filled black blobs.
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={1.15}
-      strokeLinecap="round"
-      strokeLinejoin="round"
       aria-hidden="true"
-      className={className}
+      className={cn("wolf-ic wolf-draw", className)}
+      style={{ "--t": `${order * 0.08}s` } as React.CSSProperties}
     >
-      <use href={`${ICON_SPRITE}#${id}`} />
+      <use href={`#${id}`} />
     </svg>
   );
 }
@@ -100,14 +102,14 @@ function IconGrid({
 }) {
   return (
     <ul className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8">
-      {slugs.map((slug) => {
+      {slugs.map((slug, index) => {
         const name = names.get(slug);
         return (
           <li
             key={slug}
             className="flex flex-col items-center gap-2 rounded-md border p-3 text-center"
           >
-            <SpriteIcon id={`cat-${slug}`} size={size} />
+            <SpriteIcon id={`cat-${slug}`} size={size} order={index} />
             {name ? (
               <span className="text-xs leading-tight">{name}</span>
             ) : (
@@ -125,7 +127,12 @@ function IconGrid({
 }
 
 export default async function BrandPage() {
-  const categories = await dbCategoryRepo.list();
+  const [categories, sprite] = await Promise.all([
+    dbCategoryRepo.list(),
+    // Inlined rather than referenced, so the draw-on CSS can reach the
+    // symbols (see brand.css). The file is ours and static; no user content.
+    readFile(path.join(process.cwd(), "public", ICON_SPRITE), "utf8"),
+  ]);
   const names = new Map(categories.map((c) => [c.slug, c.name]));
   const orphaned = [...ROOT_ICON_SLUGS, ...CHILD_ICON_SLUGS].filter(
     (slug) => !names.has(slug),
@@ -133,6 +140,11 @@ export default async function BrandPage() {
 
   return (
     <PageContainer>
+      <div
+        aria-hidden="true"
+        className="absolute size-0 overflow-hidden"
+        dangerouslySetInnerHTML={{ __html: sprite }}
+      />
       <div>
         <h1 className="text-xl font-semibold tracking-tight">Brand</h1>
         <p className="text-sm text-muted-foreground">
@@ -217,12 +229,12 @@ export default async function BrandPage() {
             <SpriteIcon id="cat-default" size={40} className="opacity-35" />
             <span className="text-xs">cat-default, at 35%</span>
           </li>
-          {SERVICE_ICONS.map((icon) => (
+          {SERVICE_ICONS.map((icon, index) => (
             <li
               key={icon.id}
               className="flex flex-col items-center gap-2 rounded-md border p-3 text-center"
             >
-              <SpriteIcon id={icon.id} size={40} />
+              <SpriteIcon id={icon.id} size={40} order={index + 1} />
               <span className="text-xs">{icon.label}</span>
             </li>
           ))}
@@ -230,8 +242,28 @@ export default async function BrandPage() {
       </Section>
 
       <Section
+        title="Category images"
+        lead={`The same ${ROOT_ICON_SLUGS.length + CHILD_ICON_SLUGS.length} icons exported as 640 px transparent PNGs, ink stroke 1.15, for Sapo's collection-image field, which takes no SVG. In public/brand/category-images/.`}
+      >
+        <ul className="grid grid-cols-4 gap-2 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-12">
+          {[...ROOT_ICON_SLUGS, ...CHILD_ICON_SLUGS].map((slug) => (
+            <li key={slug} className="rounded-md border bg-white p-2">
+              <Image
+                src={`/brand/category-images/${slug}.png`}
+                alt={names.get(slug) ?? slug}
+                title={names.get(slug) ?? slug}
+                width={96}
+                height={96}
+                className="w-full"
+              />
+            </li>
+          ))}
+        </ul>
+      </Section>
+
+      <Section
         title="Product thumbnails"
-        lead="Variant G of the frame: brand top-left, our name top-right, no border, because the storefront card draws its own and floats buttons over the bottom fifth."
+        lead="Variant G of the frame: brand top-left, our name top-right, no border, because the storefront card draws its own and floats buttons over the bottom fifth. All 129 photos are framed in Downloads/Website Thumbnail/_framed/."
       >
         <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
           {THUMBNAIL_SAMPLES.map((sample) => (
