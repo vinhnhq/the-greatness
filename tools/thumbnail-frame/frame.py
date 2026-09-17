@@ -204,7 +204,9 @@ def compose(photo: Image.Image, brand: str, size: int, v: dict) -> Image.Image:
     if b:
         d.rectangle((0, 0, size - 1, size - 1), outline=(0, 0, 0, 255), width=b)
     inner = b + v["pad"]
-    logo = _logo(brand, v["logo_box"])
+    # A brand may override the box (brands.json `logoBox`): a compact square
+    # mark reads smaller than a wide wordmark fitted to the same height.
+    logo = _logo(brand, tuple(BRANDS["brands"][brand].get("logoBox", v["logo_box"])))
     layout = v["layout"]
 
     if layout == "header":
