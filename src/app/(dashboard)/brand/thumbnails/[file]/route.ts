@@ -6,6 +6,12 @@
  * The name is matched against the directory listing rather than resolved:
  * a request can only ever fetch a file that is actually in the folder, which
  * closes the traversal question without a second path check.
+ *
+ * Public, like `/uploads`, and this was learned the hard way: a session
+ * gate here broke every tile, because `next/image`'s optimizer fetches the
+ * source server-side with no cookie, and the gate was moot anyway once a
+ * `public, max-age` response sat in the CDN for the next visitor. The page
+ * that lists them is what is gated; a bare SKU-named PNG is not a secret.
  */
 
 import { promises as fs } from "node:fs";
@@ -13,20 +19,12 @@ import path from "node:path";
 
 import { NextResponse } from "next/server";
 
-import { getCurrentUser } from "@/lib/auth";
-import { getShowcaseUser, isShowcase } from "@/lib/showcase";
-
 import { FRAMED_DIR, listFramed } from "../../framed";
 
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ file: string }> },
 ): Promise<Response> {
-  // Signed-in only, unlike `/uploads`: these are not yet on any storefront,
-  // and a 401 rather than a redirect because the caller is an <img>.
-  const user = isShowcase() ? await getShowcaseUser() : await getCurrentUser();
-  if (!user) return new NextResponse("Unauthorized", { status: 401 });
-
   const { file } = await params;
   const names = await listFramed();
   if (!names.includes(file)) {
