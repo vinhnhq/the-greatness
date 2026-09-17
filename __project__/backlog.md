@@ -311,7 +311,13 @@ on the live theme.
       register the Google OAuth client. The seams are
       built and unit-tested; **neither has been exercised against the real
       services**, so budget for the first-run surprises rather than treating
-      this as configuration.
+      this as configuration. _2026-09-17_: the Vercel project exists
+      (`the-greatness`, team `vinhnguyen-projects`, repo
+      `github.com/vinhnhq/the-greatness`) and **production runs in showcase
+      mode** — `/brand` alone, one password, no database (`APP_MODE=showcase`,
+      `src/lib/showcase.ts`). Deployed from the CLI, not git; the four env
+      vars are on Production only. The real deploy is: provision Neon and
+      Blob, add their vars, remove `APP_MODE`, and the rest of this item.
 - [ ] **N.4** **CI secret decision.** `ci.yml` runs the integration project
       against scratch SQLite with no secret, which is genuinely useful — but it
       means **the Postgres dialect is never exercised in CI**. Either add
