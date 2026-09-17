@@ -18,6 +18,7 @@ import {
   LayoutGrid,
   LogOut,
   Package,
+  Palette,
   GitCompare,
   Tags,
 } from "lucide-react";
@@ -69,6 +70,7 @@ const NAV = [
   { href: "/gallery", label: "Gallery", icon: Images },
   { href: "/categories", label: "Categories", icon: Tags },
   { href: "/reconcile", label: "Reconcile", icon: GitCompare },
+  { href: "/brand", label: "Brand", icon: Palette },
 ] as const;
 
 export type ShellUser = {

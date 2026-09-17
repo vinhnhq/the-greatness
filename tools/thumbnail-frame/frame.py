@@ -42,11 +42,24 @@ BRANDS = json.load(open(os.path.join(HERE, "brands.json")))
 
 # ---------------------------------------------------------------- variants
 # Each variant is one composition; `samples/` shows them side by side.
+# a–c keep the mockup's header row; d–f are alternatives that give the
+# product more of the square.
 VARIANTS = {
-    "a": dict(border=14, header_h=150, pad=36, logo_box=(210, 84), name_size=36, tag_size=26),
-    "b": dict(border=6, header_h=130, pad=30, logo_box=(190, 72), name_size=32, tag_size=23),
-    "c": dict(border=0, header_h=130, pad=30, logo_box=(190, 72), name_size=32, tag_size=23,
-              rule=True),
+    "a": dict(layout="header", border=14, header_h=150, pad=36, logo_box=(210, 84), name_size=36, tag_size=26),
+    "b": dict(layout="header", border=6, header_h=130, pad=30, logo_box=(190, 72), name_size=32, tag_size=23),
+    "c": dict(layout="header", border=0, header_h=130, pad=30, logo_box=(190, 72), name_size=32, tag_size=23, rule=True),
+    # d: product on top, one footer band carries logo + our name; no border
+    "d": dict(layout="footer", border=0, footer_h=120, pad=32, logo_box=(170, 60), name_size=28, tag_size=20),
+    # e: product fills the square, small brand logo top-left, black pill bottom-right
+    "e": dict(layout="badge", border=0, pad=28, logo_box=(150, 56), name_size=22, tag_size=17),
+    # f: centred column — logo, product, name — a classic marketplace card
+    "f": dict(layout="centered", border=0, pad=32, logo_box=(180, 64), name_size=30, tag_size=22),
+    # g: the header row again, but no border — the storefront card already
+    # draws a rounded border and overlays action buttons on the bottom fifth,
+    # so the frame's chrome stays at the top and the text block is centred
+    # on itself rather than ragged-right
+    "g": dict(layout="header", border=0, header_h=140, pad=34, logo_box=(200, 80), name_size=34, tag_size=25,
+              text_align="center"),
 }
 NAME = "GREATNESS VIETNAM"
 TAGLINE = "Phân phối chính hãng"
@@ -148,44 +161,88 @@ def fit(im: Image.Image, box: tuple[int, int]) -> Image.Image:
     return im.resize((max(1, round(im.width * s)), max(1, round(im.height * s))), Image.LANCZOS)
 
 
+def _text_block(d, v, x_right, y, align="right"):
+    """Our name over the tagline; returns the block height."""
+    fn, ft = font(v["name_size"], "Bold"), font(v["tag_size"], "Regular")
+    nw, tw = d.textlength(NAME, font=fn), d.textlength(TAGLINE, font=ft)
+    gap = 8
+    if align == "right" and v.get("text_align") == "center":
+        # block anchored right, each line centred within the block
+        bw = max(nw, tw)
+        cx = x_right - bw / 2
+        d.text((cx - nw / 2, y), NAME, font=fn, fill=(0, 0, 0, 255))
+        d.text((cx - tw / 2, y + v["name_size"] + gap), TAGLINE, font=ft, fill=(60, 60, 60, 255))
+    elif align == "right":
+        d.text((x_right - nw, y), NAME, font=fn, fill=(0, 0, 0, 255))
+        d.text((x_right - tw, y + v["name_size"] + gap), TAGLINE, font=ft, fill=(60, 60, 60, 255))
+    else:  # centred on x_right
+        d.text((x_right - nw / 2, y), NAME, font=fn, fill=(0, 0, 0, 255))
+        d.text((x_right - tw / 2, y + v["name_size"] + gap), TAGLINE, font=ft, fill=(60, 60, 60, 255))
+    return v["name_size"] + gap + v["tag_size"]
+
+
+def _place_product(canvas, photo, box):
+    x0, y0, x1, y1 = box
+    bb = content_bbox(photo)
+    if bb:
+        photo = photo.crop(bb)
+    p = fit(photo, (x1 - x0, y1 - y0))
+    canvas.alpha_composite(p, (x0 + (x1 - x0 - p.width) // 2, y0 + (y1 - y0 - p.height) // 2))
+
+
+def _logo(brand, box):
+    return fit(Image.open(os.path.join(LOGOS, brand + ".png")).convert("RGBA"), box)
+
+
 def compose(photo: Image.Image, brand: str, size: int, v: dict) -> Image.Image:
     canvas = Image.new("RGBA", (size, size), (255, 255, 255, 255))
     d = ImageDraw.Draw(canvas)
     b = v["border"]
     if b:
         d.rectangle((0, 0, size - 1, size - 1), outline=(0, 0, 0, 255), width=b)
-
     inner = b + v["pad"]
-    # header: brand logo left
-    logo = Image.open(os.path.join(LOGOS, brand + ".png")).convert("RGBA")
-    logo = fit(logo, v["logo_box"])
-    ly = inner + (v["header_h"] - v["pad"] - logo.height) // 2
-    canvas.alpha_composite(logo, (inner, ly))
+    logo = _logo(brand, v["logo_box"])
+    layout = v["layout"]
 
-    # header: our name + tagline, right-aligned
-    fn, ft = font(v["name_size"], "Bold"), font(v["tag_size"], "Regular")
-    nw = d.textlength(NAME, font=fn)
-    tw = d.textlength(TAGLINE, font=ft)
-    right = size - inner
-    block_h = v["name_size"] + 8 + v["tag_size"]
-    ty = inner + (v["header_h"] - v["pad"] - block_h) // 2
-    d.text((right - nw, ty), NAME, font=fn, fill=(0, 0, 0, 255))
-    d.text((right - tw, ty + v["name_size"] + 8), TAGLINE, font=ft, fill=(60, 60, 60, 255))
+    if layout == "header":
+        ly = inner + (v["header_h"] - v["pad"] - logo.height) // 2
+        canvas.alpha_composite(logo, (inner, ly))
+        block_h = v["name_size"] + 8 + v["tag_size"]
+        _text_block(d, v, size - inner, inner + (v["header_h"] - v["pad"] - block_h) // 2)
+        if v.get("rule"):
+            y = b + v["header_h"] - 6
+            d.line((inner, y, size - inner, y), fill=(0, 0, 0, 255), width=2)
+        _place_product(canvas, photo, (inner, b + v["header_h"], size - inner, size - inner))
 
-    if v.get("rule"):
-        y = b + v["header_h"] - 6
-        d.line((inner, y, size - inner, y), fill=(0, 0, 0, 255), width=2)
+    elif layout == "footer":
+        fy = size - v["footer_h"]
+        d.line((inner, fy, size - inner, fy), fill=(0, 0, 0, 255), width=2)
+        canvas.alpha_composite(logo, (inner, fy + (v["footer_h"] - logo.height) // 2))
+        block_h = v["name_size"] + 8 + v["tag_size"]
+        _text_block(d, v, size - inner, fy + (v["footer_h"] - block_h) // 2)
+        _place_product(canvas, photo, (inner, inner, size - inner, fy - v["pad"] // 2))
 
-    # product: cropped to content, fitted into the remaining box
-    bb = content_bbox(photo)
-    if bb:
-        photo = photo.crop(bb)
-    box_w = size - 2 * inner
-    box_h = size - b - v["header_h"] - inner
-    p = fit(photo, (box_w, box_h))
-    x = (size - p.width) // 2
-    y = b + v["header_h"] + (box_h - p.height) // 2
-    canvas.alpha_composite(p, (x, y))
+    elif layout == "badge":
+        canvas.alpha_composite(logo, (inner, inner))
+        # black pill, white text, bottom-right
+        fn, ft = font(v["name_size"], "Bold"), font(v["tag_size"], "Regular")
+        nw, tw = d.textlength(NAME, font=fn), d.textlength(TAGLINE, font=ft)
+        pw, ph = int(max(nw, tw)) + 44, v["name_size"] + 6 + v["tag_size"] + 30
+        px, py = size - inner - pw, size - inner - ph
+        d.rounded_rectangle((px, py, px + pw, py + ph), radius=10, fill=(0, 0, 0, 255))
+        d.text((px + 22, py + 14), NAME, font=fn, fill=(255, 255, 255, 255))
+        d.text((px + 22, py + 14 + v["name_size"] + 6), TAGLINE, font=ft, fill=(200, 200, 200, 255))
+        # product may run under the logo row but stays clear of the pill
+        _place_product(canvas, photo, (inner, inner + logo.height + 12, size - inner, py - 16))
+
+    elif layout == "centered":
+        canvas.alpha_composite(logo, ((size - logo.width) // 2, inner))
+        block_h = v["name_size"] + 8 + v["tag_size"]
+        ty = size - inner - block_h
+        _text_block(d, v, size // 2, ty, align="center")
+        d.line((size // 2 - 40, ty - 18, size // 2 + 40, ty - 18), fill=(0, 0, 0, 255), width=2)
+        _place_product(canvas, photo, (inner, inner + logo.height + 24, size - inner, ty - 44))
+
     return canvas
 
 
