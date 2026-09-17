@@ -3,6 +3,42 @@
 > Newest at top: `YYYY-MM-DD · <sha> · <task id> <description>`.
 > Cut the line out of [`backlog.md`](backlog.md); never keep-and-tick.
 
+## Thumbnails, the brand page, and the first deployment · ✅ 2026-09-17
+
+Branch `feat/v4-taxonomy`, thirteen commits `febb673` → `ee8a487`, gates
+green at each, and — for the first time — **something is deployed**:
+<https://the-greatness.vercel.app> runs `/brand` alone in showcase mode.
+
+- **`tools/thumbnail-frame/`** — a Pillow script that composes a supplier's
+  product photo into the storefront thumbnail: brand logo top-left, our name
+  top-right, no border (variant **g** of seven, chosen because the storefront
+  card draws its own border and floats buttons over the bottom fifth). It
+  flattens a grey backdrop and clears the baked-in supplier logo first; the
+  brand comes from the Sapo SKU, then prefix rules in `brands.json`. Six
+  partner logos with their sources, two flagged for a vector from the
+  distributor.
+- **`data/thumbnails/`** — 130 source photos as received, 129 framed, four
+  re-exports set aside with the report; `infographic-sheet.json`, the
+  audit spreadsheet's 109 SKUs with their Shopee photo URLs.
+- **`/brand`** — every image and icon in use on one page: our marks, the six
+  logos with a quality badge, the storefront's 52-symbol sprite at the sizes
+  the theme draws it **with its draw-on loop**, 640 px PNG exports of every
+  symbol for Sapo's collection-image field, and the whole framed batch with
+  a full-screen viewer and download.
+- **The brand layer in the app (S.5)** — `--brand` light/dark pair on the app
+  mark only; zebra tables through a `--zebra` token that clears the 0.035 L
+  floor; solid header; the sidebar mark collapses with the rail.
+- **Showcase mode** (`APP_MODE=showcase`) — one password from the
+  environment, an HMAC cookie, `proxy.ts` redirecting every other route,
+  category names from the committed snapshot. No database, no Blob. Vercel
+  project `the-greatness`, function in `sin1`, repo
+  `github.com/vinhnhq/the-greatness`.
+- **SKU check** — the spreadsheet's 109 SKUs against Sapo and the batch: 76
+  resolve, 33 do not (26 Joyoung, a vendor absent from the 30 Aug snapshot),
+  spelling drifts on ~10; written back to the spreadsheet as a tab.
+
+- 2026-09-17 · `ee8a487` · **S.5** and the thumbnail / brand / showcase work above.
+
 ## Sapo reconciled to the customer's sheet, and the storefront redesigned on a theme copy · ✅ 2026-09-17
 
 Not app code — the record is

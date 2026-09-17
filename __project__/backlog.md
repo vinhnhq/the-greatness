@@ -287,6 +287,26 @@ on the live theme.
 - [ ] **S.8** ↷ The level-2 icons were drawn in one sitting and reviewed at
       64 px; a second look at 24 px on a real phone is cheap and worth it.
 
+- [ ] **S.9** **Download the infographic photos and upload them to Sapo.**
+      `data/thumbnails/infographic-sheet.json` has 109 SKUs with a cover and
+      up to eight photos on `cf.shopee.vn` (the CDN serves them directly).
+      Before anything is uploaded: refresh the snapshot (`bun run
+    fetch:sapo`) — 33 SKUs, 26 of them Joyoung, are not in the 30 Aug
+      snapshot and are probably just newer — and **pick one SKU spelling**;
+      the sheet and the photo batch disagree on ~10 (`JSCBK7PRO` vs
+      `JSCB - K7 PRO`, colour suffixes on one side only). Sapo's is the
+      obvious rule. The tab `SKU check 17-09` on the audit spreadsheet has
+      the row-by-row verdict.
+- [ ] **S.10** ↷ **Primary buttons: burgundy or ink?** The storefront's
+      actions are burgundy; the app's stay ink. One token (`--primary`) if
+      yes, but the app was designed to keep its chrome quiet behind 786
+      photos. Decide, don't drift.
+- [ ] **S.11** ↷ Two partner logos are placeholders — Fujihome (5 KB JPEG)
+      and Joyoung (320 px PNG). Ask each distributor for a vector.
+- [ ] **S.12** ↷ Connect the Vercel project to the GitHub repo so pushes
+      deploy; today it deploys from the CLI. Set `feat/v4-taxonomy` as the
+      production branch until it merges.
+
 ## N — Later, unrelated to v2
 
 - [ ] **N.0** ↷ **Infinite scroll on `/gallery`.** It pages at 60 with a

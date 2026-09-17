@@ -19,6 +19,13 @@ Built for both ends of the range: a centred column that stops a table
 stretching across a 27" monitor, and a layout that holds at 390px with no
 horizontal scrolling anywhere.
 
+## Live
+
+<https://the-greatness.vercel.app> — **showcase mode**: the `/brand` page
+alone (logos, the category icon sprite, the framed product thumbnails) behind
+one password, with no database behind it. Everything else in this README
+describes the app that is not yet deployed; see backlog `N.3`.
+
 ## Start it
 
 ```bash

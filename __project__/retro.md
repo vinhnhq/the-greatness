@@ -388,3 +388,54 @@ own. The v1 file now carries a header naming exactly which acceptance criteria
 later became false and where to read instead.
 
 Freezing is not the same as leaving a landmine.
+
+## 2026-09-17 — the brand page, the first deploy, and five traps
+
+### A gate on an image route breaks `next/image`, and the CDN undoes it anyway
+
+`/brand/thumbnails/<file>` got a session check and every tile on production
+went blank: the image optimizer fetches the source **server-side, with no
+cookie**. And the response carried `public, max-age=3600`, so the one request
+that did get through was cached at the edge for everyone. Two lessons: an
+`<img>` source is fetched by something that is not the user, and a cache
+header on a gated response is a leak. The route is public, as `/uploads`
+always was; the page that lists it is what is gated.
+
+### A `<use>` into an external file is a wall
+
+The theme's draw-on animation works because its CSS reaches the `<symbol>`
+content through same-document `<use>`. Referenced as `href="sprite.svg#id"`,
+the clones live in a shadow tree the page's stylesheet cannot style — nothing
+animates and nothing errors. The sprite is inlined on `/brand` for that
+reason, and the comment in `brand.css` says so.
+
+### A stale `tsconfig.tsbuildinfo` makes `tsc` forget `PageProps`
+
+Running `next dev` with another `NEXT_DIST_DIR` rewrote `tsconfig.json`'s
+includes; reverting the file was not enough, because the incremental build
+info still pointed at the deleted directory and `tsc` reported nine
+`Cannot find name 'PageProps'` errors against code that had not changed.
+Delete the `.tsbuildinfo`. Same species as the `.next-e2e/routes.d.ts` trap
+already in `CLAUDE.md`.
+
+### The primitive knows how to collapse; the bare div does not
+
+The sidebar's brand mark was a flex row of its own, and in the icon rail it
+was rendered at 31 × 44 beside 32 × 32 items — visible, but only measured
+once someone asked. `SidebarMenuButton` carries the collapse rules; anything
+in the sidebar that must survive the rail should be one.
+
+### A "measured floor" is measured on a ground
+
+k-studio's zebra stripe is `muted/40` and reads fine there, on a 0.965 ground.
+On this app's white it is ΔL 0.012 and vanishes — below the same floor that
+guideline documents. The rule transferred; the number did not. `--zebra` is
+its own token here, one step under each theme's ground.
+
+### Setting a password is configuration; typing one is not
+
+The showcase deploy could be verified end to end — routing, gating, a forged
+cookie, a genuine one — by computing the HMAC cookie from a known secret and
+sending it with `curl`, without ever typing the password into the form. The
+form itself is the one thing the owner had to click through. Worth remembering
+as the shape of "verify without crossing the line".

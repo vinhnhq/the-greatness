@@ -32,8 +32,10 @@ Kysely, co-located operations, `__project__/` docs).
   unmerged branch `feat/v4-taxonomy`**, gates green, no PR opened yet. v8
   Blocks B–D (publishing) are planned and blocked on three things that are not
   code: a Sapo Private App key, `N.3`, and the `V8.16` spike. Two things are still true from day one:
-  **nothing is deployed**, and neither the Neon nor the Blob seam has met the
-  real service (backlog `N.3`) — that remains the largest unmeasured risk.
+  neither the Neon nor the Blob seam has met the real service (backlog
+  `N.3`) — that remains the largest unmeasured risk. Since 2026-09-17
+  <https://the-greatness.vercel.app> runs **showcase mode** (`/brand` only,
+  no database); the app itself is still undeployed.
 - **Intent** — [`__project__/specs/`](__project__/specs/), one per version.
   v1 is **frozen and partly superseded** — it describes media as belonging to
   a product, which [v2](__project__/specs/v2-media-library.md) inverted. Its
@@ -144,6 +146,22 @@ Things a session will hit, in rough order of how much time they cost.
   collection creation order — **a one-time reconstruction**, not an ongoing
   derivation, because a category added later gets the highest id and would
   file under whichever group came last. New categories arrive _unfiled_.
+- **A gated image route breaks `next/image`.** The optimizer fetches the
+  source server-side with no cookie, so a session check on
+  `/brand/thumbnails/…` blanked every tile in production — and a
+  `public, max-age` header would have leaked the file through the CDN
+  anyway. Gate the page, not the bytes.
+- **The category sprite must be inlined to animate.** A `<use>` into an
+  external `.svg` clones into a shadow tree the page's CSS cannot reach; the
+  draw-on loop silently does nothing. `/brand` reads the file and inlines it.
+- **A stale `tsconfig.tsbuildinfo` hides `PageProps`.** After running
+  `next dev` with another `NEXT_DIST_DIR`, `tsc` fails on every page with
+  "Cannot find name 'PageProps'" even once `tsconfig.json` is reverted.
+  Delete the buildinfo.
+- **Showcase mode** (`APP_MODE=showcase`, `src/lib/showcase.ts`) is what is
+  deployed today: `/brand` alone, one password, no database. Every other
+  route redirects there via `src/proxy.ts`. The real deploy is still
+  backlog `N.3`.
 - **A stale `routes.d.ts` in `.next-e2e/` breaks `tsc` for a new route.**
   Both `.next/types/` and `.next-e2e/dev/types/` are in `tsconfig.include`, so
   a route added since the last `test:e2e` run fails with "does not satisfy the
