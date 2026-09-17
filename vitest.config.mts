@@ -61,6 +61,7 @@ export default defineConfig({
         "src/lib/auth.ts",
         "src/lib/auth-client.ts",
         "src/lib/require-user.ts",
+        "src/lib/showcase.ts",
         "src/lib/env-server.ts",
         "src/lib/env-client.ts",
         // Browser-only adapters: canvas, <video>, XHR, Vercel Blob's client.

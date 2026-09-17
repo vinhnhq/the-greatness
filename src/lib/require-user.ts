@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 
 import { getCurrentUser } from "./auth";
 import type { ContextUser } from "./context";
+import { getShowcaseUser, isShowcase } from "./showcase";
 
 /**
  * The gate for every signed-in surface.
@@ -17,6 +18,11 @@ import type { ContextUser } from "./context";
  * `redirect()` and `next/headers`; the E2E smoke exercises it for real.
  */
 export const requireUser = async (): Promise<ContextUser> => {
+  if (isShowcase()) {
+    const showcaseUser = await getShowcaseUser();
+    if (!showcaseUser) redirect("/sign-in");
+    return showcaseUser;
+  }
   const user = await getCurrentUser();
   if (!user) redirect("/sign-in");
   return {

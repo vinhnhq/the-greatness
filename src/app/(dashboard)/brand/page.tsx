@@ -22,6 +22,7 @@ import Image from "next/image";
 import { PageContainer } from "@/components/app-shell/page-container";
 import { Badge } from "@/components/ui/badge";
 import { dbCategoryRepo } from "@/lib/domain/categories/repository";
+import { isShowcase } from "@/lib/showcase";
 import { cn } from "@/lib/utils";
 
 import {
@@ -127,9 +128,21 @@ function IconGrid({
   );
 }
 
+const snapshotCategories = async (): Promise<
+  readonly { slug: string; name: string }[]
+> => {
+  const raw = await readFile(
+    path.join(process.cwd(), "data", "sapo", "categories.json"),
+    "utf8",
+  );
+  return JSON.parse(raw) as { slug: string; name: string }[];
+};
+
 export default async function BrandPage() {
   const [categories, framed, sprite] = await Promise.all([
-    dbCategoryRepo.list(),
+    // Showcase mode has no database; the committed Sapo snapshot carries the
+    // same slugs and names, which is all this page needs from a category.
+    isShowcase() ? snapshotCategories() : dbCategoryRepo.list(),
     listFramed(),
     // Inlined rather than referenced, so the draw-on CSS can reach the
     // symbols (see brand.css). The file is ours and static; no user content.

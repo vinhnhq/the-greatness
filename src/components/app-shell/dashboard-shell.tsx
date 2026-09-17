@@ -64,13 +64,20 @@ import {
 } from "@/components/ui/sidebar";
 import { isId } from "@/lib/id";
 
-const NAV = [
+const NAV_ALL = [
   { href: "/products", label: "Products", icon: Package },
   { href: "/gallery", label: "Gallery", icon: Images },
   { href: "/categories", label: "Categories", icon: Tags },
   { href: "/reconcile", label: "Reconcile", icon: GitCompare },
   { href: "/brand", label: "Brand", icon: Palette },
 ] as const;
+
+// Showcase mode (`lib/showcase.ts`) has no database, so the sidebar offers
+// only the page that does not need one; `proxy.ts` enforces the same.
+const NAV =
+  process.env.NEXT_PUBLIC_APP_MODE === "showcase"
+    ? NAV_ALL.filter((item) => item.href === "/brand")
+    : NAV_ALL;
 
 export type ShellUser = {
   readonly name: string | null;
@@ -138,7 +145,10 @@ function Shell({
           <SidebarMenu>
             <SidebarMenuItem>
               <SidebarMenuButton size="lg" asChild>
-                <Link href="/products" aria-label="The Greatness">
+                <Link
+                  href={NAV[0]?.href ?? "/products"}
+                  aria-label="The Greatness"
+                >
                   {/* The one brand surface in the chrome (ADR-0005). */}
                   <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-brand text-brand-foreground">
                     <LayoutGrid className="size-4" />

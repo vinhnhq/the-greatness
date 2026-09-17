@@ -48,6 +48,7 @@ const publicEnv = {
   NEXT_PUBLIC_STORAGE_DRIVER:
     process.env.STORAGE_DRIVER ??
     (process.env.BLOB_READ_WRITE_TOKEN ? "blob" : "local"),
+  NEXT_PUBLIC_APP_MODE: process.env.APP_MODE ?? "",
   NEXT_PUBLIC_ALLOW_DEV_LOGIN:
     process.env.NODE_ENV !== "production" && process.env.ALLOW_DEV_LOGIN === "1"
       ? "1"
@@ -66,6 +67,17 @@ const nextConfig: NextConfig = {
   // shell out to the project-local `tsc` CLI. Without this flag the build
   // refuses to run with typescript@7 installed.
   experimental: { useTypeScriptCli: true },
+  // `/brand` reads the icon sprite and the framed thumbnails from disk at
+  // request time. Next traces only what it can see statically, so on Vercel
+  // the function bundle would ship without them and the page would render
+  // an empty grid with no error. Named here, they travel with the function.
+  outputFileTracingIncludes: {
+    "/brand": [
+      "./public/brand/category-icons.svg",
+      "./data/sapo/categories.json",
+    ],
+    "/brand/thumbnails/[file]": ["./data/thumbnails/framed/**"],
+  },
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "*.public.blob.vercel-storage.com" },

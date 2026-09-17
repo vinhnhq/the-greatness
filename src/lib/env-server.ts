@@ -36,6 +36,12 @@ const schema = z.object({
 
   ALLOW_DEV_LOGIN: z.string().optional(),
   VERCEL_URL: z.string().min(1).optional(),
+
+  // Showcase mode (see `showcase.ts`): /brand alone, one password, no
+  // database. Unset = the real app.
+  APP_MODE: z.enum(["showcase"]).optional(),
+  ADMIN_USER: z.string().min(1).optional(),
+  ADMIN_PASSWORD: z.string().min(1).optional(),
 });
 
 export type ServerEnv = z.infer<typeof schema>;

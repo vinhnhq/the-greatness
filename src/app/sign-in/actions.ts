@@ -5,6 +5,11 @@ import { redirect } from "next/navigation";
 import { setSession } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { devLoginEnabled } from "@/lib/env-server";
+import {
+  checkCredentials,
+  isShowcase,
+  setShowcaseSession,
+} from "@/lib/showcase";
 
 /**
  * The development sign-in.
@@ -33,4 +38,23 @@ export async function devSignIn(formData: FormData): Promise<void> {
 
   await setSession(user.id);
   redirect("/products");
+}
+
+/**
+ * The showcase sign-in: one username and password from the environment.
+ * A wrong pair lands back on the page with `?error=1`; the page says so.
+ */
+export async function showcaseSignIn(formData: FormData): Promise<void> {
+  if (!isShowcase()) redirect("/sign-in");
+  const user = formData.get("user");
+  const password = formData.get("password");
+  if (
+    typeof user !== "string" ||
+    typeof password !== "string" ||
+    !checkCredentials(user, password)
+  ) {
+    redirect("/sign-in?error=1");
+  }
+  await setShowcaseSession(user);
+  redirect("/brand");
 }

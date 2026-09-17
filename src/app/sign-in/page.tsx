@@ -23,11 +23,14 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { db } from "@/lib/db";
 import { devLoginEnabled, env } from "@/lib/env-server";
+import { isShowcase } from "@/lib/showcase";
 
-import { devSignIn } from "./actions";
+import { devSignIn, showcaseSignIn } from "./actions";
 import { GoogleButton } from "./google-button";
 
 export const metadata = { title: "Sign in" };
@@ -41,10 +44,15 @@ export const metadata = { title: "Sign in" };
  */
 export const dynamic = "force-dynamic";
 
-export default async function SignInPage() {
+export default async function SignInPage({
+  searchParams,
+}: PageProps<"/sign-in">) {
   const e = env();
-  const googleEnabled = Boolean(e.GOOGLE_CLIENT_ID && e.GOOGLE_CLIENT_SECRET);
-  const bypassEnabled = devLoginEnabled(e);
+  const showcase = isShowcase();
+  const failed = (await searchParams).error === "1";
+  const googleEnabled =
+    !showcase && Boolean(e.GOOGLE_CLIENT_ID && e.GOOGLE_CLIENT_SECRET);
+  const bypassEnabled = !showcase && devLoginEnabled(e);
 
   const operators = bypassEnabled
     ? await db
@@ -69,6 +77,33 @@ export default async function SignInPage() {
         </CardHeader>
 
         <CardContent className="flex flex-col gap-4">
+          {showcase && (
+            <form action={showcaseSignIn} className="flex flex-col gap-3">
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="user">Username</Label>
+                <Input id="user" name="user" autoComplete="username" required />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="password">Password</Label>
+                <Input
+                  id="password"
+                  name="password"
+                  type="password"
+                  autoComplete="current-password"
+                  required
+                />
+              </div>
+              {failed && (
+                <p className="text-sm text-destructive" role="alert">
+                  That username and password do not match.
+                </p>
+              )}
+              <Button type="submit" className="w-full">
+                Sign in
+              </Button>
+            </form>
+          )}
+
           {googleEnabled && <GoogleButton />}
 
           {googleEnabled && bypassEnabled && (
@@ -109,7 +144,7 @@ export default async function SignInPage() {
             </div>
           )}
 
-          {!googleEnabled && !bypassEnabled && (
+          {!showcase && !googleEnabled && !bypassEnabled && (
             <p className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">
               No sign-in method is configured. Set{" "}
               <code className="font-mono text-xs">GOOGLE_CLIENT_ID</code> and{" "}
