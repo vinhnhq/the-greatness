@@ -38,6 +38,12 @@ green at each, and — for the first time — **something is deployed**:
   spelling drifts on ~10; written back to the spreadsheet as a tab.
 
 - 2026-09-17 · `ee8a487` · **S.5** and the thumbnail / brand / showcase work above.
+- 2026-09-17 · `6e30086` · **Evening review round**, deployed: Bear's real
+  mark, Joyoung without the badge, KDK's full mark at 116 px in a 150 px
+  header; tagline right-aligned; every `/brand` image URL versioned so
+  `next/image` cannot serve a replaced file (`images.localPatterns`); four
+  category icons redrawn after a teammate's review (iron, knife, cutting
+  board, pot-and-pan set).
 
 ## Sapo reconciled to the customer's sheet, and the storefront redesigned on a theme copy · ✅ 2026-09-17
 

@@ -439,3 +439,21 @@ cookie, a genuine one — by computing the HMAC cookie from a known secret and
 sending it with `curl`, without ever typing the password into the form. The
 form itself is the one thing the owner had to click through. Worth remembering
 as the shape of "verify without crossing the line".
+
+### `next/image` caches by URL, so a replaced file is not a change
+
+Three logos and 129 thumbnails were regenerated under their old names and
+the page showed the old ones — one of them blank — for the optimizer's TTL.
+The fix is a version in the URL (`?v=<size+mtime>`), which Next 16 then
+refuses for a local image unless the path is in `images.localPatterns`; and
+listing one pattern restricts every local image, so `/uploads/**` had to be
+named too. Same lesson as the gated route: an `<img>` is served by a
+machine with its own cache and no idea the file changed.
+
+### Draw the icon, render it, look — the first draft reads as something else
+
+Five knife drafts: three read as flags. A whisk read as a broom, three
+stacked pots as a steamer, a rounded iron as a dish cover. None of these
+were visible in the SVG source; all were obvious at 64 px. The teammate who
+reviewed on a phone caught four in one message. Render every icon at the
+size it ships at before calling it drawn.
