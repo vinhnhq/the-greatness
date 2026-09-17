@@ -5,6 +5,7 @@ brand logo top-left, "GREATNESS VIETNAM / Phân phối chính hãng" top-right,
 product centred below. Pure Pillow + numpy + scipy; not part of the app.
 
 ```bash
+python3 tools/thumbnail-frame/frame.py data/thumbnails/source/*.png -o data/thumbnails/framed --variant g   # the batch
 python3 tools/thumbnail-frame/frame.py photo.png -o out/            # PNG, variant a
 python3 tools/thumbnail-frame/frame.py *.png -o out/ --variant b --jpg
 python3 tools/thumbnail-frame/frame.py new.png -o out/ --brand kdk  # when the SKU is unknown
@@ -21,8 +22,11 @@ bottom edge. `--keep-logo` turns that off.
 
 ## Variants
 
-`samples/variant-{a,b,c}.jpg` — **a** thick border (the mockup), **b** thin
-border, **c** no border with a hairline under the header.
+`samples/variant-{a..g}.jpg` — **a** thick border (the mockup), **b** thin
+border, **c** no border with a hairline, **d** footer band, **e** corner
+badge, **f** centred card, **g** the header row with no border — **g is the
+one in use**, because the storefront card draws its own border and floats
+buttons over the bottom fifth of the image.
 
 ## Logos
 

@@ -263,7 +263,7 @@ export default async function BrandPage() {
 
       <Section
         title="Product thumbnails"
-        lead="Variant G of the frame: brand top-left, our name top-right, no border, because the storefront card draws its own and floats buttons over the bottom fifth. All 129 photos are framed in Downloads/Website Thumbnail/_framed/."
+        lead="Variant G of the frame: brand top-left, our name top-right, no border, because the storefront card draws its own and floats buttons over the bottom fifth. All 129 photos are framed in data/thumbnails/framed/."
       >
         <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
           {THUMBNAIL_SAMPLES.map((sample) => (
