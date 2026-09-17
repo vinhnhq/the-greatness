@@ -32,10 +32,10 @@ import {
   PARTNER_LOGOS,
   ROOT_ICON_SLUGS,
   SERVICE_ICONS,
-  THUMBNAIL_SAMPLES,
 } from "./assets";
 
 import "./brand.css";
+import { listFramed } from "./framed";
 
 export const metadata = { title: "Brand" };
 
@@ -127,8 +127,9 @@ function IconGrid({
 }
 
 export default async function BrandPage() {
-  const [categories, sprite] = await Promise.all([
+  const [categories, framed, sprite] = await Promise.all([
     dbCategoryRepo.list(),
+    listFramed(),
     // Inlined rather than referenced, so the draw-on CSS can reach the
     // symbols (see brand.css). The file is ours and static; no user content.
     readFile(path.join(process.cwd(), "public", ICON_SPRITE), "utf8"),
@@ -226,8 +227,14 @@ export default async function BrandPage() {
         <h3 className="text-sm font-medium">Fallback and services · 40 px</h3>
         <ul className="grid grid-cols-3 gap-2 sm:grid-cols-5">
           <li className="flex flex-col items-center gap-2 rounded-md border p-3 text-center">
-            <SpriteIcon id="cat-default" size={40} className="opacity-35" />
-            <span className="text-xs">cat-default, at 35%</span>
+            <SpriteIcon id="cat-default" size={40} />
+            <span className="text-xs">
+              cat-default
+              <br />
+              <span className="text-muted-foreground">
+                drawn at 35% where it stands in
+              </span>
+            </span>
           </li>
           {SERVICE_ICONS.map((icon, index) => (
             <li
@@ -263,29 +270,32 @@ export default async function BrandPage() {
 
       <Section
         title="Product thumbnails"
-        lead="Variant G of the frame: brand top-left, our name top-right, no border, because the storefront card draws its own and floats buttons over the bottom fifth. All 129 photos are framed in data/thumbnails/framed/."
+        lead={`Variant G of the frame: brand top-left, our name top-right, no border, because the storefront card draws its own and floats buttons over the bottom fifth. The whole batch, ${framed.length} photos, from data/thumbnails/framed/.`}
       >
-        <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-          {THUMBNAIL_SAMPLES.map((sample) => (
-            <li key={sample.src} className="flex flex-col gap-2">
-              <div className="overflow-hidden rounded-md border bg-white">
-                <Image
-                  src={sample.src}
-                  alt={`${sample.brand} ${sample.caption}`}
-                  width={400}
-                  height={400}
-                  sizes="(min-width: 1024px) 300px, 50vw"
-                  className="aspect-square w-full object-contain"
-                />
-              </div>
-              <div className="text-xs text-muted-foreground">
-                <span className="font-medium text-foreground">
-                  {sample.brand}
-                </span>{" "}
-                · {sample.caption}
-              </div>
-            </li>
-          ))}
+        <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+          {framed.map((file) => {
+            const sku = file.replace(/\.png$/i, "");
+            return (
+              <li key={file} className="flex flex-col gap-1">
+                <div className="overflow-hidden rounded-md border bg-white">
+                  <Image
+                    src={`/brand/thumbnails/${encodeURIComponent(file)}`}
+                    alt={sku}
+                    width={400}
+                    height={400}
+                    sizes="(min-width: 1024px) 200px, (min-width: 640px) 33vw, 50vw"
+                    className="aspect-square w-full object-contain"
+                  />
+                </div>
+                <div
+                  className="truncate text-xs text-muted-foreground"
+                  title={sku}
+                >
+                  {sku}
+                </div>
+              </li>
+            );
+          })}
         </ul>
       </Section>
     </PageContainer>
