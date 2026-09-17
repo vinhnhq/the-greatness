@@ -27,7 +27,7 @@ export const PARTNER_LOGOS: readonly PartnerLogo[] = [
     key: "kdk",
     name: "KDK",
     src: "/brand/logos/kdk.png",
-    source: "Wikimedia Commons, KDK_logo.svg, the red square only",
+    source: "Wikimedia Commons, KDK_logo.svg",
     quality: "vector",
   },
   {

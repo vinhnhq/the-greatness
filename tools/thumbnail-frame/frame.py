@@ -62,7 +62,7 @@ VARIANTS = {
     # top edge; without it a tall product butts up against the tagline. Both
     # lines sit on the right edge (the centred block was reviewed and
     # rejected 2026-09-17).
-    "g": dict(layout="header", border=0, header_h=140, pad=34, gap=44, logo_box=(200, 80), name_size=34, tag_size=25),
+    "g": dict(layout="header", border=0, header_h=150, pad=34, gap=40, logo_box=(200, 80), name_size=34, tag_size=25),
 }
 NAME = "GREATNESS VIETNAM"
 TAGLINE = "Phân phối chính hãng"

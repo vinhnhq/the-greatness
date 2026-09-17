@@ -8,9 +8,9 @@
     "kdk": {
       "name": "KDK",
       "logo": "logos/kdk.png",
-      "source": "https://commons.wikimedia.org/wiki/File:KDK_logo.svg — the red square only; the SINCE 1909 / JAPAN line made it fit too small in a wide box",
-      "logoBox": [100, 100],
-      "note": "A compact square reads smaller than a wide wordmark at the same height, so it gets a taller box than the default."
+      "source": "https://commons.wikimedia.org/wiki/File:KDK_logo.svg — the full mark, square plus SINCE 1909 / JAPAN",
+      "logoBox": [116, 116],
+      "note": "A tall compact mark reads smaller than a wide wordmark at the same height, so it gets a taller box than the default."
     },
     "bear": {
       "name": "Bear",
