@@ -58,7 +58,9 @@ VARIANTS = {
     # draws a rounded border and overlays action buttons on the bottom fifth,
     # so the frame's chrome stays at the top and the text block is centred
     # on itself rather than ragged-right
-    "g": dict(layout="header", border=0, header_h=140, pad=34, logo_box=(200, 80), name_size=34, tag_size=25,
+    # `gap` is the breathing room between the header row and the product's
+    # top edge; without it a tall product butts up against the tagline.
+    "g": dict(layout="header", border=0, header_h=140, pad=34, gap=44, logo_box=(200, 80), name_size=34, tag_size=25,
               text_align="center"),
 }
 NAME = "GREATNESS VIETNAM"
@@ -212,7 +214,8 @@ def compose(photo: Image.Image, brand: str, size: int, v: dict) -> Image.Image:
         if v.get("rule"):
             y = b + v["header_h"] - 6
             d.line((inner, y, size - inner, y), fill=(0, 0, 0, 255), width=2)
-        _place_product(canvas, photo, (inner, b + v["header_h"], size - inner, size - inner))
+        top = b + v["header_h"] + v.get("gap", 0)
+        _place_product(canvas, photo, (inner, top, size - inner, size - inner))
 
     elif layout == "footer":
         fy = size - v["footer_h"]

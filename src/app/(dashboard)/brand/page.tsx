@@ -36,6 +36,7 @@ import {
 
 import "./brand.css";
 import { listFramed } from "./framed";
+import { ThumbnailGrid } from "./thumbnail-grid";
 
 export const metadata = { title: "Brand" };
 
@@ -272,31 +273,7 @@ export default async function BrandPage() {
         title="Product thumbnails"
         lead={`Variant G of the frame: brand top-left, our name top-right, no border, because the storefront card draws its own and floats buttons over the bottom fifth. The whole batch, ${framed.length} photos, from data/thumbnails/framed/.`}
       >
-        <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
-          {framed.map((file) => {
-            const sku = file.replace(/\.png$/i, "");
-            return (
-              <li key={file} className="flex flex-col gap-1">
-                <div className="overflow-hidden rounded-md border bg-white">
-                  <Image
-                    src={`/brand/thumbnails/${encodeURIComponent(file)}`}
-                    alt={sku}
-                    width={400}
-                    height={400}
-                    sizes="(min-width: 1024px) 200px, (min-width: 640px) 33vw, 50vw"
-                    className="aspect-square w-full object-contain"
-                  />
-                </div>
-                <div
-                  className="truncate text-xs text-muted-foreground"
-                  title={sku}
-                >
-                  {sku}
-                </div>
-              </li>
-            );
-          })}
-        </ul>
+        <ThumbnailGrid files={framed} />
       </Section>
     </PageContainer>
   );
